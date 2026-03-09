@@ -34,51 +34,51 @@
 </div>
 
 <script>
-    async function fetchDetailedData() {
-        const bill = document.getElementById('billNum').value;
-        const resultsDiv = document.getElementById('results');
-        resultsDiv.innerHTML = "Fetching exhaustive data...";
+   async function fetchDetailedData() {
+    const bill = document.getElementById('billNum').value;
+    const resultsDiv = document.getElementById('results');
+    resultsDiv.innerHTML = "Fetching complete legislative package...";
 
-        try {
-            const response = await fetch(`https://misty-credit-9e6a.ewing-jacob.workers.dev/?bill=${bill}`);
-            const xmlText = await response.text();
-            const parser = new DOMParser();
-            const xmlDoc = parser.parseFromString(xmlText, "text/xml");
+    try {
+        const response = await fetch(`https://misty-credit-9e6a.ewing-jacob.workers.dev/?bill=${bill}`);
+        const xmlText = await response.text();
+        const parser = new DOMParser();
+        const xmlDoc = parser.parseFromString(xmlText, "text/xml");
 
-            // Helper to get tag value
-            const getVal = (tag) => xmlDoc.getElementsByTagName(tag)[0]?.textContent || "N/A";
+        const getVal = (tag) => xmlDoc.getElementsByTagName(tag)[0]?.textContent || "N/A";
 
-            resultsDiv.innerHTML = `
-                <h2>Bill ${getVal('BillNumber')} (${getVal('Biennium')})</h2>
-                
-                <div class="section-title">Core Information</div>
-                <div class="data-grid">
-                    <div class="data-item"><span class="label">Short Description:</span> ${getVal('ShortDescription')}</div>
-                    <div class="data-item"><span class="label">Legal Title:</span> ${getVal('LongDescription')}</div>
-                    <div class="data-item"><span class="label">Sponsors:</span> ${getVal('Sponsors')}</div>
-                    <div class="data-item"><span class="label">Prime Sponsor:</span> ${getVal('PrimeSponsor')}</div>
-                </div>
-
-                <div class="section-title">Legislative Metadata</div>
-                <table>
-                    <tr><th>Attribute</th><th>Status</th></tr>
-                    <tr><td>Appropriations</td><td>${getVal('Appropriations') === 'true' ? '✅ Yes' : '❌ No'}</td></tr>
-                    <tr><td>Requested by Governor</td><td>${getVal('RequestedByGovernor') === 'true' ? '✅ Yes' : '❌ No'}</td></tr>
-                    <tr><td>State Fiscal Note</td><td>${getVal('StateFiscalNote') === 'true' ? '✅ Yes' : '❌ No'}</td></tr>
-                    <tr><td>Local Fiscal Note</td><td>${getVal('LocalFiscalNote') === 'true' ? '✅ Yes' : '❌ No'}</td></tr>
-                    <tr><td>Requested by Budget Committee</td><td>${getVal('RequestedByBudgetCommittee') === 'true' ? '✅ Yes' : '❌ No'}</td></tr>
-                </table>
-
-                <div class="section-title">Technical IDs</div>
-                <div class="data-grid">
-                    <div class="data-item"><span class="label">Bill ID:</span> ${getVal('BillId')}</div>
-                    <div class="data-item"><span class="label">Request Number:</span> ${getVal('OriginalRequestNumber')}</div>
-                </div>
-            `;
-        } catch (err) {
-            resultsDiv.innerHTML = `<p style="color:red">Error parsing data. Ensure bill number is correct for 2025-26.</p>`;
+        // Extracting Sponsors
+        const sponsorNodes = xmlDoc.getElementsByTagName("Sponsor");
+        let sponsorList = [];
+        let primeSponsor = "N/A";
+        
+        for (let s of sponsorNodes) {
+            const name = s.getElementsByTagName("Name")[0]?.textContent;
+            const type = s.getElementsByTagName("Type")[0]?.textContent;
+            if (type === "Primary") primeSponsor = name;
+            sponsorList.push(name);
         }
+
+        // Extracting Companion
+        const companionNum = xmlDoc.getElementsByTagName("CompanionBillNumber")[0]?.textContent || "None";
+
+        resultsDiv.innerHTML = `
+            <h2>Bill ${bill} Details</h2>
+            <div class="section-title">Sponsorship</div>
+            <p><strong>Prime Sponsor:</strong> ${primeSponsor}</p>
+            <p><strong>All Sponsors:</strong> ${sponsorList.join(", ")}</p>
+
+            <div class="section-title">Companion Bill</div>
+            <p><strong>Companion:</strong> ${companionNum !== "None" ? 'HB/SB ' + companionNum : 'No companion bill found'}</p>
+
+            <div class="section-title">Core Information</div>
+            <p><strong>Short Title:</strong> ${getVal('ShortDescription')}</p>
+            <p><strong>Long Title:</strong> ${getVal('LongDescription')}</p>
+        `;
+    } catch (err) {
+        resultsDiv.innerHTML = "Error loading data.";
     }
+}
 </script>
 
 </body>
