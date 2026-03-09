@@ -3,8 +3,8 @@ export async function onRequest(context) {
     const url = new URL(request.url);
     const targetUrl = url.searchParams.get('url');
 
-    // Security check: Only allow requests to the WA state API
-    if (!targetUrl || !targetUrl.startsWith('http://wslwebservices.leg.wa.gov/')) {
+    // Security check: Updated to require https://
+    if (!targetUrl || !targetUrl.startsWith('https://wslwebservices.leg.wa.gov/')) {
         return new Response('Unauthorized request', { status: 403 });
     }
 
