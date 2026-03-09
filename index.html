@@ -2,23 +2,48 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>LegiTile</title>
-    <link rel="stylesheet" href="styles.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WA State Bill Lookup</title>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<div class="sidebar"></div>
+    <div class="container">
+        <h1>WA State Legislative Bill Lookup</h1>
+        <p>Enter a Washington State bill number to retrieve its details.</p>
+        
+        <div class="controls">
+            <select id="biennium">
+                <option value="2025-26" selected>2025-2026</option>
+                <option value="2023-24">2023-2024</option>
+                <option value="2021-22">2021-2022</option>
+            </select>
+            <input type="number" id="billNumber" placeholder="Bill Number (e.g. 1201)" />
+            <button onclick="fetchBill()">Lookup</button>
+        </div>
 
-    <div class="main-content">
-        <button class="login-btn">Login</button>
-        
-        <h1>Welcome</h1>
-        <p class="subtitle">Let's make this a great session.</p>
-        
-        <div class="action-buttons">
-            <button class="action-btn">Start Tracking Bills</button>
-            <button class="action-btn">What is Legitile</button>
+        <div id="loading" class="loading" style="display:none;">Fetching data...</div>
+        <div id="error" class="error" style="display:none;"></div>
+
+        <div class="card" id="results" style="display:none;">
+            <div class="result-group">
+                <div class="label">Bill Title</div>
+                <div class="value" id="title">-</div>
+            </div>
+            <div class="result-group">
+                <div class="label">Sponsor(s)</div>
+                <div class="value" id="sponsors">-</div>
+            </div>
+            <div class="result-group">
+                <div class="label">Current Status</div>
+                <div class="value" id="status">-</div>
+            </div>
+            <div class="result-group">
+                <div class="label">Companion Bill</div>
+                <div class="value" id="companion">-</div>
+            </div>
         </div>
     </div>
+
+    <script src="app.js"></script>
 </body>
 </html>
