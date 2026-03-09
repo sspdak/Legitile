@@ -1,1 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Washington State Legislature Bill Explorer</title>
+    <style>
+        :root {
+            --primary: #0056b3;
+            --bg-color: #f8f9fa;
+            --border-color: #dee2e6;
+        }
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            max-width: 800px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+            color: #333;
+            line-height: 1.5;
+        }
+        .card {
+            background: #fff;
+            border: 1px solid var(--border-color);
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .form-row {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+        }
+        label {
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+            font-size: 0.9rem;
+        }
+        input {
+            padding: 0.5rem;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 1rem;
+        }
+        button {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 0.5rem 1.5rem;
+            font-size: 1rem;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        button:hover {
+            background: #004494;
+        }
+        #results {
+            margin-top: 2rem;
+        }
+        .data-grid {
+            display: grid;
+            grid-template-columns: auto 1fr;
+            gap: 0.5rem 1rem;
+            background: var(--bg-color);
+            padding: 1rem;
+            border-radius: 4px;
+            border: 1px solid var(--border-color);
+            font-family: monospace;
+            font-size: 0.9rem;
+        }
+        .data-key {
+            font-weight: bold;
+            color: #555;
+        }
+        .error {
+            color: #dc3545;
+            background: #f8d7da;
+            padding: 1rem;
+            border-radius: 4px;
+            border: 1px solid #f5c6cb;
+        }
+    </style>
+</head>
+<body>
 
+    <h1>Washington State Bill Explorer</h1>
+    
+    <div class="card">
+        <div class="form-row">
+            <div class="input-group">
+                <label for="biennium">Biennium</label>
+                <input type="text" id="biennium" value="2025-26" placeholder="e.g., 2025-26">
+            </div>
+            <div class="input-group">
+                <label for="billNumber">Bill Number</label>
+                <input type="text" id="billNumber" value="1001" placeholder="e.g., 1001">
+            </div>
+        </div>
+        <button onclick="fetchBillData()">Fetch Bill Data</button>
+    </div>
+
+    <div id="results"></div>
+
+    <script>
+    async function fetchBillData() {
+        const biennium = document.getElementById('biennium').value.trim();
+        const billNumber = document.getElementById('billNumber').value.trim();
+        const resultsDiv = document.getElementById('results');
+        
+        if (!biennium || !billNumber) {
+            resultsDiv.innerHTML = '<p class="error">Please enter both a biennium and a bill number.</p>';
+            return;
+        }
+
+        resultsDiv.innerHTML = '<p>Fetching data...</p>';
+
+        // The actual WA Legislature API URL
+        const targetUrl = `https://wslwebservices.leg.wa.gov/LegislationService.asmx/GetLegislationByBillNumber?biennium=${biennium}&billNumber=${billNumber}`;
+        
+        // Pointing to your new Cloudflare Function
+        const proxyUrl = `/api/bill?url=${encodeURIComponent(targetUrl)}`;
+
+        try {
+            const response = await fetch(proxyUrl);
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            
+            // We now extract raw text/xml directly instead of JSON
+            const xmlText = await response.text();
+            
+            // Parse the XML
+            const parser = new DOMParser();
+            const xmlDoc = parser.parseFromString(xmlText, "text/xml");
+
+            // Look for the main <Legislation> node
+            const legislations = xmlDoc.getElementsByTagName("Legislation");
+            
+            if (legislations.length === 0) {
+                resultsDiv.innerHTML = '<p class="error">No bill found. Check the biennium and bill number.</p>';
+                return;
+            }
+
+            const legNode = legislations[0];
+            let html = `<h2>Bill Details</h2><div class="data-grid">`;
+
+            // Loop through all child nodes to display available fields
+            for (let i = 0; i < legNode.children.length; i++) {
+                const child = legNode.children[i];
+                if (child.children.length === 0) {
+                     html += `<div class="data-key">${child.nodeName}:</div>
+                              <div class="data-value">${child.textContent}</div>`;
+                }
+            }
+            
+            html += `</div>`;
+            resultsDiv.innerHTML = html;
+
+        } catch (error) {
+            resultsDiv.innerHTML = `<div class="error">
+                <strong>Error fetching data:</strong> ${error.message}
+            </div>`;
+        }
+    }
+</script>
+</body>
+</html>
