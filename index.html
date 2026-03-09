@@ -3,94 +3,194 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Advanced WA Bill Tracker</title>
+    <title>WA Bill Data Dashboard</title>
     <style>
-        body { font-family: sans-serif; background: #f0f2f5; padding: 20px; color: #333; }
-        .container { max-width: 800px; margin: auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
-        .search-box { display: flex; gap: 10px; margin-bottom: 30px; }
-        input { flex: 1; padding: 12px; border: 1px solid #ccc; border-radius: 5px; }
-        button { padding: 12px 24px; background: #0056b3; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+            background: #eaeff1; 
+            color: #202124; 
+            padding: 20px; 
+            margin: 0; 
+        }
+        .container { 
+            max-width: 1000px; 
+            margin: auto; 
+        }
+        h2 { color: #1a73e8; }
         
-        .section-title { background: #e9ecef; padding: 8px 12px; font-weight: bold; margin-top: 20px; border-radius: 4px; }
-        .data-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 10px 0; }
-        .data-item { font-size: 0.9rem; }
-        .label { font-weight: bold; color: #555; }
+        .search-box { 
+            display: flex; 
+            gap: 10px; 
+            margin-bottom: 20px; 
+            background: white; 
+            padding: 20px; 
+            border-radius: 8px; 
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1); 
+        }
+        input { 
+            flex: 1; 
+            padding: 12px; 
+            border: 1px solid #dadce0; 
+            border-radius: 4px; 
+            font-size: 16px; 
+        }
+        button { 
+            padding: 12px 24px; 
+            background: #1a73e8; 
+            color: white; 
+            border: none; 
+            border-radius: 4px; 
+            font-weight: bold; 
+            cursor: pointer; 
+        }
+        button:hover { background: #1557b0; }
         
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        th, td { text-align: left; padding: 8px; border-bottom: 1px solid #eee; font-size: 0.85rem; }
-        .status-badge { display: inline-block; padding: 4px 8px; border-radius: 12px; background: #d4edda; color: #155724; font-size: 0.8rem; }
+        #results { 
+            display: flex; 
+            flex-direction: column; 
+            gap: 20px; 
+        }
+        
+        .card { 
+            background: white; 
+            padding: 20px; 
+            border-radius: 8px; 
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1); 
+            overflow-x: auto; 
+        }
+        
+        h4 { 
+            margin-top: 0; 
+            margin-bottom: 15px; 
+            color: #5f6368; 
+            font-size: 1.1em; 
+            border-bottom: 2px solid #f1f3f4; 
+            padding-bottom: 8px; 
+            text-transform: capitalize; 
+        }
+        
+        table { 
+            width: 100%; 
+            border-collapse: collapse; 
+        }
+        th, td { 
+            padding: 10px 12px; 
+            border-bottom: 1px solid #f1f3f4; 
+            text-align: left; 
+            font-size: 14px; 
+            vertical-align: top;
+        }
+        th { 
+            width: 30%; 
+            color: #5f6368; 
+            font-weight: 600; 
+            background: #f8f9fa; 
+        }
+        tr:last-child th, tr:last-child td { border-bottom: none; }
+        .error { color: #d93025; font-weight: bold; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h1>Legislative Bill Detail</h1>
+    <h2>Legislative Data Dashboard</h2>
     <div class="search-box">
         <input type="text" id="billNum" placeholder="Enter Bill Number (e.g. 1000)">
-        <button onclick="fetchDetailedData()">Get All Data</button>
+        <button onclick="fetchAllData()">Fetch API Data</button>
     </div>
-
-    <div id="results"></div>
+    <div id="results">Enter a bill number to view the complete dataset.</div>
 </div>
 
 <script>
-   async function fetchDetailedData() {
-    const bill = document.getElementById('billNum').value;
-    const resultsDiv = document.getElementById('results');
-    
-    if (!bill) return;
-    resultsDiv.innerHTML = "Fetching...";
-
-    try {
-        const response = await fetch(`https://misty-credit-9e6a.ewing-jacob.workers.dev/?bill=${bill}`);
-        const xmlText = await response.text();
-        const parser = new DOMParser();
-        const xmlDoc = parser.parseFromString(xmlText, "text/xml");
-
-        // Helper to handle Namespaces
-        const ns = "http://WSLWebServices.leg.wa.gov/";
-        const getTag = (name) => xmlDoc.getElementsByTagNameNS(ns, name)[0]?.textContent || "N/A";
-
-        // 1. Process Sponsors
-        const sponsorNodes = xmlDoc.getElementsByTagNameNS(ns, "Sponsor");
-        let sponsorNames = [];
-        let primeSponsor = "None Listed";
-        
-        for (let s of sponsorNodes) {
-            const name = s.getElementsByTagNameNS(ns, "Name")[0]?.textContent;
-            const type = s.getElementsByTagNameNS(ns, "Type")[0]?.textContent;
-            if (type === "Primary") primeSponsor = name;
-            sponsorNames.push(name);
+    function parseXmlToDashboard(node) {
+        if (node.nodeType === 3) {
+            return node.nodeValue.trim();
         }
+        
+        if (node.nodeType === 1) {
+            // Strip out SOAP structural wrappers
+            const ignoreTags = ['soap:Envelope', 'soap:Body', 'Root', 'ArrayOfSponsor', 'ArrayOfRollCall', 'ArrayOfHearing'];
+            if (ignoreTags.some(tag => node.nodeName.includes(tag))) {
+                let html = '';
+                for (let child of node.childNodes) html += parseXmlToDashboard(child);
+                return html;
+            }
 
-        // 2. Process Companion
-        const companionInfo = xmlDoc.getElementsByTagNameNS(ns, "CompanionLegislation")[0];
-        const compNum = companionInfo?.getElementsByTagNameNS(ns, "BillNumber")[0]?.textContent || "None";
+            // Check if node is a leaf (contains only text, no nested elements)
+            let isLeaf = true;
+            for (let child of node.childNodes) {
+                if (child.nodeType === 1) isLeaf = false;
+            }
 
-        // 3. Display
-        resultsDiv.innerHTML = `
-            <div class="section-title">Bill ${bill} Dashboard</div>
-            <p><strong>Short Title:</strong> ${getTag('ShortDescription')}</p>
-            <p><strong>Prime Sponsor:</strong> ${primeSponsor}</p>
-            <p><strong>All Sponsors:</strong> ${sponsorNames.join(", ")}</p>
-            <p><strong>Companion Bill:</strong> ${compNum !== "None" ? 'HB/SB ' + compNum : 'None'}</p>
-            
-            <div class="section-title">Status Flags</div>
-            <ul>
-                <li>Appropriations: ${getTag('Appropriations') === 'true' ? 'Yes' : 'No'}</li>
-                <li>Governor Requested: ${getTag('RequestedByGovernor') === 'true' ? 'Yes' : 'No'}</li>
-                <li>Fiscal Note: ${getTag('StateFiscalNote') === 'true' ? 'Yes' : 'No'}</li>
-            </ul>
+            // Format camelCase XML tags into readable labels
+            let label = node.localName.replace(/([A-Z])/g, ' $1').trim();
 
-            <div class="section-title">Long Title</div>
-            <p style="font-size: 0.85rem; color: #666;">${getTag('LongDescription')}</p>
-        `;
+            if (isLeaf) {
+                let val = node.textContent.trim();
+                if (!val) return '';
+                return `<tr><th>${label}</th><td>${val}</td></tr>`;
+            } else {
+                let rowsHtml = '';
+                let blocksHtml = '';
+                
+                // Separate table rows from nested blocks
+                for (let child of node.childNodes) {
+                    let result = parseXmlToDashboard(child);
+                    if (result.startsWith('<tr')) {
+                        rowsHtml += result;
+                    } else {
+                        blocksHtml += result;
+                    }
+                }
 
-    } catch (err) {
-        console.error(err);
-        resultsDiv.innerHTML = "Error: " + err.message;
+                let output = '';
+                
+                // Create a table card for standard key-value data
+                if (rowsHtml) {
+                    output += `<div class="card"><h4>${label}</h4><table>${rowsHtml}</table></div>`;
+                }
+                
+                // Append any deeply nested structures below the table
+                if (blocksHtml) {
+                    output += blocksHtml; 
+                }
+                
+                return output;
+            }
+        }
+        return '';
     }
-}
+
+    async function fetchAllData() {
+        const bill = document.getElementById('billNum').value;
+        const resultsDiv = document.getElementById('results');
+        
+        if (!bill) return;
+        resultsDiv.innerHTML = "Querying WSL API...";
+
+        try {
+            // Your Cloudflare Worker URL
+            const workerUrl = `https://misty-credit-9e6a.ewing-jacob.workers.dev/?bill=${bill}`;
+            const response = await fetch(workerUrl);
+            const xmlText = await response.text();
+            
+            const parser = new DOMParser();
+            const xmlDoc = parser.parseFromString(xmlText, "text/xml");
+
+            if (xmlDoc.getElementsByTagName("faultstring").length > 0) {
+                resultsDiv.innerHTML = `<span class="error">API Error: ${xmlDoc.getElementsByTagName("faultstring")[0].textContent}</span>`;
+                return;
+            }
+
+            // Generate the dashboard UI directly from the XML Document
+            const dashboardHtml = parseXmlToDashboard(xmlDoc.documentElement);
+            
+            resultsDiv.innerHTML = dashboardHtml || "No data found for this bill.";
+
+        } catch (err) {
+            resultsDiv.innerHTML = `<span class="error">Error connecting to Worker: ${err.message}</span>`;
+        }
+    }
 </script>
 
 </body>
