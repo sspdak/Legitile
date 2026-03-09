@@ -3,173 +3,41 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WA Bill Data Dashboard</title>
+    <title>WA Bill Summary</title>
     <style>
-        body { 
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
-            background: #eaeff1; 
-            color: #202124; 
-            padding: 20px; 
-            margin: 0; 
-        }
-        .container { 
-            max-width: 1000px; 
-            margin: auto; 
-        }
-        h2 { color: #1a73e8; }
-        
-        .search-box { 
-            display: flex; 
-            gap: 10px; 
-            margin-bottom: 20px; 
-            background: white; 
-            padding: 20px; 
-            border-radius: 8px; 
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1); 
-        }
-        input { 
-            flex: 1; 
-            padding: 12px; 
-            border: 1px solid #dadce0; 
-            border-radius: 4px; 
-            font-size: 16px; 
-        }
-        button { 
-            padding: 12px 24px; 
-            background: #1a73e8; 
-            color: white; 
-            border: none; 
-            border-radius: 4px; 
-            font-weight: bold; 
-            cursor: pointer; 
-        }
-        button:hover { background: #1557b0; }
-        
-        #results { 
-            display: flex; 
-            flex-direction: column; 
-            gap: 20px; 
-        }
-        
-        .card { 
-            background: white; 
-            padding: 20px; 
-            border-radius: 8px; 
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1); 
-            overflow-x: auto; 
-        }
-        
-        h4 { 
-            margin-top: 0; 
-            margin-bottom: 15px; 
-            color: #5f6368; 
-            font-size: 1.1em; 
-            border-bottom: 2px solid #f1f3f4; 
-            padding-bottom: 8px; 
-            text-transform: capitalize; 
-        }
-        
-        table { 
-            width: 100%; 
-            border-collapse: collapse; 
-        }
-        th, td { 
-            padding: 10px 12px; 
-            border-bottom: 1px solid #f1f3f4; 
-            text-align: left; 
-            font-size: 14px; 
-            vertical-align: top;
-        }
-        th { 
-            width: 30%; 
-            color: #5f6368; 
-            font-weight: 600; 
-            background: #f8f9fa; 
-        }
-        tr:last-child th, tr:last-child td { border-bottom: none; }
+        body { font-family: -apple-system, sans-serif; background: #eaeff1; padding: 20px; color: #202124; margin: 0; }
+        .container { max-width: 800px; margin: auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        h2 { margin-top: 0; color: #1a73e8; }
+        .search-box { display: flex; gap: 10px; margin-bottom: 30px; }
+        input { flex: 1; padding: 12px; border: 1px solid #dadce0; border-radius: 4px; font-size: 16px; }
+        button { padding: 12px 24px; background: #1a73e8; color: white; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; }
+        .data-point { margin-bottom: 20px; border-bottom: 1px solid #f1f3f4; padding-bottom: 15px; }
+        .data-point:last-child { border-bottom: none; }
+        .label { font-weight: 600; color: #5f6368; display: block; margin-bottom: 6px; text-transform: uppercase; font-size: 0.85rem; }
+        .value { line-height: 1.5; font-size: 1rem; }
         .error { color: #d93025; font-weight: bold; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2>Legislative Data Dashboard</h2>
+    <h2>WA Legislative Summary</h2>
     <div class="search-box">
         <input type="text" id="billNum" placeholder="Enter Bill Number (e.g. 1000)">
-        <button onclick="fetchAllData()">Fetch API Data</button>
+        <button onclick="fetchSummaryData()">Search</button>
     </div>
-    <div id="results">Enter a bill number to view the complete dataset.</div>
+    <div id="results">Awaiting input...</div>
 </div>
 
 <script>
-    function parseXmlToDashboard(node) {
-        if (node.nodeType === 3) {
-            return node.nodeValue.trim();
-        }
-        
-        if (node.nodeType === 1) {
-            // Strip out SOAP structural wrappers
-            const ignoreTags = ['soap:Envelope', 'soap:Body', 'Root', 'ArrayOfSponsor', 'ArrayOfRollCall', 'ArrayOfHearing'];
-            if (ignoreTags.some(tag => node.nodeName.includes(tag))) {
-                let html = '';
-                for (let child of node.childNodes) html += parseXmlToDashboard(child);
-                return html;
-            }
-
-            // Check if node is a leaf (contains only text, no nested elements)
-            let isLeaf = true;
-            for (let child of node.childNodes) {
-                if (child.nodeType === 1) isLeaf = false;
-            }
-
-            // Format camelCase XML tags into readable labels
-            let label = node.localName.replace(/([A-Z])/g, ' $1').trim();
-
-            if (isLeaf) {
-                let val = node.textContent.trim();
-                if (!val) return '';
-                return `<tr><th>${label}</th><td>${val}</td></tr>`;
-            } else {
-                let rowsHtml = '';
-                let blocksHtml = '';
-                
-                // Separate table rows from nested blocks
-                for (let child of node.childNodes) {
-                    let result = parseXmlToDashboard(child);
-                    if (result.startsWith('<tr')) {
-                        rowsHtml += result;
-                    } else {
-                        blocksHtml += result;
-                    }
-                }
-
-                let output = '';
-                
-                // Create a table card for standard key-value data
-                if (rowsHtml) {
-                    output += `<div class="card"><h4>${label}</h4><table>${rowsHtml}</table></div>`;
-                }
-                
-                // Append any deeply nested structures below the table
-                if (blocksHtml) {
-                    output += blocksHtml; 
-                }
-                
-                return output;
-            }
-        }
-        return '';
-    }
-
-    async function fetchAllData() {
+    async function fetchSummaryData() {
         const bill = document.getElementById('billNum').value;
         const resultsDiv = document.getElementById('results');
         
         if (!bill) return;
-        resultsDiv.innerHTML = "Querying WSL API...";
+        resultsDiv.innerHTML = "Fetching dataset from WSL...";
 
         try {
-            // Your Cloudflare Worker URL
             const workerUrl = `https://misty-credit-9e6a.ewing-jacob.workers.dev/?bill=${bill}`;
             const response = await fetch(workerUrl);
             const xmlText = await response.text();
@@ -177,15 +45,77 @@
             const parser = new DOMParser();
             const xmlDoc = parser.parseFromString(xmlText, "text/xml");
 
+            // Logs the entire dataset to the browser console for your background access
+            console.log("Full API Dataset:", xmlDoc);
+
             if (xmlDoc.getElementsByTagName("faultstring").length > 0) {
                 resultsDiv.innerHTML = `<span class="error">API Error: ${xmlDoc.getElementsByTagName("faultstring")[0].textContent}</span>`;
                 return;
             }
 
-            // Generate the dashboard UI directly from the XML Document
-            const dashboardHtml = parseXmlToDashboard(xmlDoc.documentElement);
+            // Safe tag extractor to bypass XML namespace issues
+            const getTagText = (tag) => {
+                const nodes = xmlDoc.getElementsByTagNameNS("*", tag);
+                if (nodes.length > 0) return nodes[0].textContent.trim();
+                const fallback = xmlDoc.getElementsByTagName(tag);
+                return fallback.length > 0 ? fallback[0].textContent.trim() : null;
+            };
+
+            const getNodes = (tag) => {
+                const nodes = xmlDoc.getElementsByTagNameNS("*", tag);
+                return nodes.length > 0 ? Array.from(nodes) : Array.from(xmlDoc.getElementsByTagName(tag));
+            };
+
+            // 1. Bill Number
+            const billNumber = getTagText("BillNumber") || bill;
+
+            // 2. Short Description
+            const shortDesc = getTagText("ShortDescription") || "N/A";
+
+            // 3. Long Description
+            const longDesc = getTagText("LongDescription") || "N/A";
+
+            // 4. Current Status
+            const currentStatus = getTagText("HistoryLine") || "N/A";
+
+            // 5. Sponsors
+            const sponsorNodes = getNodes("Sponsor");
+            let sponsorNames = [];
+            let primeSponsor = "N/A";
             
-            resultsDiv.innerHTML = dashboardHtml || "No data found for this bill.";
+            for (let s of sponsorNodes) {
+                const nameNode = s.getElementsByTagNameNS("*", "Name")[0] || s.getElementsByTagName("Name")[0];
+                const typeNode = s.getElementsByTagNameNS("*", "Type")[0] || s.getElementsByTagName("Type")[0];
+                
+                if (nameNode) {
+                    const name = nameNode.textContent;
+                    const type = typeNode ? typeNode.textContent : "";
+                    if (type === "Primary") primeSponsor = name;
+                    sponsorNames.push(name);
+                }
+            }
+            const sponsorDisplay = sponsorNames.length > 0 
+                ? `<strong>Prime:</strong> ${primeSponsor}<br><strong>All:</strong> ${sponsorNames.join(", ")}` 
+                : "N/A";
+
+            // 6. Companion
+            const companionNodes = getNodes("Companion");
+            let companions = [];
+            for (let c of companionNodes) {
+                let text = c.textContent.trim();
+                if (text) companions.push(text);
+            }
+            const companionDisplay = companions.length > 0 ? companions.join(", ") : "None";
+
+            // Render UI
+            resultsDiv.innerHTML = `
+                <div class="data-point"><span class="label">Bill Number</span><div class="value">${billNumber}</div></div>
+                <div class="data-point"><span class="label">Sponsor(s)</span><div class="value">${sponsorDisplay}</div></div>
+                <div class="data-point"><span class="label">Short Description</span><div class="value">${shortDesc}</div></div>
+                <div class="data-point"><span class="label">Long Description</span><div class="value">${longDesc}</div></div>
+                <div class="data-point"><span class="label">Current Status</span><div class="value">${currentStatus}</div></div>
+                <div class="data-point"><span class="label">Companion</span><div class="value">${companionDisplay}</div></div>
+            `;
 
         } catch (err) {
             resultsDiv.innerHTML = `<span class="error">Error connecting to Worker: ${err.message}</span>`;
