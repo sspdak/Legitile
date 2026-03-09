@@ -1,15 +1,15 @@
-// Helper function to fetch and parse XML via a public CORS proxy
+// Helper function to fetch and parse XML via the AllOrigins CORS proxy
 async function fetchXml(endpointPath, params) {
     const targetUrl = new URL(`http://wslwebservices.leg.wa.gov/legislationservice.asmx/${endpointPath}`);
     for (const key in params) {
         targetUrl.searchParams.append(key, params[key]);
     }
     
-    // Using corsproxy.io to bypass GitHub Pages CORS limitations
-    const proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent(targetUrl.href);
+    // Swapped to AllOrigins proxy
+    const proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(targetUrl.href);
     
     const response = await fetch(proxyUrl);
-    if (!response.ok) throw new Error(`Failed to fetch ${endpointPath}. Status: ${response.status}`);
+    if (!response.ok) throw new Error(`HTTP Error ${response.status}: Failed to reach proxy.`);
     
     const text = await response.text();
     return new window.DOMParser().parseFromString(text, "text/xml");
@@ -80,8 +80,12 @@ async function fetchBill() {
         document.getElementById('results').style.display = 'block';
     } catch (err) {
         document.getElementById('loading').style.display = 'none';
-        console.error(err);
-        showError("An error occurred. The WA state API might be down, or the public CORS proxy is rate-limiting requests.");
+        
+        // Logs the exact technical reason to your browser console
+        console.error("Fetch Error:", err); 
+        
+        // Displays a more specific error on screen
+        showError(`Error: ${err.message}. If this persists, check the browser console for exact details.`);
     }
 }
 
