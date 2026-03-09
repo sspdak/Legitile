@@ -1,15 +1,15 @@
-// Helper function to fetch and parse XML via the AllOrigins CORS proxy
+// Helper function to fetch and parse XML via your dedicated Cloudflare proxy
 async function fetchXml(endpointPath, params) {
     const targetUrl = new URL(`http://wslwebservices.leg.wa.gov/legislationservice.asmx/${endpointPath}`);
     for (const key in params) {
         targetUrl.searchParams.append(key, params[key]);
     }
     
-    // Swapped to AllOrigins proxy
-    const proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(targetUrl.href);
+    // Route the request to your new Cloudflare Pages Function
+    const proxyUrl = `/api/proxy?url=${encodeURIComponent(targetUrl.href)}`;
     
     const response = await fetch(proxyUrl);
-    if (!response.ok) throw new Error(`HTTP Error ${response.status}: Failed to reach proxy.`);
+    if (!response.ok) throw new Error(`HTTP Error ${response.status}: Dedicated proxy failed.`);
     
     const text = await response.text();
     return new window.DOMParser().parseFromString(text, "text/xml");
