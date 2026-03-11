@@ -171,10 +171,23 @@
         }
     }
 
-    // Temporary mock data until we write the Worker API routes
-    function mockLegislativeStats() {
-        document.getElementById('houseCount').innerText = "1,432";
-        document.getElementById('senateCount').innerText = "1,089";
+// Fetch live bill counts from Cloudflare Worker
+    fetchLegislativeStats();
+
+    async function fetchLegislativeStats() {
+        try {
+            const res = await fetch(`${workerBaseUrl}/session-stats`, { headers: authHeaders });
+            if (!res.ok) throw new Error("API Error");
+            const stats = await res.json();
+            
+            // Apply formatting (e.g., 1,432)
+            document.getElementById('houseCount').innerText = stats.house.toLocaleString();
+            document.getElementById('senateCount').innerText = stats.senate.toLocaleString();
+        } catch (e) {
+            document.getElementById('houseCount').innerText = "Err";
+            document.getElementById('senateCount').innerText = "Err";
+        }
+    }
     }
 </script>
 
