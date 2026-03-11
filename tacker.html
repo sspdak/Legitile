@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WA Legislative Tracker</title>
+    <style>
+        body { font-family: -apple-system, sans-serif; background: #eaeff1; padding: 20px; color: #202124; margin: 0; }
+        .container { max-width: 800px; margin: auto; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .card { background: white; padding: 25px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        h2, h4 { margin-top: 0; color: #1a73e8; }
+        .input-group { display: flex; gap: 10px; margin-bottom: 15px; }
+        input { flex: 1; padding: 12px; border: 1px solid #dadce0; border-radius: 4px; font-size: 16px; }
+        button { padding: 12px 24px; background: #1a73e8; color: white; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; }
+        .logout-btn { background: #5f6368; padding: 8px 16px; }
+        .data-point { margin-bottom: 20px; border-bottom: 1px solid #f1f3f4; padding-bottom: 15px; }
+        .label { font-weight: 600; color: #5f6368; display: block; margin-bottom: 6px; text-transform: uppercase; font-size: 0.85rem; }
+        .value { line-height: 1.5; font-size: 1rem; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header">
+        <h2>Legislative Tracker</h2>
+        <div>
+            <span id="userEmailDisplay" style="margin-right: 15px; font-size: 0.9rem; color: #5f6368;"></span>
+            <button class="logout-btn" onclick="logout()">Log Out</button>
+        </div>
+    </div>
+
+    <div class="card">
+        <h4>Lookup Bill</h4>
+        <div class="input-group">
+            <input type="text" id="billNum" placeholder="Enter Bill Number (e.g. 1000)">
+            <button onclick="fetchSummaryData()">Search API</button>
+        </div>
+        <div id="results">Awaiting input...</div>
+    </div>
+</div>
+
+<script>
+    // Security check: Kick user out if they bypass the login page
+    if (!localStorage.getItem('user_logged_in')) {
+        window.location.href = 'index.html';
+    }
+
+    // Display logged-in user's email
+    document.getElementById('userEmailDisplay').innerText = localStorage.getItem('user_email');
+
+    function logout() {
+        localStorage.removeItem('user_logged_in');
+        localStorage.removeItem('user_email');
+        window.location.href = 'index.html';
+    }
+
+    const workerBaseUrl = "https://misty-credit-9e6a.ewing-jacob.workers.dev";
+
+    async function fetchSummaryData() {
+        const bill = document.getElementById('billNum').value;
+        const resultsDiv = document.getElementById('results');
+        
+        if (!bill) return;
+        resultsDiv.innerHTML = "Fetching dataset from WSL...";
+
+        try {
+            const response = await fetch(`${workerBaseUrl}/fetch-bill?bill=${bill}`);
+            const xmlText = await response.text();
+            const parser = new DOMParser();
+            const xmlDoc = parser.parseFromString(xmlText, "text/xml");
+
+            if (xmlDoc.getElementsByTagName("faultstring").length > 0) {
+                resultsDiv.innerHTML = `<span style="color:#d93025; font-weight:bold;">API Error: ${xmlDoc.getElementsByTagName("faultstring")[0].textContent}</span>`;
+                return;
+            }
+
+            const getTagText = (tag) => {
+                const nodes = xmlDoc.getElementsByTagNameNS("*", tag);
+                if (nodes.length > 0) return nodes[0].textContent.trim();
+                const fallback = xmlDoc.getElementsByTagName(tag);
+                return fallback.length > 0 ? fallback[0].textContent.trim() : null;
+            };
+
+            const getNodes = (tag) => {
+                const nodes = xmlDoc.getElementsByTagNameNS("*", tag);
+                return nodes.length > 0 ? Array.from(nodes) : Array.from(xmlDoc.getElementsByTagName(tag));
+            };
+
+            const billNumber = getTagText("BillNumber") || bill;
+            const shortDesc = getTagText("ShortDescription") || "N/A";
+            const longDesc = getTagText("LongDescription") || "N/A";
+            const currentStatus = getTagText("HistoryLine") || "N/A";
+
+            let sponsorNames = [];
+            let primeSponsor = "N/A";
+            for (let s of getNodes("Sponsor")) {
+                const nameNode = s.getElementsByTagNameNS("*", "Name")[0] || s.getElementsByTagName("Name")[0];
+                const typeNode = s.getElementsByTagNameNS("*", "Type")[0] || s.getElementsByTagName("Type")[0];
+                if (nameNode) {
+                    const name = nameNode.textContent;
+                    if (typeNode && typeNode.textContent === "Primary") primeSponsor = name;
+                    sponsorNames.push(name);
+                }
+            }
+            const sponsorDisplay = sponsorNames.length > 0 ? `<strong>Prime:</strong> ${primeSponsor}<br><strong>All:</strong> ${sponsorNames.join(", ")}` : "N/A";
+
+            let companions = [];
+            for (let c of getNodes("Companion")) {
+                let text = c.textContent.trim();
+                if (text) companions.push(text);
+            }
+            const companionDisplay = companions.length > 0 ? companions.join(", ") : "None";
+
+            resultsDiv.innerHTML = `
+                <div class="data-point"><span class="label">Bill Number</span><div class="value">${billNumber}</div></div>
+                <div class="data-point"><span class="label">Sponsor(s)</span><div class="value">${sponsorDisplay}</div></div>
+                <div class="data-point"><span class="label">Short Description</span><div class="value">${shortDesc}</div></div>
+                <div class="data-point"><span class="label">Long Description</span><div class="value">${longDesc}</div></div>
+                <div class="data-point"><span class="label">Current Status</span><div class="value">${currentStatus}</div></div>
+                <div class="data-point"><span class="label">Companion</span><div class="value">${companionDisplay}</div></div>
+            `;
+        } catch (err) {
+            resultsDiv.innerHTML = `<span style="color:#d93025; font-weight:bold;">Error connecting to Worker: ${err.message}</span>`;
+        }
+    }
+</script>
+
+</body>
+</html>
