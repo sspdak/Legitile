@@ -68,17 +68,18 @@
                 body: JSON.stringify({ email, password })
             });
 
-            if (response.ok) {
+if (response.ok) {
                 if (!isLoginMode) {
                     statusDiv.style.color = "#137333";
                     statusDiv.innerText = "Account created! You can now log in.";
-                    toggleMode(); // Switch to login view
+                    toggleMode(); 
                     document.getElementById('password').value = ''; 
                 } else {
-                    // Login successful
-                    localStorage.setItem('user_logged_in', 'true');
-                    localStorage.setItem('user_email', email);
-                    window.location.href = 'tracker.html'; // Redirect to the tool
+                    // NEW: Extract the JWT from the server response and save it
+                    const data = await response.json();
+                    localStorage.setItem('jwt_token', data.token);
+                    localStorage.setItem('user_email', data.email);
+                    window.location.href = 'tracker.html';
                 }
             } else {
                 const errorText = await response.text();
