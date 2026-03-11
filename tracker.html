@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LegiTile | Dashboard</title>
+    <title>LegiTile | Workspace</title>
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgcng9IjIwIiBmaWxsPSIjMDAyZTVkIi8+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCUiIHkxPSIwJSIgeDI9IjEwMCUiIHkyPSIxMDAlIj48c3RvcCBvZmZzZXQ9IjAlIiBzdG9wLWNvbG9yPSIjZmI5MjNjIi8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjZmZmZmZmIi8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHRleHQgeD0iNTAiIHk9Ijc1IiBmb250LWZhbWlseT0ic2VyaWYiIGZvbnQtc3R5bGU9Iml0YWxpYyIgZm9udC13ZWlnaHQ9IjkwMCIgZm9udC1zaXplPSI3NSIgZmlsbD0idXJsKCNnKSIgdGV4dC1hbmNob3I9Im1pZGRsZSI+TDwvdGV4dD48L3N2Zz4=">
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
@@ -23,7 +23,17 @@
             <div class="text-6xl font-serif italic font-black text-transparent bg-clip-text bg-gradient-to-br from-orange-400 to-white drop-shadow-2xl leading-none">L</div>
             <div class="text-[10px] uppercase tracking-[0.2em] text-blue-200 font-bold mt-2 opacity-80">LegiTile</div>
         </div>
-        <div class="flex-1 flex flex-col justify-end pb-6 px-4">
+
+        <nav class="flex-1 px-4 py-6 space-y-2">
+            <a href="home.html" class="flex items-center gap-3 px-4 py-3 text-blue-200 hover:bg-white/5 hover:text-white rounded-lg transition font-black text-xs uppercase tracking-wider">
+                <span>🏠</span> Dashboard
+            </a>
+            <a href="tracker.html" class="flex items-center gap-3 px-4 py-3 bg-white/10 text-white rounded-lg transition font-black text-xs uppercase tracking-wider">
+                <span>📑</span> Workspace
+            </a>
+        </nav>
+
+        <div class="shrink-0 pb-6 px-4">
             <div class="bg-black/20 rounded-lg p-3 flex flex-col items-center text-center">
                 <span class="text-[8px] uppercase tracking-widest text-gray-400 font-bold mb-1">Staff Member</span>
                 <span id="userEmailDisplay" class="text-xs font-bold text-white truncate w-full mb-3"></span>
@@ -301,7 +311,7 @@
         const resDiv = document.getElementById('apiResults');
         if (!rawBill) return;
         
-        // Smarter Bill Extraction: Filter out biennium dates
+        // Smarter Bill Extraction
         const fourDigitMatches = rawBill.match(/\d{4}/g);
         let bill = "";
         
