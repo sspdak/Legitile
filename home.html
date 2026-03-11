@@ -196,60 +196,71 @@
         }
     }
 
-    async function fetchMeetings() {
+async function fetchMeetings() {
         const list = document.getElementById('meetingList');
         try {
-            const res = await fetch(`${workerBaseUrl}/today-meetings`, { headers: authHeaders });
+            // Updated to the new endpoint name
+            const res = await fetch(`${workerBaseUrl}/upcoming-meetings`, { headers: authHeaders });
             const xmlText = await res.text();
             const xmlDoc = new DOMParser().parseFromString(xmlText, "text/xml");
             
-            // Collect Committee Meetings and Floor Actions
             const cm = Array.from(xmlDoc.getElementsByTagNameNS("*", "CommitteeMeeting"));
             const fa = Array.from(xmlDoc.getElementsByTagNameNS("*", "FloorAction"));
             const allItems = [...cm, ...fa];
 
             if (allItems.length === 0) {
-                list.innerHTML = '<div class="text-xs font-bold text-gray-400 italic">No Floor Sessions or Committee meetings today.</div>';
+                list.innerHTML = '<div class="text-xs font-bold text-gray-400 italic">No legislative activity scheduled for the next 30 days.</div>';
                 return;
             }
 
             list.innerHTML = '';
             const seen = new Set();
-            const uniqueItems = allItems.filter(item => {
+            
+            // Sort items chronologically
+            const sortedItems = allItems.map(item => {
                 const getTag = (t) => item.getElementsByTagNameNS("*", t)[0]?.textContent.trim() || "";
-                const key = `${getTag("Agency")}-${getTag("Name")}-${getTag("Date")}`;
-                if (seen.has(key)) return false;
-                seen.add(key);
-                return true;
-            });
-
-            uniqueItems.forEach(item => {
-                const getTag = (tag) => {
-                    const node = item.getElementsByTagNameNS("*", tag)[0] || item.getElementsByTagName(tag)[0];
-                    return node ? node.textContent.trim() : "";
+                return {
+                    node: item,
+                    agency: getTag("Agency") || "LEG",
+                    name: getTag("Name") || getTag("LongName") || "Legislative Session",
+                    date: new Date(getTag("Date")),
+                    room: getTag("Room") || "Chamber Floor",
+                    key: `${getTag("Agency")}-${getTag("Name")}-${getTag("Date")}`
                 };
-                
-                const agency = getTag("Agency") || "LEG";
-                let name = getTag("Name") || getTag("LongName") || "Legislative Session";
-                const dateRaw = getTag("Date"); 
-                const room = getTag("Room") || "Chamber Floor";
-                
-                if (name.includes("Convened")) name = "Floor Session";
+            }).filter(item => {
+                if (seen.has(item.key)) return false;
+                seen.add(item.key);
+                return true;
+            }).sort((a, b) => a.date - b.date);
 
-                let timeStr = "Time TBD";
-                if (dateRaw) {
-                    const d = new Date(dateRaw);
-                    timeStr = d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            let lastDateLabel = "";
+
+            sortedItems.forEach(item => {
+                // Add Date Headers (e.g., "MARCH 12")
+                const dateLabel = item.date.toLocaleDateString([], { month: 'long', day: 'numeric' }).toUpperCase();
+                if (dateLabel !== lastDateLabel) {
+                    list.innerHTML += `<div class="text-[9px] font-black text-gray-400 tracking-widest mt-4 mb-2 border-b border-gray-100 pb-1">${dateLabel}</div>`;
+                    lastDateLabel = dateLabel;
                 }
+
+                const timeStr = item.date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                 
-                const color = agency.toLowerCase().includes("senate") ? "bg-red-500" : "bg-green-500";
+                // Enhanced Color Coding
+                let color = "bg-gray-400"; // Default
+                const agencyLower = item.agency.toLowerCase();
+                if (agencyLower.includes("senate")) color = "bg-red-500";
+                else if (agencyLower.includes("house")) color = "bg-green-500";
+                else if (agencyLower.includes("joint")) color = "bg-blue-600"; // Joint Committees
                 
+                let displayName = item.name;
+                if (displayName.includes("Convened")) displayName = "Floor Session";
+
                 list.innerHTML += `
-                    <div class="flex items-center gap-3 py-2 border-b border-gray-50 last:border-0">
+                    <div class="flex items-center gap-3 py-2">
                         <div class="w-2 h-2 rounded-full ${color} shrink-0"></div>
                         <div class="flex-1 min-w-0">
-                            <div class="text-[11px] font-black text-[#002e5d] truncate uppercase">${agency} ${name}</div>
-                            <div class="text-[9px] font-bold text-gray-500 truncate mt-0.5">${timeStr} • ${room}</div>
+                            <div class="text-[11px] font-black text-[#002e5d] truncate uppercase">${item.agency} ${displayName}</div>
+                            <div class="text-[9px] font-bold text-gray-500 truncate mt-0.5">${timeStr} • ${item.room}</div>
                         </div>
                     </div>
                 `;
