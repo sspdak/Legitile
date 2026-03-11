@@ -3,144 +3,129 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WA Legislative Tracker</title>
+    <title>LegiTile | Authentication</title>
+    <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        body { font-family: -apple-system, sans-serif; background: #eaeff1; padding: 20px; color: #202124; margin: 0; }
-        .container { max-width: 800px; margin: auto; }
-        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-        .card { background: white; padding: 25px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 20px; }
-        h2, h4 { margin-top: 0; color: #1a73e8; }
-        .input-group { display: flex; gap: 10px; margin-bottom: 15px; }
-        input { flex: 1; padding: 12px; border: 1px solid #dadce0; border-radius: 4px; font-size: 16px; }
-        button { padding: 12px 24px; background: #1a73e8; color: white; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; }
-        .logout-btn { background: #5f6368; padding: 8px 16px; }
-        .data-point { margin-bottom: 20px; border-bottom: 1px solid #f1f3f4; padding-bottom: 15px; }
-        .label { font-weight: 600; color: #5f6368; display: block; margin-bottom: 6px; text-transform: uppercase; font-size: 0.85rem; }
-        .value { line-height: 1.5; font-size: 1rem; }
+        .leg-navy { background-color: #002e5d; }
     </style>
 </head>
-<body>
+<body class="bg-gray-100 min-h-screen font-sans text-gray-900 flex items-center justify-center p-4">
 
-<div class="container">
-    <div class="header">
-        <h2>Legislative Tracker</h2>
-        <div>
-            <span id="userEmailDisplay" style="margin-right: 15px; font-size: 0.9rem; color: #5f6368;"></span>
-            <button class="logout-btn" onclick="logout()">Log Out</button>
+    <div class="w-full max-w-md bg-white rounded-xl shadow-2xl overflow-hidden border-t-8 border-[#002e5d] transition-all duration-300">
+        
+        <div class="leg-navy py-10 flex flex-col items-center shrink-0 relative overflow-hidden">
+            <div class="absolute -top-10 -right-10 w-32 h-32 bg-white opacity-5 rounded-full blur-2xl"></div>
+            
+            <div class="text-6xl font-serif italic font-black text-transparent bg-clip-text bg-gradient-to-br from-orange-400 to-white drop-shadow-2xl leading-none z-10">L</div>
+            <div class="text-[10px] uppercase tracking-[0.2em] text-blue-200 font-bold mt-2 opacity-80 z-10">LegiTile Portal</div>
+        </div>
+
+        <div class="p-8">
+            <h2 id="formTitle" class="text-xl font-black text-gray-800 uppercase tracking-tight text-center mb-6">Staff Login</h2>
+            
+            <div class="space-y-4">
+                <div>
+                    <label class="text-[10px] font-black uppercase text-gray-400 tracking-widest mb-1 block">Work Email</label>
+                    <input type="email" id="email" placeholder="staff@leg.wa.gov" required 
+                           class="w-full border-2 border-gray-200 p-3 rounded-lg outline-none focus:border-[#002e5d] font-bold text-gray-700 transition placeholder:text-gray-300 placeholder:font-normal">
+                </div>
+                
+                <div>
+                    <label class="text-[10px] font-black uppercase text-gray-400 tracking-widest mb-1 block">Password</label>
+                    <input type="password" id="password" placeholder="••••••••" required 
+                           class="w-full border-2 border-gray-200 p-3 rounded-lg outline-none focus:border-[#002e5d] font-bold text-gray-700 transition placeholder:text-gray-300">
+                </div>
+
+                <div id="statusMsg" class="text-xs font-bold text-center h-4 mt-2"></div>
+
+                <button id="submitBtn" onclick="handleAuth()" 
+                        class="w-full bg-[#002e5d] hover:bg-blue-900 text-white text-[12px] font-black uppercase px-6 py-4 rounded-lg shadow-sm hover:shadow-md transition mt-2">
+                    Secure Log In
+                </button>
+            </div>
+
+            <div class="mt-6 pt-6 border-t border-gray-100 text-center">
+                <button onclick="toggleMode()" id="toggleText" class="text-[10px] font-black uppercase text-gray-400 hover:text-[#002e5d] transition tracking-widest">
+                    Need an account? Register here.
+                </button>
+            </div>
         </div>
     </div>
-
-    <div class="card">
-        <h4>Lookup Bill</h4>
-        <div class="input-group">
-            <input type="text" id="billNum" placeholder="Enter Bill Number (e.g. 1000)">
-            <button onclick="fetchSummaryData()">Search API</button>
-        </div>
-        <div id="results">Awaiting input...</div>
-    </div>
-</div>
 
 <script>
-    // Security check: Kick user out if they bypass the login page or don't have a token
-    if (!localStorage.getItem('jwt_token')) {
-        window.location.href = 'index.html';
-    }
-
-    // Display logged-in user's email
-    document.getElementById('userEmailDisplay').innerText = localStorage.getItem('user_email');
-
-    function logout() {
-        localStorage.removeItem('jwt_token');
-        localStorage.removeItem('user_email');
-        localStorage.removeItem('user_logged_in'); 
-        window.location.href = 'index.html';
+    // Redirect if already securely logged in
+    if (localStorage.getItem('jwt_token')) {
+        window.location.href = 'tracker.html';
     }
 
     const workerBaseUrl = "https://misty-credit-9e6a.ewing-jacob.workers.dev";
+    let isLoginMode = true;
 
-    async function fetchSummaryData() {
-        const bill = document.getElementById('billNum').value;
-        const resultsDiv = document.getElementById('results');
+    function toggleMode() {
+        isLoginMode = !isLoginMode;
+        document.getElementById('formTitle').innerText = isLoginMode ? "Staff Login" : "Staff Registration";
+        document.getElementById('submitBtn').innerText = isLoginMode ? "Secure Log In" : "Create Account";
+        document.getElementById('toggleText').innerText = isLoginMode ? "Need an account? Register here." : "Already have an account? Log in.";
         
-        if (!bill) return;
-        resultsDiv.innerHTML = "Fetching dataset from WSL...";
+        const statusDiv = document.getElementById('statusMsg');
+        statusDiv.innerText = "";
+        statusDiv.className = "text-xs font-bold text-center h-4 mt-2";
+    }
+
+    async function handleAuth() {
+        const email = document.getElementById('email').value.trim();
+        const password = document.getElementById('password').value.trim();
+        const statusDiv = document.getElementById('statusMsg');
+        
+        if (!email || !password) {
+            statusDiv.className = "text-xs font-bold text-center h-4 mt-2 text-red-500";
+            statusDiv.innerText = "Please enter both email and password.";
+            return;
+        }
+
+        statusDiv.className = "text-xs font-bold text-center h-4 mt-2 text-gray-500 animate-pulse";
+        statusDiv.innerText = isLoginMode ? "Authenticating securely..." : "Creating account...";
+
+        const endpoint = isLoginMode ? "/login" : "/register";
 
         try {
-            // Retrieve the token from storage
-            const token = localStorage.getItem('jwt_token');
-
-            // Send the token in the Authorization header
-            const response = await fetch(`${workerBaseUrl}/fetch-bill?bill=${bill}`, {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
+            const response = await fetch(`${workerBaseUrl}${endpoint}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password })
             });
 
-            // If the server rejects the token, force a log out
-            if (response.status === 401 || response.status === 403) {
-                logout();
-                return;
-            }
-
-            const xmlText = await response.text();
-            const parser = new DOMParser();
-            const xmlDoc = parser.parseFromString(xmlText, "text/xml");
-
-            if (xmlDoc.getElementsByTagName("faultstring").length > 0) {
-                resultsDiv.innerHTML = `<span style="color:#d93025; font-weight:bold;">API Error: ${xmlDoc.getElementsByTagName("faultstring")[0].textContent}</span>`;
-                return;
-            }
-
-            const getTagText = (tag) => {
-                const nodes = xmlDoc.getElementsByTagNameNS("*", tag);
-                if (nodes.length > 0) return nodes[0].textContent.trim();
-                const fallback = xmlDoc.getElementsByTagName(tag);
-                return fallback.length > 0 ? fallback[0].textContent.trim() : null;
-            };
-
-            const getNodes = (tag) => {
-                const nodes = xmlDoc.getElementsByTagNameNS("*", tag);
-                return nodes.length > 0 ? Array.from(nodes) : Array.from(xmlDoc.getElementsByTagName(tag));
-            };
-
-            const billNumber = getTagText("BillNumber") || bill;
-            const shortDesc = getTagText("ShortDescription") || "N/A";
-            const longDesc = getTagText("LongDescription") || "N/A";
-            const currentStatus = getTagText("HistoryLine") || "N/A";
-
-            let sponsorNames = [];
-            let primeSponsor = "N/A";
-            for (let s of getNodes("Sponsor")) {
-                const nameNode = s.getElementsByTagNameNS("*", "Name")[0] || s.getElementsByTagName("Name")[0];
-                const typeNode = s.getElementsByTagNameNS("*", "Type")[0] || s.getElementsByTagName("Type")[0];
-                if (nameNode) {
-                    const name = nameNode.textContent;
-                    if (typeNode && typeNode.textContent === "Primary") primeSponsor = name;
-                    sponsorNames.push(name);
+            if (response.ok) {
+                if (!isLoginMode) {
+                    statusDiv.className = "text-xs font-bold text-center h-4 mt-2 text-green-600";
+                    statusDiv.innerText = "Account created! You can now log in.";
+                    setTimeout(() => {
+                        toggleMode(); 
+                        document.getElementById('password').value = ''; 
+                    }, 1500);
+                } else {
+                    const data = await response.json();
+                    localStorage.setItem('jwt_token', data.token);
+                    localStorage.setItem('user_email', data.email);
+                    window.location.href = 'tracker.html'; 
                 }
+            } else {
+                const errorText = await response.text();
+                statusDiv.className = "text-xs font-bold text-center h-4 mt-2 text-red-500";
+                statusDiv.innerText = `${isLoginMode ? "Login" : "Registration"} failed: ${errorText}`;
             }
-            const sponsorDisplay = sponsorNames.length > 0 ? `<strong>Prime:</strong> ${primeSponsor}<br><strong>All:</strong> ${sponsorNames.join(", ")}` : "N/A";
-
-            let companions = [];
-            for (let c of getNodes("Companion")) {
-                let text = c.textContent.trim();
-                if (text) companions.push(text);
-            }
-            const companionDisplay = companions.length > 0 ? companions.join(", ") : "None";
-
-            resultsDiv.innerHTML = `
-                <div class="data-point"><span class="label">Bill Number</span><div class="value">${billNumber}</div></div>
-                <div class="data-point"><span class="label">Sponsor(s)</span><div class="value">${sponsorDisplay}</div></div>
-                <div class="data-point"><span class="label">Short Description</span><div class="value">${shortDesc}</div></div>
-                <div class="data-point"><span class="label">Long Description</span><div class="value">${longDesc}</div></div>
-                <div class="data-point"><span class="label">Current Status</span><div class="value">${currentStatus}</div></div>
-                <div class="data-point"><span class="label">Companion</span><div class="value">${companionDisplay}</div></div>
-            `;
         } catch (err) {
-            resultsDiv.innerHTML = `<span style="color:#d93025; font-weight:bold;">Error connecting to Worker: ${err.message}</span>`;
+            statusDiv.className = "text-xs font-bold text-center h-4 mt-2 text-red-500";
+            statusDiv.innerText = "Network error. Make sure your Worker is deployed.";
         }
     }
+
+    // Add enter key support for the password field
+    document.getElementById('password').addEventListener('keypress', function (e) {
+        if (e.key === 'Enter') {
+            handleAuth();
+        }
+    });
 </script>
 
 </body>
