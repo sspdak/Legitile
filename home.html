@@ -21,21 +21,20 @@
             <div class="text-[10px] uppercase tracking-[0.2em] text-blue-200 font-bold mt-2 opacity-80">LegiTile</div>
         </div>
         
-<nav id="mainNav" class="flex-1 px-4 py-6 space-y-2">
-    <a href="home.html" data-nav="home" class="nav-item flex items-center gap-3 px-4 py-3 text-blue-200 hover:bg-white/5 hover:text-white rounded-lg transition font-black text-xs uppercase tracking-wider">
-        <span>🏠</span> Dashboard
-    </a>
-    <a href="tracker.html" data-nav="tracker" class="nav-item flex items-center gap-3 px-4 py-3 text-blue-200 hover:bg-white/5 hover:text-white rounded-lg transition font-black text-xs uppercase tracking-wider">
-        <span>📑</span> Workspace
-    </a>
-    <a href="search.html" data-nav="search" class="nav-item flex items-center gap-3 px-4 py-3 text-blue-200 hover:bg-white/5 hover:text-white rounded-lg transition font-black text-xs uppercase tracking-wider">
-        <span>🔍</span> Search Text
-    </a>
-</nav>
+        <nav id="mainNav" class="flex-1 px-4 py-6 space-y-2">
+            <a href="home.html" class="nav-item flex items-center gap-3 px-4 py-3 text-blue-200 hover:bg-white/5 hover:text-white rounded-lg transition font-black text-xs uppercase tracking-wider">
+                <span>🏠</span> Dashboard
+            </a>
+            <a href="tracker.html" class="nav-item flex items-center gap-3 px-4 py-3 text-blue-200 hover:bg-white/5 hover:text-white rounded-lg transition font-black text-xs uppercase tracking-wider">
+                <span>📑</span> Workspace
+            </a>
+            <a href="search.html" class="nav-item flex items-center gap-3 px-4 py-3 text-blue-200 hover:bg-white/5 hover:text-white rounded-lg transition font-black text-xs uppercase tracking-wider">
+                <span>🔍</span> Search Text
+            </a>
+        </nav>
 
         <div class="shrink-0 pb-6 px-4">
             <div class="bg-black/20 rounded-lg p-3 flex flex-col items-center text-center">
-                <span class="text-[8px] uppercase tracking-widest text-gray-400 font-bold mb-1">Staff Member</span>
                 <span id="userEmailDisplay" class="text-xs font-bold text-white truncate w-full mb-3"></span>
                 <button onclick="logout()" class="w-full bg-red-500/20 hover:bg-red-500/40 text-red-200 text-[10px] font-black uppercase py-2 rounded transition border border-red-500/30">Log Out</button>
             </div>
@@ -52,10 +51,13 @@
                 
                 <div class="lg:col-span-1 flex flex-col gap-6">
                     
-                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 flex flex-col flex-1 max-h-[400px]">
-                        <span class="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-3 block">Today's Key Meetings</span>
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 flex flex-col flex-1 max-h-[450px]">
+                        <div class="flex justify-between items-center mb-3">
+                            <span class="text-[10px] font-black uppercase tracking-widest text-gray-400">Legislative Schedule</span>
+                            <span class="text-[9px] font-bold text-blue-500 animate-pulse">LIVE</span>
+                        </div>
                         <div class="space-y-3 overflow-y-auto pr-2" id="meetingList">
-                            <span class="text-xs font-bold text-gray-400 italic">Fetching daily schedule...</span>
+                            <span class="text-xs font-bold text-gray-400 italic">Syncing with Olympia...</span>
                         </div>
                     </div>
 
@@ -67,7 +69,7 @@
                     </div>
 
                     <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 flex flex-col justify-center shrink-0">
-                        <span class="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-4 block">Session Volume</span>
+                        <span class="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-4 block">Biennium Bill Volume</span>
                         <div class="flex justify-around items-center">
                             <div class="text-center">
                                 <div class="text-3xl font-black text-gray-800" id="houseCount">--</div>
@@ -90,7 +92,7 @@
                         </div>
                         <div class="p-6 overflow-y-auto flex-1">
                             <div class="flex flex-col gap-3" id="recentUpdatesGrid">
-                                <div class="text-sm font-bold text-gray-400 italic">Loading workspace updates...</div>
+                                <div class="text-sm font-bold text-gray-400 italic">Loading radar items...</div>
                             </div>
                         </div>
                     </div>
@@ -101,22 +103,32 @@
     </div>
 
 <script>
-if (!localStorage.getItem('jwt_token')) window.location.href = 'index.html';
-    document.getElementById('userEmailDisplay').innerText = localStorage.getItem('user_email') || 'Unknown';
+    if (!localStorage.getItem('jwt_token')) window.location.href = 'index.html';
+    document.getElementById('userEmailDisplay').innerText = localStorage.getItem('user_email') || 'Staff';
 
     const workerBaseUrl = "https://misty-credit-9e6a.ewing-jacob.workers.dev";
     const authHeaders = { 'Authorization': `Bearer ${localStorage.getItem('jwt_token')}` };
 
     function logout() { localStorage.clear(); window.location.href = 'index.html'; }
 
-    // Initial Load
-    refreshDashboard();
+    // Navigation Highlight Logic
+    function updateNavHighlight() {
+        const path = window.location.pathname;
+        const navItems = document.querySelectorAll('.nav-item');
+        navItems.forEach(item => {
+            if (path.includes(item.getAttribute('href'))) {
+                item.classList.add('bg-white/10', 'text-white');
+                item.classList.remove('text-blue-200');
+            }
+        });
+    }
 
-    // Set auto-refresh for every 5 minutes (300,000 milliseconds)
-    setInterval(refreshDashboard, 300000);
+    // Initial Dashboard Run
+    updateNavHighlight();
+    refreshDashboard();
+    setInterval(refreshDashboard, 300000); // Auto-refresh every 5 mins
 
     function refreshDashboard() {
-        console.log("Auto-refreshing legislative data...");
         calculateSineDie();
         fetchLegislativeStats();
         fetchWorkspaceUpdates();
@@ -124,24 +136,27 @@ if (!localStorage.getItem('jwt_token')) window.location.href = 'index.html';
     }
 
     function calculateSineDie() {
-        const sineDieDate = new Date("2026-03-12T23:59:59");
-        const now = new Date();
+        // Corrected date parsing for better cross-browser compatibility
+        const sineDieDate = new Date("2026-03-12T23:59:59").getTime();
+        const now = new Date().getTime();
         const diffTime = sineDieDate - now;
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
         const display = document.getElementById('countdownDays');
-        if (diffDays < 0) {
+        
+        if (isNaN(diffDays)) {
+            display.innerText = "??";
+        } else if (diffDays <= 0) {
             display.innerText = "0";
             display.classList.add("text-red-400");
         } else {
             display.innerText = diffDays;
-            if (diffDays <= 5) display.classList.add("text-orange-400");
+            if (diffDays <= 3) display.classList.add("text-orange-400");
         }
     }
 
     async function fetchLegislativeStats() {
         try {
             const res = await fetch(`${workerBaseUrl}/session-stats`, { headers: authHeaders });
-            if (!res.ok) throw new Error("API Error");
             const stats = await res.json();
             document.getElementById('houseCount').innerText = stats.house.toLocaleString();
             document.getElementById('senateCount').innerText = stats.senate.toLocaleString();
@@ -156,12 +171,11 @@ if (!localStorage.getItem('jwt_token')) window.location.href = 'index.html';
             const res = await fetch(`${workerBaseUrl}/my-workspace`, { headers: authHeaders });
             if (res.status === 401) return logout();
             const bills = await res.json();
-            
             const grid = document.getElementById('recentUpdatesGrid');
             grid.innerHTML = '';
 
             if (bills.length === 0) {
-                grid.innerHTML = '<div class="text-gray-400 font-bold text-sm italic">Your workspace is empty. Head to the workspace tab to track bills.</div>';
+                grid.innerHTML = '<div class="text-gray-400 font-bold text-sm italic">Workspace is empty. Add bills in the Workspace tab.</div>';
                 return;
             }
 
@@ -178,7 +192,7 @@ if (!localStorage.getItem('jwt_token')) window.location.href = 'index.html';
                 `;
             });
         } catch (e) {
-            document.getElementById('recentUpdatesGrid').innerHTML = '<div class="text-red-500 font-bold text-sm">Failed to load workspace updates.</div>';
+            document.getElementById('recentUpdatesGrid').innerHTML = '<div class="text-red-500 font-bold text-sm">Offline.</div>';
         }
     }
 
@@ -189,19 +203,17 @@ if (!localStorage.getItem('jwt_token')) window.location.href = 'index.html';
             const xmlText = await res.text();
             const xmlDoc = new DOMParser().parseFromString(xmlText, "text/xml");
             
-            // Collect both Committee Meetings and Floor Actions
+            // Collect Committee Meetings and Floor Actions
             const cm = Array.from(xmlDoc.getElementsByTagNameNS("*", "CommitteeMeeting"));
             const fa = Array.from(xmlDoc.getElementsByTagNameNS("*", "FloorAction"));
             const allItems = [...cm, ...fa];
 
-            list.innerHTML = '';
-
             if (allItems.length === 0) {
-                list.innerHTML = '<div class="text-xs font-bold text-gray-400 italic">No Floor Sessions or Committee meetings found for today.</div>';
+                list.innerHTML = '<div class="text-xs font-bold text-gray-400 italic">No Floor Sessions or Committee meetings today.</div>';
                 return;
             }
 
-            // Deduplicate by Name and Time to avoid clutter
+            list.innerHTML = '';
             const seen = new Set();
             const uniqueItems = allItems.filter(item => {
                 const getTag = (t) => item.getElementsByTagNameNS("*", t)[0]?.textContent.trim() || "";
@@ -222,7 +234,6 @@ if (!localStorage.getItem('jwt_token')) window.location.href = 'index.html';
                 const dateRaw = getTag("Date"); 
                 const room = getTag("Room") || "Chamber Floor";
                 
-                // Clean up "FloorAction" names which can be long
                 if (name.includes("Convened")) name = "Floor Session";
 
                 let timeStr = "Time TBD";
@@ -244,30 +255,9 @@ if (!localStorage.getItem('jwt_token')) window.location.href = 'index.html';
                 `;
             });
         } catch (e) {
-            list.innerHTML = '<div class="text-xs font-bold text-red-400">Failed to load schedule.</div>';
+            list.innerHTML = '<div class="text-xs font-bold text-red-400">Schedule unavailable.</div>';
         }
     }
-        function updateNavHighlight() {
-    const path = window.location.pathname;
-    const navItems = document.querySelectorAll('.nav-item');
-    
-    navItems.forEach(item => {
-        // Remove existing highlight
-        item.classList.remove('bg-white/10', 'text-white');
-        item.classList.add('text-blue-200');
-        
-        // If the link href matches the current file name, highlight it
-        if (path.includes(item.getAttribute('href'))) {
-            item.classList.add('bg-white/10', 'text-white');
-            item.classList.remove('text-blue-200');
-        }
-    });
-}
-
-// Call this on page load
-updateNavHighlight();
-}
-    
 </script>
 
 </body>
