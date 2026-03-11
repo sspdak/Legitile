@@ -16,7 +16,6 @@
         
         <div class="leg-navy py-10 flex flex-col items-center shrink-0 relative overflow-hidden">
             <div class="absolute -top-10 -right-10 w-32 h-32 bg-white opacity-5 rounded-full blur-2xl"></div>
-            
             <div class="text-6xl font-serif italic font-black text-transparent bg-clip-text bg-gradient-to-br from-orange-400 to-white drop-shadow-2xl leading-none z-10">L</div>
             <div class="text-[10px] uppercase tracking-[0.2em] text-blue-200 font-bold mt-2 opacity-80 z-10">LegiTile Portal</div>
         </div>
@@ -54,9 +53,9 @@
     </div>
 
 <script>
-    // Redirect if already securely logged in
+    // Redirect to home if already logged in
     if (localStorage.getItem('jwt_token')) {
-        window.location.href = 'tracker.html';
+        window.location.href = 'home.html';
     }
 
     const workerBaseUrl = "https://misty-credit-9e6a.ewing-jacob.workers.dev";
@@ -108,7 +107,7 @@
                     const data = await response.json();
                     localStorage.setItem('jwt_token', data.token);
                     localStorage.setItem('user_email', data.email);
-                    window.location.href = 'tracker.html'; 
+                    window.location.href = 'home.html'; 
                 }
             } else {
                 const errorText = await response.text();
@@ -121,7 +120,6 @@
         }
     }
 
-    // Add enter key support for the password field
     document.getElementById('password').addEventListener('keypress', function (e) {
         if (e.key === 'Enter') {
             handleAuth();
