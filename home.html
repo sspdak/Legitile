@@ -98,7 +98,7 @@
     </div>
 
 <script>
-    if (!localStorage.getItem('jwt_token')) window.location.href = 'index.html';
+if (!localStorage.getItem('jwt_token')) window.location.href = 'index.html';
     document.getElementById('userEmailDisplay').innerText = localStorage.getItem('user_email') || 'Unknown';
 
     const workerBaseUrl = "https://misty-credit-9e6a.ewing-jacob.workers.dev";
@@ -106,10 +106,19 @@
 
     function logout() { localStorage.clear(); window.location.href = 'index.html'; }
 
-    calculateSineDie();
-    fetchLegislativeStats();
-    fetchWorkspaceUpdates();
-    fetchMeetings();
+    // Initial Load
+    refreshDashboard();
+
+    // Set auto-refresh for every 5 minutes (300,000 milliseconds)
+    setInterval(refreshDashboard, 300000);
+
+    function refreshDashboard() {
+        console.log("Auto-refreshing legislative data...");
+        calculateSineDie();
+        fetchLegislativeStats();
+        fetchWorkspaceUpdates();
+        fetchMeetings();
+    }
 
     function calculateSineDie() {
         const sineDieDate = new Date("2026-03-12T23:59:59");
@@ -170,16 +179,14 @@
         }
     }
 
-   async function fetchMeetings() {
+    async function fetchMeetings() {
         const list = document.getElementById('meetingList');
         try {
             const res = await fetch(`${workerBaseUrl}/today-meetings`, { headers: authHeaders });
             const xmlText = await res.text();
             const xmlDoc = new DOMParser().parseFromString(xmlText, "text/xml");
             
-            // Look for both standard and special meeting tags
             const allMeetings = Array.from(xmlDoc.getElementsByTagName("CommitteeMeeting"));
-            
             list.innerHTML = '';
 
             if (allMeetings.length === 0) {
@@ -187,7 +194,6 @@
                 return;
             }
 
-            // Deduplicate meetings by ID (in case they appear in both XML sets)
             const seenIds = new Set();
             const uniqueMeetings = allMeetings.filter(m => {
                 const id = m.getElementsByTagName("MtgId")[0]?.textContent || Math.random();
@@ -206,7 +212,6 @@
                 const name = getTag("Name") || getTag("LongName") || "Meeting";
                 const dateRaw = getTag("Date"); 
                 const room = getTag("Room") || "Location TBD";
-                const agendaItems = getTag("AgendaItems") || ""; // Check if "Session" or "Caucus" is in items
                 
                 let timeStr = "Time TBD";
                 if (dateRaw) {
@@ -214,7 +219,6 @@
                     timeStr = d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
                 }
                 
-                // Color coding based on Agency
                 let color = "bg-gray-400";
                 if (agency.toLowerCase().includes("senate")) color = "bg-red-500";
                 if (agency.toLowerCase().includes("house")) color = "bg-green-500";
@@ -231,40 +235,6 @@
             });
         } catch (e) {
             list.innerHTML = '<div class="text-xs font-bold text-red-400">Failed to load schedule.</div>';
-        }
-    }
-
-            Array.from(meetings).forEach(m => {
-                const getTag = (tag) => {
-                    const node = m.getElementsByTagNameNS("*", tag)[0] || m.getElementsByTagName(tag)[0];
-                    return node ? node.textContent : "";
-                };
-                
-                const agency = getTag("Agency") || "Committee";
-                const name = getTag("Name") || getTag("LongName") || "Meeting";
-                const dateRaw = getTag("Date"); 
-                const room = getTag("Room") || "Location TBD";
-                
-                let timeStr = "Time TBD";
-                if (dateRaw) {
-                    const d = new Date(dateRaw);
-                    timeStr = d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-                }
-                
-                const color = agency.toLowerCase().includes("senate") ? "bg-red-500" : "bg-green-500";
-                
-                list.innerHTML += `
-                    <div class="flex items-center gap-3 py-2 border-b border-gray-50 last:border-0">
-                        <div class="w-2 h-2 rounded-full ${color} shrink-0"></div>
-                        <div class="flex-1 min-w-0">
-                            <div class="text-[11px] font-black text-[#002e5d] truncate">${agency} ${name}</div>
-                            <div class="text-[9px] font-bold text-gray-500 truncate mt-0.5">${timeStr} • ${room}</div>
-                        </div>
-                    </div>
-                `;
-            });
-        } catch (e) {
-            list.innerHTML = '<div class="text-xs font-bold text-red-400">Failed to load meetings.</div>';
         }
     }
 </script>
