@@ -3,33 +3,88 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WA Bill Summary</title>
+    <title>WA Legislative Tool</title>
     <style>
         body { font-family: -apple-system, sans-serif; background: #eaeff1; padding: 20px; color: #202124; margin: 0; }
-        .container { max-width: 800px; margin: auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-        h2 { margin-top: 0; color: #1a73e8; }
-        .search-box { display: flex; gap: 10px; margin-bottom: 30px; }
+        .container { max-width: 800px; margin: auto; }
+        .card { background: white; padding: 25px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        h2, h4 { margin-top: 0; color: #1a73e8; }
+        .input-group { display: flex; gap: 10px; margin-bottom: 15px; }
         input { flex: 1; padding: 12px; border: 1px solid #dadce0; border-radius: 4px; font-size: 16px; }
         button { padding: 12px 24px; background: #1a73e8; color: white; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; }
         .data-point { margin-bottom: 20px; border-bottom: 1px solid #f1f3f4; padding-bottom: 15px; }
-        .data-point:last-child { border-bottom: none; }
         .label { font-weight: 600; color: #5f6368; display: block; margin-bottom: 6px; text-transform: uppercase; font-size: 0.85rem; }
         .value { line-height: 1.5; font-size: 1rem; }
-        .error { color: #d93025; font-weight: bold; }
+        .message { font-weight: bold; margin-top: 10px; font-size: 0.9rem; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2>WA Legislative Summary</h2>
-    <div class="search-box">
-        <input type="text" id="billNum" placeholder="Enter Bill Number (e.g. 1000)">
-        <button onclick="fetchSummaryData()">Search</button>
+    <h2>WA Legislative Tool</h2>
+
+    <div class="card">
+        <h4>Staff Registration</h4>
+        <div class="input-group">
+            <input type="email" id="regEmail" placeholder="Work Email" required>
+            <input type="password" id="regPass" placeholder="Password" required>
+            <button onclick="registerUser()">Create Account</button>
+        </div>
+        <div id="regStatus" class="message"></div>
     </div>
-    <div id="results">Awaiting input...</div>
+
+    <div class="card">
+        <h4>Track a Bill</h4>
+        <div class="input-group">
+            <input type="text" id="billNum" placeholder="Enter Bill Number (e.g. 1000)">
+            <button onclick="fetchSummaryData()">Search API</button>
+        </div>
+        <div id="results">Awaiting input...</div>
+    </div>
 </div>
 
 <script>
+    const workerBaseUrl = "https://misty-credit-9e6a.ewing-jacob.workers.dev";
+
+    // --- REGISTRATION LOGIC ---
+    async function registerUser() {
+        const email = document.getElementById('regEmail').value.trim();
+        const password = document.getElementById('regPass').value.trim();
+        const statusDiv = document.getElementById('regStatus');
+        
+        if (!email || !password) {
+            statusDiv.style.color = "#d93025";
+            statusDiv.innerText = "Please enter both an email and a password.";
+            return;
+        }
+
+        statusDiv.style.color = "#5f6368";
+        statusDiv.innerText = "Creating account...";
+
+        try {
+            const response = await fetch(`${workerBaseUrl}/register`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password })
+            });
+
+            if (response.ok) {
+                statusDiv.style.color = "#137333";
+                statusDiv.innerText = "Account created successfully!";
+                document.getElementById('regEmail').value = '';
+                document.getElementById('regPass').value = '';
+            } else {
+                const errorText = await response.text();
+                statusDiv.style.color = "#d93025";
+                statusDiv.innerText = `Registration failed: ${errorText}`;
+            }
+        } catch (err) {
+            statusDiv.style.color = "#d93025";
+            statusDiv.innerText = "Network error. Make sure your Worker is deployed.";
+        }
+    }
+
+    // --- BILL FETCHING LOGIC ---
     async function fetchSummaryData() {
         const bill = document.getElementById('billNum').value;
         const resultsDiv = document.getElementById('results');
@@ -38,22 +93,17 @@
         resultsDiv.innerHTML = "Fetching dataset from WSL...";
 
         try {
-            const workerUrl = `https://misty-credit-9e6a.ewing-jacob.workers.dev/?bill=${bill}`;
-            const response = await fetch(workerUrl);
+            const response = await fetch(`${workerBaseUrl}/fetch-bill?bill=${bill}`);
             const xmlText = await response.text();
             
             const parser = new DOMParser();
             const xmlDoc = parser.parseFromString(xmlText, "text/xml");
 
-            // Logs the entire dataset to the browser console for your background access
-            console.log("Full API Dataset:", xmlDoc);
-
             if (xmlDoc.getElementsByTagName("faultstring").length > 0) {
-                resultsDiv.innerHTML = `<span class="error">API Error: ${xmlDoc.getElementsByTagName("faultstring")[0].textContent}</span>`;
+                resultsDiv.innerHTML = `<span style="color:#d93025; font-weight:bold;">API Error: ${xmlDoc.getElementsByTagName("faultstring")[0].textContent}</span>`;
                 return;
             }
 
-            // Safe tag extractor to bypass XML namespace issues
             const getTagText = (tag) => {
                 const nodes = xmlDoc.getElementsByTagNameNS("*", tag);
                 if (nodes.length > 0) return nodes[0].textContent.trim();
@@ -66,48 +116,31 @@
                 return nodes.length > 0 ? Array.from(nodes) : Array.from(xmlDoc.getElementsByTagName(tag));
             };
 
-            // 1. Bill Number
             const billNumber = getTagText("BillNumber") || bill;
-
-            // 2. Short Description
             const shortDesc = getTagText("ShortDescription") || "N/A";
-
-            // 3. Long Description
             const longDesc = getTagText("LongDescription") || "N/A";
-
-            // 4. Current Status
             const currentStatus = getTagText("HistoryLine") || "N/A";
 
-            // 5. Sponsors
-            const sponsorNodes = getNodes("Sponsor");
             let sponsorNames = [];
             let primeSponsor = "N/A";
-            
-            for (let s of sponsorNodes) {
+            for (let s of getNodes("Sponsor")) {
                 const nameNode = s.getElementsByTagNameNS("*", "Name")[0] || s.getElementsByTagName("Name")[0];
                 const typeNode = s.getElementsByTagNameNS("*", "Type")[0] || s.getElementsByTagName("Type")[0];
-                
                 if (nameNode) {
                     const name = nameNode.textContent;
-                    const type = typeNode ? typeNode.textContent : "";
-                    if (type === "Primary") primeSponsor = name;
+                    if (typeNode && typeNode.textContent === "Primary") primeSponsor = name;
                     sponsorNames.push(name);
                 }
             }
-            const sponsorDisplay = sponsorNames.length > 0 
-                ? `<strong>Prime:</strong> ${primeSponsor}<br><strong>All:</strong> ${sponsorNames.join(", ")}` 
-                : "N/A";
+            const sponsorDisplay = sponsorNames.length > 0 ? `<strong>Prime:</strong> ${primeSponsor}<br><strong>All:</strong> ${sponsorNames.join(", ")}` : "N/A";
 
-            // 6. Companion
-            const companionNodes = getNodes("Companion");
             let companions = [];
-            for (let c of companionNodes) {
+            for (let c of getNodes("Companion")) {
                 let text = c.textContent.trim();
                 if (text) companions.push(text);
             }
             const companionDisplay = companions.length > 0 ? companions.join(", ") : "None";
 
-            // Render UI
             resultsDiv.innerHTML = `
                 <div class="data-point"><span class="label">Bill Number</span><div class="value">${billNumber}</div></div>
                 <div class="data-point"><span class="label">Sponsor(s)</span><div class="value">${sponsorDisplay}</div></div>
@@ -116,9 +149,8 @@
                 <div class="data-point"><span class="label">Current Status</span><div class="value">${currentStatus}</div></div>
                 <div class="data-point"><span class="label">Companion</span><div class="value">${companionDisplay}</div></div>
             `;
-
         } catch (err) {
-            resultsDiv.innerHTML = `<span class="error">Error connecting to Worker: ${err.message}</span>`;
+            resultsDiv.innerHTML = `<span style="color:#d93025; font-weight:bold;">Error connecting to Worker: ${err.message}</span>`;
         }
     }
 </script>
