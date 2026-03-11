@@ -24,21 +24,20 @@
             <div class="text-[10px] uppercase tracking-[0.2em] text-blue-200 font-bold mt-2 opacity-80">LegiTile</div>
         </div>
 
-<nav id="mainNav" class="flex-1 px-4 py-6 space-y-2">
-    <a href="home.html" data-nav="home" class="nav-item flex items-center gap-3 px-4 py-3 text-blue-200 hover:bg-white/5 hover:text-white rounded-lg transition font-black text-xs uppercase tracking-wider">
-        <span>🏠</span> Dashboard
-    </a>
-    <a href="tracker.html" data-nav="tracker" class="nav-item flex items-center gap-3 px-4 py-3 text-blue-200 hover:bg-white/5 hover:text-white rounded-lg transition font-black text-xs uppercase tracking-wider">
-        <span>📑</span> Workspace
-    </a>
-    <a href="search.html" data-nav="search" class="nav-item flex items-center gap-3 px-4 py-3 text-blue-200 hover:bg-white/5 hover:text-white rounded-lg transition font-black text-xs uppercase tracking-wider">
-        <span>🔍</span> Search Text
-    </a>
-</nav>
+        <nav id="mainNav" class="flex-1 px-4 py-6 space-y-2">
+            <a href="home.html" class="nav-item flex items-center gap-3 px-4 py-3 text-blue-200 hover:bg-white/5 hover:text-white rounded-lg transition font-black text-xs uppercase tracking-wider">
+                <span>🏠</span> Dashboard
+            </a>
+            <a href="tracker.html" class="nav-item flex items-center gap-3 px-4 py-3 text-blue-200 hover:bg-white/5 hover:text-white rounded-lg transition font-black text-xs uppercase tracking-wider">
+                <span>📑</span> Workspace
+            </a>
+            <a href="search.html" class="nav-item flex items-center gap-3 px-4 py-3 text-blue-200 hover:bg-white/5 hover:text-white rounded-lg transition font-black text-xs uppercase tracking-wider">
+                <span>🔍</span> Search Text
+            </a>
+        </nav>
 
         <div class="shrink-0 pb-6 px-4">
             <div class="bg-black/20 rounded-lg p-3 flex flex-col items-center text-center">
-                <span class="text-[8px] uppercase tracking-widest text-gray-400 font-bold mb-1">Staff Member</span>
                 <span id="userEmailDisplay" class="text-xs font-bold text-white truncate w-full mb-3"></span>
                 <button onclick="logout()" class="w-full bg-red-500/20 hover:bg-red-500/40 text-red-200 text-[10px] font-black uppercase py-2 rounded transition border border-red-500/30">Log Out</button>
             </div>
@@ -48,6 +47,9 @@
     <div class="flex-1 flex flex-col h-full overflow-hidden relative">
         <header class="shrink-0 pt-8 pb-4 px-6 md:px-10 z-40 bg-gray-100 border-b border-gray-200 flex justify-between items-center">
             <h1 class="text-2xl font-black text-gray-800 uppercase tracking-tight">Active Workspace</h1>
+            <button onclick="syncAllBills()" id="syncAllBtn" class="bg-white hover:bg-gray-50 text-[#002e5d] text-[10px] font-black uppercase px-4 py-2 rounded-lg shadow-sm border border-gray-200 transition flex items-center gap-2">
+                <span id="syncAllIcon">🔄</span> Refresh All Statuses
+            </button>
         </header>
 
         <main class="flex-1 overflow-y-auto p-6 md:p-10 scroll-smooth">
@@ -90,7 +92,32 @@
 
     function logout() { localStorage.clear(); window.location.href = 'index.html'; }
 
-    loadWorkspace();
+    // Initial Load Sequence
+    window.onload = async () => {
+        updateNavHighlight();
+        await loadWorkspace();
+        handleAutoSearch();
+    };
+
+    function updateNavHighlight() {
+        const path = window.location.pathname;
+        const navItems = document.querySelectorAll('.nav-item');
+        navItems.forEach(item => {
+            if (path.includes(item.getAttribute('href'))) {
+                item.classList.add('bg-white/10', 'text-white');
+                item.classList.remove('text-blue-200');
+            }
+        });
+    }
+
+    function handleAutoSearch() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const autosearch = urlParams.get('autosearch');
+        if (autosearch) {
+            document.getElementById('billNum').value = autosearch;
+            fetchAPI();
+        }
+    }
 
     async function loadWorkspace() {
         try {
@@ -145,7 +172,7 @@
                 tabsHtml = `
                 <div class="flex border-b border-gray-200 bg-gray-100 rounded-t-xl overflow-hidden">
                     ${group.map(g => `
-                        <button onclick="switchTab(${item.id}, ${g.id})" class="px-6 py-3 text-xs font-black uppercase transition-all ${activeItem.id === g.id ? 'bg-white border-t-4 border-[#002e5d] text-[#002e5d] shadow-sm' : 'text-gray-500 hover:bg-gray-200 border-t-4 border-transparent'}">${g.bill_number}</button>
+                        <button onclick="switchTab(event, ${item.id}, ${g.id})" class="px-6 py-3 text-xs font-black uppercase transition-all ${activeItem.id === g.id ? 'bg-white border-t-4 border-[#002e5d] text-[#002e5d] shadow-sm' : 'text-gray-500 hover:bg-gray-200 border-t-4 border-transparent'}">${g.bill_number}</button>
                     `).join('')}
                 </div>`;
             } else if (compBillStr && compBillStr !== "None") {
@@ -163,7 +190,12 @@
                     ${tabsHtml}
                     <div class="p-5 flex flex-col md:flex-row gap-4 items-start md:items-center cursor-pointer hover:bg-gray-50 transition" onclick="toggleCard(${item.id})">
                         <div class="w-48 flex-shrink-0">
-                            <span class="text-xl font-black text-gray-800 leading-tight block">${activeItem.bill_number}</span>
+                            <div class="flex items-center gap-2">
+                                <span class="text-xl font-black text-gray-800 leading-tight block">${activeItem.bill_number}</span>
+                                <button onclick="syncBill(event, ${activeItem.id}, '${activeItem.bill_number}')" class="text-gray-400 hover:text-[#002e5d] transition" title="Sync Status">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                                </button>
+                            </div>
                         </div>
                         <div class="md:border-l md:pl-6 flex-1">
                             <span class="text-[9px] font-black uppercase text-gray-400 block tracking-widest">Summary</span>
@@ -224,7 +256,54 @@
         });
     }
 
-    function switchTab(groupId, targetId) {
+    // --- SYNC FUNCTIONS ---
+
+    async function syncBill(event, id, billNumber) {
+        event.stopPropagation();
+        const btn = event.currentTarget;
+        btn.classList.add('animate-spin');
+        
+        try {
+            const res = await fetch(`${workerBaseUrl}/sync-bill`, {
+                method: 'POST',
+                headers: authHeaders,
+                body: JSON.stringify({ id, billNumber })
+            });
+            if (res.ok) await loadWorkspace();
+        } catch (e) { console.error("Sync failed"); }
+        btn.classList.remove('animate-spin');
+    }
+
+    async function syncAllBills() {
+        const btn = document.getElementById('syncAllBtn');
+        const icon = document.getElementById('syncAllIcon');
+        const originalText = btn.innerHTML;
+        
+        btn.disabled = true;
+        btn.classList.add('opacity-50');
+        icon.classList.add('animate-spin');
+        
+        for (const item of workspaceItems) {
+            btn.innerHTML = `<span>🔄</span> Syncing ${item.bill_number}...`;
+            try {
+                await fetch(`${workerBaseUrl}/sync-bill`, {
+                    method: 'POST',
+                    headers: authHeaders,
+                    body: JSON.stringify({ id: item.id, billNumber: item.bill_number })
+                });
+            } catch (e) { console.error("Batch sync failed for " + item.bill_number); }
+        }
+        
+        await loadWorkspace();
+        btn.disabled = false;
+        btn.classList.remove('opacity-50');
+        btn.innerHTML = originalText;
+        icon.classList.remove('animate-spin');
+    }
+
+    // --- UI INTERACTION ---
+
+    function switchTab(event, groupId, targetId) {
         event.stopPropagation();
         activeTabs[groupId] = targetId;
         expandedCards.add(groupId); 
@@ -255,10 +334,8 @@
     function toggleTask(id, tName, status) {
         const item = workspaceItems.find(i => i.id === id);
         if (!item.task_progress[status]) item.task_progress[status] = {};
-        
         if (item.task_progress[status][tName]) delete item.task_progress[status][tName];
         else item.task_progress[status][tName] = true;
-        
         syncToServer(item);
     }
 
@@ -280,96 +357,57 @@
             exec_date: item.exec_date || "",
             amendments: JSON.stringify(item.amendments)
         };
-
         try {
             await fetch(`${workerBaseUrl}/update-bill`, {
                 method: 'POST',
                 headers: authHeaders,
                 body: JSON.stringify(payload)
             });
-        } catch (e) { console.error("Failed to sync to database."); }
+        } catch (e) { console.error("Database sync failed"); }
     }
 
     async function deleteBill(id) {
-        if (!confirm("Are you sure you want to remove this bill from your workspace?")) return;
-        
+        if (!confirm("Are you sure?")) return;
         try {
             const res = await fetch(`${workerBaseUrl}/delete-bill`, {
                 method: 'DELETE',
                 headers: authHeaders,
-                body: JSON.stringify({ id: id })
+                body: JSON.stringify({ id })
             });
-            if (res.ok) {
-                loadWorkspace();
-            } else {
-                alert("Failed to delete bill.");
-            }
-        } catch (e) {
-            alert("Network error while deleting bill.");
-        }
+            if (res.ok) loadWorkspace();
+        } catch (e) { alert("Delete failed"); }
     }
+
+    // --- API LOGIC ---
 
     async function fetchAPI() {
         const rawBill = document.getElementById('billNum').value;
         const resDiv = document.getElementById('apiResults');
         if (!rawBill) return;
         
-        // Smarter Bill Extraction
         const fourDigitMatches = rawBill.match(/\d{4}/g);
-        let bill = "";
-        
-        if (fourDigitMatches) {
-            const validBills = fourDigitMatches.filter(n => n !== "2025" && n !== "2026");
-            bill = validBills.length > 0 ? validBills[validBills.length - 1] : fourDigitMatches[0];
-        } else {
-            bill = rawBill.replace(/\D/g, '');
-        }
+        let bill = fourDigitMatches ? (fourDigitMatches.filter(n => n !== "2025" && n !== "2026")[0] || fourDigitMatches[0]) : rawBill.replace(/\D/g, '');
 
-        if (!bill) {
-            resDiv.innerHTML = `<span class="text-orange-500 font-bold text-sm">Please enter a valid numeric bill number.</span>`;
-            return;
-        }
+        if (!bill) return resDiv.innerHTML = `<span class="text-orange-500 font-bold text-sm">Invalid bill number.</span>`;
         
         currentBillData = null;
         resDiv.innerHTML = `<span class="text-blue-500 font-bold text-sm">Querying WSL...</span>`;
         
         try {
             const res = await fetch(`${workerBaseUrl}/fetch-bill?bill=${bill}`, { headers: authHeaders });
-            if (res.status === 401) return logout();
-            
             const xmlText = await res.text();
             const xmlDoc = new DOMParser().parseFromString(xmlText, "text/xml");
-            
-            if (xmlDoc.getElementsByTagName("faultstring").length > 0) {
-                resDiv.innerHTML = `<span class="text-red-500 font-bold text-sm">API Error: ${xmlDoc.getElementsByTagName("faultstring")[0].textContent}</span>`;
-                return;
-            }
-
-            const getTagText = (tag) => {
-                const nodes = xmlDoc.getElementsByTagNameNS("*", tag);
-                return nodes.length > 0 ? nodes[0].textContent.trim() : (xmlDoc.getElementsByTagName(tag)[0]?.textContent.trim() || null);
-            };
+            const getTagText = (tag) => xmlDoc.getElementsByTagNameNS("*", tag)[0]?.textContent.trim() || xmlDoc.getElementsByTagName(tag)[0]?.textContent.trim() || null;
 
             const billNumber = getTagText("BillNumber") || bill;
             const shortDesc = getTagText("ShortDescription") || "No summary provided.";
             const currentStatus = getTagText("HistoryLine") || "Unknown Status";
-            
-            let primeSponsor = "None Listed";
-            const sponsorNodes = Array.from(xmlDoc.getElementsByTagNameNS("*", "Sponsor")).concat(Array.from(xmlDoc.getElementsByTagName("Sponsor")));
-            for (let s of sponsorNodes) {
-                const nameNode = s.getElementsByTagNameNS("*", "Name")[0] || s.getElementsByTagName("Name")[0];
-                const typeNode = s.getElementsByTagNameNS("*", "Type")[0] || s.getElementsByTagName("Type")[0];
-                if (nameNode && typeNode && typeNode.textContent === "Primary") primeSponsor = nameNode.textContent;
-            }
+            const sponsor = getTagText("Name") || "None Listed";
 
             let companions = [];
-            for (let c of Array.from(xmlDoc.getElementsByTagNameNS("*", "Companion")).concat(Array.from(xmlDoc.getElementsByTagName("Companion")))) {
-                if (c.textContent.trim()) companions.push(c.textContent.trim());
-            }
+            for (let c of xmlDoc.getElementsByTagNameNS("*", "Companion")) companions.push(c.textContent.trim());
 
-            currentBillData = {
-                billNumber, shortDesc, status: currentStatus, sponsor: primeSponsor, companion: companions.join(", ")
-            };
+            currentBillData = { billNumber, shortDesc, status: currentStatus, sponsor, companion: companions.join(", ") };
 
             resDiv.innerHTML = `
                 <div class="mt-4 p-4 bg-gray-50 border border-gray-200 rounded flex justify-between items-center">
@@ -380,9 +418,8 @@
                     <button onclick='saveToWorkspace()' class="bg-green-600 hover:bg-green-700 text-white text-[10px] font-black uppercase px-4 py-2 rounded shadow-sm transition">
                         Add to Workspace
                     </button>
-                </div>
-            `;
-        } catch (e) { resDiv.innerHTML = `<span class="text-red-500 font-bold text-sm">Connection failed.</span>`; }
+                </div>`;
+        } catch (e) { resDiv.innerHTML = `<span class="text-red-500 font-bold text-sm">API offline.</span>`; }
     }
 
     async function saveToWorkspace() {
@@ -394,34 +431,11 @@
                 body: JSON.stringify(currentBillData)
             });
             if (res.ok) {
-                document.getElementById('apiResults').innerHTML = `<span class="text-green-600 font-bold text-sm">Added to workspace!</span>`;
+                document.getElementById('apiResults').innerHTML = `<span class="text-green-600 font-bold text-sm">Added!</span>`;
                 document.getElementById('billNum').value = ''; 
                 loadWorkspace(); 
-            } else {
-                 const responseData = await res.json();
-                 document.getElementById('apiResults').innerHTML = `<span class="text-orange-500 font-bold text-sm">${responseData.message || 'Failed to save.'}</span>`;
             }
-        } catch (e) { alert("Failed to save bill."); }
-
-        function updateNavHighlight() {
-    const path = window.location.pathname;
-    const navItems = document.querySelectorAll('.nav-item');
-    
-    navItems.forEach(item => {
-        // Remove existing highlight
-        item.classList.remove('bg-white/10', 'text-white');
-        item.classList.add('text-blue-200');
-        
-        // If the link href matches the current file name, highlight it
-        if (path.includes(item.getAttribute('href'))) {
-            item.classList.add('bg-white/10', 'text-white');
-            item.classList.remove('text-blue-200');
-        }
-    });
-}
-
-// Call this on page load
-updateNavHighlight();
+        } catch (e) { alert("Save failed."); }
     }
 </script>
 
