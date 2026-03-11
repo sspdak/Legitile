@@ -48,7 +48,7 @@
             </div>
 
             <h2 class="text-xs font-black text-gray-400 uppercase tracking-widest mb-4">My Tracked Bills</h2>
-            <div id="workspaceGrid" class="flex flex-col gap-4 pb-20"></div>
+            <div id="workspaceGrid" class="flex flex-col gap-6 pb-20"></div>
         </main>
     </div>
 
@@ -62,6 +62,7 @@
     let currentBillData = null; 
     let workspaceItems = [];
     let expandedCards = new Set();
+    let activeTabs = {}; // Tracks which tab is active for a group
 
     const LIVE_STATUS_OPTIONS = ["Introduced", "Public Hearing", "Executive Action", "Fiscal", "Rules", "Floor", "House", "Concurrence", "Passed", "Dead"];
     const STATUS_TASKS = {
@@ -84,7 +85,6 @@
             if (res.status === 401) return logout();
             const rawBills = await res.json();
             
-            // Parse the JSON strings from the database
             workspaceItems = rawBills.map(item => ({
                 ...item,
                 task_progress: JSON.parse(item.task_progress || '{}'),
@@ -99,6 +99,7 @@
     function renderGrid() {
         const grid = document.getElementById('workspaceGrid');
         grid.innerHTML = '';
+        let processedIds = new Set();
 
         if (workspaceItems.length === 0) {
             grid.innerHTML = '<div class="text-gray-400 font-bold italic text-sm">No bills currently tracked. Search above to add one.</div>';
@@ -106,37 +107,73 @@
         }
 
         workspaceItems.forEach(item => {
-            const isDead = item.status === 'Dead';
-            const status = LIVE_STATUS_OPTIONS.includes(item.status) ? item.status : "Default";
-            const tasks = STATUS_TASKS[status] || STATUS_TASKS["Default"];
-            const progress = item.task_progress[status] || {};
+            if (processedIds.has(item.id)) return; // Skip if already rendered as a tab
+
+            // Check if there is a companion in the workspace
+            let compBillStr = item.companion ? item.companion.split(',')[0].trim() : "";
+            let compItem = compBillStr ? workspaceItems.find(i => i.bill_number === compBillStr || i.companion.includes(item.bill_number)) : null;
+
+            let group = [item];
+            if (compItem && compItem.id !== item.id) {
+                group.push(compItem);
+                processedIds.add(compItem.id);
+            }
+            processedIds.add(item.id);
+
+            // Determine active tab
+            let activeId = activeTabs[item.id] || item.id;
+            let activeItem = group.find(i => i.id === activeId) || item;
+            
+            let isDead = activeItem.status === 'Dead';
+            let status = LIVE_STATUS_OPTIONS.includes(activeItem.status) ? activeItem.status : "Default";
+            let tasks = STATUS_TASKS[status] || STATUS_TASKS["Default"];
+            let progress = activeItem.task_progress[status] || {};
+
+            // Render Tabs Header HTML
+            let tabsHtml = '';
+            if (group.length > 1) {
+                tabsHtml = `
+                <div class="flex border-b border-gray-200 bg-gray-100 rounded-t-xl overflow-hidden">
+                    ${group.map(g => `
+                        <button onclick="switchTab(${item.id}, ${g.id})" class="px-6 py-3 text-xs font-black uppercase transition-all ${activeItem.id === g.id ? 'bg-white border-t-4 border-[#002e5d] text-[#002e5d] shadow-sm' : 'text-gray-500 hover:bg-gray-200 border-t-4 border-transparent'}">${g.bill_number}</button>
+                    `).join('')}
+                </div>`;
+            } else if (compBillStr && compBillStr !== "None") {
+                 tabsHtml = `
+                 <div class="flex border-b border-gray-200 bg-gray-100 rounded-t-xl overflow-hidden">
+                    <button class="px-6 py-3 text-xs font-black uppercase bg-white border-t-4 border-[#002e5d] text-[#002e5d] shadow-sm">${activeItem.bill_number}</button>
+                    <button onclick="autoTrack('${compBillStr}')" class="px-6 py-3 text-xs font-black uppercase text-gray-400 hover:text-[#002e5d] hover:bg-gray-200 border-t-4 border-transparent flex items-center gap-2">
+                        <span class="text-[14px] leading-none">+</span> Track Companion (${compBillStr})
+                    </button>
+                </div>`;
+            }
 
             grid.innerHTML += `
                 <div class="bg-white rounded-xl shadow-md ${isDead ? 'dead-border' : 'live-border'} border border-gray-100 overflow-hidden ${isDead ? 'grayscale-[0.5]' : ''}">
+                    ${tabsHtml}
                     <div class="p-5 flex flex-col md:flex-row gap-4 items-start md:items-center cursor-pointer hover:bg-gray-50 transition" onclick="toggleCard(${item.id})">
                         <div class="w-48 flex-shrink-0">
-                            <span class="text-xl font-black text-gray-800 leading-tight block">${item.bill_number}</span>
-                            <span class="text-[10px] font-bold px-1.5 py-0.5 bg-gray-100 rounded border inline-block mt-1">Comp: ${item.companion || 'None'}</span>
+                            <span class="text-xl font-black text-gray-800 leading-tight block">${activeItem.bill_number}</span>
                         </div>
                         <div class="md:border-l md:pl-6 flex-1">
                             <span class="text-[9px] font-black uppercase text-gray-400 block tracking-widest">Summary</span>
-                            <span class="text-sm text-gray-700 font-bold line-clamp-2">${item.short_desc}</span>
+                            <span class="text-sm text-gray-700 font-bold line-clamp-2">${activeItem.short_desc}</span>
                         </div>
                         <div class="md:border-l md:pl-6 w-48 flex-shrink-0">
                             <span class="text-[9px] font-black uppercase text-gray-400 block tracking-widest mb-1">Status & Sponsor</span>
-                            <div class="text-[10px] font-black uppercase text-[#002e5d]">${item.status}</div>
-                            <div class="text-[10px] font-bold text-gray-500 truncate mt-1">${item.sponsor}</div>
+                            <div class="text-[10px] font-black uppercase text-[#002e5d]">${activeItem.status}</div>
+                            <div class="text-[10px] font-bold text-gray-500 truncate mt-1">${activeItem.sponsor}</div>
                         </div>
                     </div>
                     
-                    <div id="details_${item.id}" class="px-6 pb-6 pt-2 border-t border-gray-50 ${expandedCards.has(item.id) ? '' : 'details-hidden'}">
+                    <div id="details_${activeItem.id}" class="px-6 pb-6 pt-2 border-t border-gray-50 ${expandedCards.has(item.id) ? '' : 'details-hidden'}">
                         <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-4">
                             
                             <div class="space-y-4">
                                 <div class="flex items-center justify-between">
                                     <h3 class="text-[10px] font-black uppercase tracking-widest text-gray-400">Status & Tasks</h3>
-                                    <select onchange="updateDB(${item.id}, 'status', this.value)" class="text-[10px] font-black uppercase bg-gray-100 px-2 py-1 rounded outline-none cursor-pointer border border-gray-200">
-                                        ${LIVE_STATUS_OPTIONS.map(opt => `<option value="${opt}" ${item.status === opt ? 'selected' : ''}>${opt}</option>`).join('')}
+                                    <select onchange="updateDB(${activeItem.id}, 'status', this.value)" class="text-[10px] font-black uppercase bg-gray-100 px-2 py-1 rounded outline-none cursor-pointer border border-gray-200">
+                                        ${LIVE_STATUS_OPTIONS.map(opt => `<option value="${opt}" ${activeItem.status === opt ? 'selected' : ''}>${opt}</option>`).join('')}
                                     </select>
                                 </div>
                                 
@@ -147,7 +184,7 @@
                                         return `
                                         <div class="flex items-center justify-between py-1">
                                             <label class="flex items-center gap-3 text-sm cursor-pointer w-full">
-                                                <input type="checkbox" onchange="toggleTask(${item.id}, '${tName}', '${status}')" ${done ? 'checked' : ''} class="h-4 w-4 rounded text-blue-900 border-gray-300">
+                                                <input type="checkbox" onchange="toggleTask(${activeItem.id}, '${tName}', '${status}')" ${done ? 'checked' : ''} class="h-4 w-4 rounded text-blue-900 border-gray-300">
                                                 <span class="${done ? 'text-gray-400 line-through' : 'font-bold text-gray-700'}">${tName}</span>
                                             </label>
                                         </div>`;
@@ -159,16 +196,29 @@
                                 <div class="bg-gray-50 p-4 rounded-lg border border-gray-200 flex-1 flex flex-col">
                                     <div class="flex justify-between items-center mb-2">
                                         <label class="text-[10px] font-black text-gray-400 uppercase">Workspace Notes</label>
-                                        <button onclick="insertTimestamp(${item.id})" class="text-[9px] font-bold text-blue-600 bg-blue-100 px-2 py-1 rounded hover:bg-blue-200 uppercase">Timestamp</button>
+                                        <button onclick="insertTimestamp(${activeItem.id})" class="text-[9px] font-bold text-blue-600 bg-blue-100 px-2 py-1 rounded hover:bg-blue-200 uppercase">Timestamp</button>
                                     </div>
-                                    <textarea id="notes_${item.id}" onchange="updateDB(${item.id}, 'live_notes', this.value)" class="w-full bg-transparent text-sm italic flex-1 focus:outline-none resize-none" placeholder="Draft talking points or staff notes...">${item.live_notes || ""}</textarea>
+                                    <textarea id="notes_${activeItem.id}" onchange="updateDB(${activeItem.id}, 'live_notes', this.value)" class="w-full bg-transparent text-sm italic flex-1 focus:outline-none resize-none" placeholder="Draft talking points or staff notes...">${activeItem.live_notes || ""}</textarea>
                                 </div>
                             </div>
-
                         </div>
                     </div>
                 </div>`;
         });
+    }
+
+    function switchTab(groupId, targetId) {
+        event.stopPropagation();
+        activeTabs[groupId] = targetId;
+        expandedCards.add(groupId); // Keep the card open when switching tabs
+        renderGrid();
+    }
+
+    // Auto-populates search and clicks it when a user wants to track an untracked companion
+    window.autoTrack = function(billNum) {
+        document.getElementById('billNum').value = billNum;
+        fetchAPI();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
     function toggleCard(id) {
@@ -203,7 +253,7 @@
     }
 
     async function syncToServer(item) {
-        renderGrid(); // Update UI immediately
+        renderGrid(); 
         const payload = {
             id: item.id,
             status: item.status,
@@ -224,7 +274,6 @@
         } catch (e) { console.error("Failed to sync to database."); }
     }
 
-    // --- API Fetch Logic ---
     async function fetchAPI() {
         const bill = document.getElementById('billNum').value;
         const resDiv = document.getElementById('apiResults');
@@ -297,6 +346,9 @@
                 document.getElementById('apiResults').innerHTML = `<span class="text-green-600 font-bold text-sm">Added to workspace!</span>`;
                 document.getElementById('billNum').value = ''; 
                 loadWorkspace(); 
+            } else {
+                 const responseData = await res.json();
+                 document.getElementById('apiResults').innerHTML = `<span class="text-orange-500 font-bold text-sm">${responseData.message || 'Failed to save.'}</span>`;
             }
         } catch (e) { alert("Failed to save bill."); }
     }
