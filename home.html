@@ -51,13 +51,13 @@
                 
                 <div class="lg:col-span-1 flex flex-col gap-6">
                     
-                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 flex flex-col flex-1 max-h-[450px]">
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 flex flex-col flex-1 max-h-[500px]">
                         <div class="flex justify-between items-center mb-3">
-                            <span class="text-[10px] font-black uppercase tracking-widest text-gray-400">Legislative Schedule</span>
-                            <span class="text-[9px] font-bold text-blue-500 animate-pulse">LIVE</span>
+                            <span class="text-[10px] font-black uppercase tracking-widest text-gray-400">Upcoming Meetings</span>
+                            <span class="text-[9px] font-bold text-blue-500 animate-pulse">30-DAY WINDOW</span>
                         </div>
                         <div class="space-y-3 overflow-y-auto pr-2" id="meetingList">
-                            <span class="text-xs font-bold text-gray-400 italic">Syncing with Olympia...</span>
+                            <span class="text-xs font-bold text-gray-400 italic">Scanning biennium records...</span>
                         </div>
                     </div>
 
@@ -69,16 +69,16 @@
                     </div>
 
                     <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 flex flex-col justify-center shrink-0">
-                        <span class="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-4 block">Biennium Bill Volume</span>
+                        <span class="text-[10px] font-black uppercase text-gray-400 mb-4 block">Biennium Bill Volume</span>
                         <div class="flex justify-around items-center">
                             <div class="text-center">
                                 <div class="text-3xl font-black text-gray-800" id="houseCount">--</div>
-                                <span class="text-[10px] font-bold uppercase text-gray-500">House Bills</span>
+                                <span class="text-[10px] font-bold uppercase text-gray-500">House</span>
                             </div>
                             <div class="h-10 w-px bg-gray-200"></div>
                             <div class="text-center">
                                 <div class="text-3xl font-black text-gray-800" id="senateCount">--</div>
-                                <span class="text-[10px] font-bold uppercase text-gray-500">Senate Bills</span>
+                                <span class="text-[10px] font-bold uppercase text-gray-500">Senate</span>
                             </div>
                         </div>
                     </div>
@@ -111,7 +111,7 @@
 
     function logout() { localStorage.clear(); window.location.href = 'index.html'; }
 
-    // Navigation Highlight Logic
+    // Dynamic Navigation Highlighting
     function updateNavHighlight() {
         const path = window.location.pathname;
         const navItems = document.querySelectorAll('.nav-item');
@@ -123,59 +123,44 @@
         });
     }
 
-    // Initial Dashboard Run
+    // Refresh Dashboard every 5 minutes
     updateNavHighlight();
     refreshDashboard();
-    setInterval(refreshDashboard, 300000); // Auto-refresh every 5 mins
+    setInterval(refreshDashboard, 300000);
 
     function refreshDashboard() {
         calculateSineDie();
-        fetchLegislativeStats();
-        fetchWorkspaceUpdates();
+        fetchStats();
+        fetchRadar();
         fetchMeetings();
     }
 
     function calculateSineDie() {
-        // Corrected date parsing for better cross-browser compatibility
         const sineDieDate = new Date("2026-03-12T23:59:59").getTime();
         const now = new Date().getTime();
-        const diffTime = sineDieDate - now;
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)); 
+        const diffDays = Math.ceil((sineDieDate - now) / (1000 * 60 * 60 * 24)); 
         const display = document.getElementById('countdownDays');
-        
-        if (isNaN(diffDays)) {
-            display.innerText = "??";
-        } else if (diffDays <= 0) {
-            display.innerText = "0";
-            display.classList.add("text-red-400");
-        } else {
-            display.innerText = diffDays;
-            if (diffDays <= 3) display.classList.add("text-orange-400");
-        }
+        display.innerText = diffDays < 0 ? "0" : diffDays;
     }
 
-    async function fetchLegislativeStats() {
+    async function fetchStats() {
         try {
             const res = await fetch(`${workerBaseUrl}/session-stats`, { headers: authHeaders });
-            const stats = await res.json();
-            document.getElementById('houseCount').innerText = stats.house.toLocaleString();
-            document.getElementById('senateCount').innerText = stats.senate.toLocaleString();
-        } catch (e) {
-            document.getElementById('houseCount').innerText = "Err";
-            document.getElementById('senateCount').innerText = "Err";
-        }
+            const data = await res.json();
+            document.getElementById('houseCount').innerText = data.house.toLocaleString();
+            document.getElementById('senateCount').innerText = data.senate.toLocaleString();
+        } catch (e) {}
     }
 
-    async function fetchWorkspaceUpdates() {
+    async function fetchRadar() {
         try {
             const res = await fetch(`${workerBaseUrl}/my-workspace`, { headers: authHeaders });
-            if (res.status === 401) return logout();
             const bills = await res.json();
             const grid = document.getElementById('recentUpdatesGrid');
             grid.innerHTML = '';
 
             if (bills.length === 0) {
-                grid.innerHTML = '<div class="text-gray-400 font-bold text-sm italic">Workspace is empty. Add bills in the Workspace tab.</div>';
+                grid.innerHTML = '<div class="text-gray-400 text-xs italic">Workspace is empty.</div>';
                 return;
             }
 
@@ -188,57 +173,52 @@
                             <span class="text-[9px] font-black uppercase px-2 py-0.5 rounded ${isDead ? 'bg-gray-200 text-gray-600' : 'bg-orange-100 text-orange-800'} inline-block mt-1">${item.status}</span>
                         </div>
                         <div class="text-sm font-bold text-gray-600 line-clamp-2 flex-1">${item.short_desc}</div>
-                    </div>
-                `;
+                    </div>`;
             });
-        } catch (e) {
-            document.getElementById('recentUpdatesGrid').innerHTML = '<div class="text-red-500 font-bold text-sm">Offline.</div>';
-        }
+        } catch (e) {}
     }
 
-async function fetchMeetings() {
+    async function fetchMeetings() {
         const list = document.getElementById('meetingList');
         const now = new Date();
-        const thirtyDaysFromNow = new Date();
-        thirtyDaysFromNow.setDate(now.getDate() + 30);
+        const fortyFiveDaysFromNow = new Date();
+        fortyFiveDaysFromNow.setDate(now.getDate() + 45);
 
         try {
             const res = await fetch(`${workerBaseUrl}/upcoming-meetings`, { headers: authHeaders });
             const xmlText = await res.text();
             const xmlDoc = new DOMParser().parseFromString(xmlText, "text/xml");
             
-            const cm = Array.from(xmlDoc.getElementsByTagNameNS("*", "CommitteeMeeting"));
-            const fa = Array.from(xmlDoc.getElementsByTagNameNS("*", "FloorAction"));
+            // BULLETPROOF: Use querySelectorAll to ignore namespaces
+            const cm = Array.from(xmlDoc.querySelectorAll('CommitteeMeeting'));
+            const fa = Array.from(xmlDoc.querySelectorAll('FloorAction'));
             const allItems = [...cm, ...fa];
 
-            list.innerHTML = '';
+            if (allItems.length === 0) {
+                list.innerHTML = '<div class="text-xs font-bold text-gray-400 italic">No meetings scheduled.</div>';
+                return;
+            }
+
             const seen = new Set();
-            
-            const filteredItems = allItems.map(item => {
-                const getTag = (t) => item.getElementsByTagNameNS("*", t)[0]?.textContent.trim() || "";
-                const date = new Date(getTag("Date"));
+            const filteredItems = allItems.map(node => {
+                const get = (t) => node.querySelector(t)?.textContent.trim() || "";
                 return {
-                    node: item,
-                    agency: getTag("Agency") || "LEG",
-                    name: getTag("Name") || getTag("LongName") || "Meeting",
-                    date: date,
-                    room: getTag("Room") || "Chamber Floor",
-                    key: `${getTag("Agency")}-${getTag("Name")}-${getTag("Date")}`
+                    agency: get("Agency"),
+                    name: get("Name") || get("LongName"),
+                    date: new Date(get("Date")),
+                    room: get("Room") || "Chamber Floor",
+                    key: `${get("Agency")}-${get("Name")}-${get("Date")}`
                 };
             }).filter(item => {
-                // FILTER: Only show meetings in our 30-day window
-                const isUpcoming = item.date >= now && item.date <= thirtyDaysFromNow;
+                const isUpcoming = item.date >= now && item.date <= fortyFiveDaysFromNow;
                 if (!isUpcoming || seen.has(item.key)) return false;
                 seen.add(item.key);
                 return true;
             }).sort((a, b) => a.date - b.date);
 
-            if (filteredItems.length === 0) {
-                list.innerHTML = '<div class="text-xs font-bold text-gray-400 italic">No meetings scheduled for the next 30 days.</div>';
-                return;
-            }
-
+            list.innerHTML = '';
             let lastDateLabel = "";
+
             filteredItems.forEach(item => {
                 const dateLabel = item.date.toLocaleDateString([], { month: 'long', day: 'numeric' }).toUpperCase();
                 if (dateLabel !== lastDateLabel) {
@@ -249,9 +229,11 @@ async function fetchMeetings() {
                 const timeStr = item.date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                 let color = "bg-gray-400";
                 const ag = item.agency.toLowerCase();
+                const nm = item.name.toLowerCase();
+
                 if (ag.includes("senate")) color = "bg-red-500";
                 else if (ag.includes("house")) color = "bg-green-500";
-                else if (ag.includes("joint") || ag.includes("jlarc")) color = "bg-blue-600";
+                else if (ag.includes("joint") || nm.includes("jlarc")) color = "bg-blue-600";
                 
                 let displayName = item.name;
                 if (displayName.includes("Convened")) displayName = "Floor Session";
@@ -266,10 +248,9 @@ async function fetchMeetings() {
                     </div>`;
             });
         } catch (e) {
-            list.innerHTML = '<div class="text-xs font-bold text-red-400">Schedule sync failed.</div>';
+            list.innerHTML = '<div class="text-xs font-bold text-red-400">Failed to sync schedule.</div>';
         }
     }
 </script>
-
 </body>
 </html>
