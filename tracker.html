@@ -274,10 +274,18 @@
         } catch (e) { console.error("Failed to sync to database."); }
     }
 
-    async function fetchAPI() {
-        const bill = document.getElementById('billNum').value;
+   async function fetchAPI() {
+        const rawBill = document.getElementById('billNum').value;
         const resDiv = document.getElementById('apiResults');
-        if (!bill) return;
+        if (!rawBill) return;
+        
+        // NEW: Strip out all letters and spaces, leaving only the digits
+        const bill = rawBill.replace(/\D/g, '');
+        
+        if (!bill) {
+            resDiv.innerHTML = `<span class="text-orange-500 font-bold text-sm">Please enter a valid numeric bill number.</span>`;
+            return;
+        }
         
         currentBillData = null;
         resDiv.innerHTML = `<span class="text-blue-500 font-bold text-sm">Querying WSL...</span>`;
