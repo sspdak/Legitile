@@ -3,20 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LegiTile | API Tracker</title>
+    <title>LegiTile | Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         .leg-navy { background-color: #002e5d; }
-        .leg-navy-text { color: #002e5d; }
         .live-border { border-left: 8px solid #002e5d; }
-        .error-border { border-left: 8px solid #ef4444; }
-        .workspace-card { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
-        
-        /* Custom Scrollbar */
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
     </style>
 </head>
 <body class="bg-gray-100 h-screen font-sans text-gray-900 overflow-hidden flex flex-col md:flex-row">
@@ -24,193 +18,168 @@
     <aside class="leg-navy text-white w-full md:w-48 flex-shrink-0 flex flex-col shadow-2xl z-50 md:h-full">
         <div class="py-8 flex flex-col items-center border-b border-white/10 shrink-0">
             <div class="text-6xl font-serif italic font-black text-transparent bg-clip-text bg-gradient-to-br from-orange-400 to-white drop-shadow-2xl leading-none">L</div>
-            <div class="text-[10px] uppercase tracking-[0.2em] text-blue-200 font-bold mt-2 opacity-80">LegiTile API</div>
+            <div class="text-[10px] uppercase tracking-[0.2em] text-blue-200 font-bold mt-2 opacity-80">LegiTile</div>
         </div>
-
         <div class="flex-1 flex flex-col justify-end pb-6 px-4">
             <div class="bg-black/20 rounded-lg p-3 flex flex-col items-center text-center">
-                <span class="text-[8px] uppercase tracking-widest text-gray-400 font-bold mb-1">Logged In As</span>
+                <span class="text-[8px] uppercase tracking-widest text-gray-400 font-bold mb-1">Staff Member</span>
                 <span id="userEmailDisplay" class="text-xs font-bold text-white truncate w-full mb-3"></span>
-                <button onclick="logout()" class="w-full bg-red-500/20 hover:bg-red-500/40 text-red-200 text-[10px] font-black uppercase py-2 rounded transition border border-red-500/30">
-                    Log Out
-                </button>
+                <button onclick="logout()" class="w-full bg-red-500/20 hover:bg-red-500/40 text-red-200 text-[10px] font-black uppercase py-2 rounded transition border border-red-500/30">Log Out</button>
             </div>
         </div>
     </aside>
 
     <div class="flex-1 flex flex-col h-full overflow-hidden relative">
-        
-        <header class="shrink-0 pt-8 pb-4 px-6 md:px-10 z-40 bg-gray-100 border-b border-gray-200">
-            <h1 class="text-2xl font-black text-gray-800 uppercase tracking-tight">Legislative API Lookup</h1>
+        <header class="shrink-0 pt-8 pb-4 px-6 md:px-10 z-40 bg-gray-100 border-b border-gray-200 flex justify-between items-center">
+            <h1 class="text-2xl font-black text-gray-800 uppercase tracking-tight">Active Workspace</h1>
         </header>
 
         <main class="flex-1 overflow-y-auto p-6 md:p-10 scroll-smooth">
             
-            <div class="bg-white p-6 rounded-xl shadow-sm mb-8 border border-gray-100 max-w-3xl">
-                <label class="text-[10px] font-black uppercase text-gray-400 tracking-widest mb-2 block">Query Washington State Legislature</label>
-                <div class="flex gap-3 w-full">
-                    <input type="text" id="billNum" placeholder="Enter Bill Number (e.g. 1000)" 
-                           class="flex-1 border-2 border-gray-200 p-3 rounded-lg outline-none focus:border-[#002e5d] font-bold text-gray-700 transition">
-                    <button onclick="fetchSummaryData()" 
-                            class="bg-[#002e5d] hover:bg-blue-900 text-white text-[12px] font-black uppercase px-6 py-3 rounded-lg shadow-sm hover:shadow-md transition">
-                        Fetch Data
-                    </button>
+            <div class="bg-white p-6 rounded-xl shadow-sm mb-8 border border-gray-100">
+                <label class="text-[10px] font-black uppercase text-gray-400 tracking-widest mb-2 block">Lookup & Track a Bill</label>
+                <div class="flex gap-3 w-full mb-4">
+                    <input type="text" id="billNum" placeholder="Enter Bill Number (e.g. 1000)" class="flex-1 border-2 border-gray-200 p-3 rounded-lg outline-none focus:border-[#002e5d] font-bold text-gray-700">
+                    <button onclick="fetchAPI()" class="bg-gray-200 hover:bg-gray-300 text-gray-700 text-[12px] font-black uppercase px-6 py-3 rounded-lg shadow-sm transition">Search API</button>
                 </div>
+                <div id="apiResults"></div>
             </div>
 
-            <div id="results" class="max-w-3xl">
-                <div class="text-gray-400 font-bold text-sm italic">Awaiting query...</div>
-            </div>
+            <h2 class="text-xs font-black text-gray-400 uppercase tracking-widest mb-4">My Tracked Bills</h2>
+            <div id="workspaceGrid" class="flex flex-col gap-4 pb-20">
+                </div>
 
         </main>
     </div>
 
 <script>
-    // Security check
-    if (!localStorage.getItem('jwt_token')) {
-        window.location.href = 'index.html';
-    }
-
-    // Display logged-in user
-    document.getElementById('userEmailDisplay').innerText = localStorage.getItem('user_email') || 'Unknown User';
+    if (!localStorage.getItem('jwt_token')) window.location.href = 'index.html';
+    document.getElementById('userEmailDisplay').innerText = localStorage.getItem('user_email') || 'Unknown';
 
     function logout() {
-        localStorage.removeItem('jwt_token');
-        localStorage.removeItem('user_email');
-        localStorage.removeItem('user_logged_in'); 
+        localStorage.clear();
         window.location.href = 'index.html';
     }
 
     const workerBaseUrl = "https://misty-credit-9e6a.ewing-jacob.workers.dev";
+    const authHeaders = { 
+        'Authorization': `Bearer ${localStorage.getItem('jwt_token')}`,
+        'Content-Type': 'application/json' 
+    };
 
-    async function fetchSummaryData() {
+    // Load Workspace on boot
+    loadWorkspace();
+
+    async function loadWorkspace() {
+        try {
+            const res = await fetch(`${workerBaseUrl}/my-workspace`, { headers: authHeaders });
+            if (res.status === 401) return logout();
+            const bills = await res.json();
+            
+            const grid = document.getElementById('workspaceGrid');
+            grid.innerHTML = '';
+
+            if (bills.length === 0) {
+                grid.innerHTML = '<div class="text-gray-400 font-bold italic text-sm">No bills currently tracked. Search above to add one.</div>';
+                return;
+            }
+
+            bills.forEach(item => {
+                grid.innerHTML += `
+                    <div class="bg-white rounded-xl shadow-md live-border border border-gray-100 overflow-hidden">
+                        <div class="p-5 flex flex-col md:flex-row gap-4 items-start md:items-center">
+                            <div class="w-48 flex-shrink-0">
+                                <span class="text-xl font-black text-gray-800 leading-tight block">${item.bill_number}</span>
+                                <span class="text-[10px] font-bold px-1.5 py-0.5 bg-gray-100 rounded border inline-block mt-1">Comp: ${item.companion || 'None'}</span>
+                            </div>
+                            <div class="md:border-l md:pl-6 flex-1">
+                                <span class="text-[9px] font-black uppercase text-gray-400 block tracking-widest">Summary</span>
+                                <span class="text-sm text-gray-700 font-bold line-clamp-2">${item.short_desc}</span>
+                            </div>
+                            <div class="md:border-l md:pl-6 w-48 flex-shrink-0">
+                                <span class="text-[9px] font-black uppercase text-gray-400 block tracking-widest mb-1">Status & Sponsor</span>
+                                <div class="text-[10px] font-black uppercase text-[#002e5d]">${item.status}</div>
+                                <div class="text-[10px] font-bold text-gray-500 truncate mt-1">${item.sponsor}</div>
+                            </div>
+                        </div>
+                    </div>`;
+            });
+        } catch (e) { console.error(e); }
+    }
+
+    async function fetchAPI() {
         const bill = document.getElementById('billNum').value;
-        const resultsDiv = document.getElementById('results');
-        
+        const resDiv = document.getElementById('apiResults');
         if (!bill) return;
         
-        resultsDiv.innerHTML = `
-            <div class="workspace-card bg-white rounded-xl shadow-md border border-gray-100 p-6 flex justify-center items-center">
-                <span class="text-blue-500 font-bold animate-pulse">Establishing connection to WSL API...</span>
-            </div>`;
-
+        resDiv.innerHTML = `<span class="text-blue-500 font-bold text-sm">Querying WSL...</span>`;
         try {
-            const token = localStorage.getItem('jwt_token');
-            const response = await fetch(`${workerBaseUrl}/fetch-bill?bill=${bill}`, {
-                method: 'GET',
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-
-            if (response.status === 401 || response.status === 403) {
-                logout();
-                return;
-            }
-
-            const xmlText = await response.text();
-            const parser = new DOMParser();
-            const xmlDoc = parser.parseFromString(xmlText, "text/xml");
-
+            const res = await fetch(`${workerBaseUrl}/fetch-bill?bill=${bill}`, { headers: authHeaders });
+            if (res.status === 401) return logout();
+            
+            const xmlText = await res.text();
+            const xmlDoc = new DOMParser().parseFromString(xmlText, "text/xml");
+            
             if (xmlDoc.getElementsByTagName("faultstring").length > 0) {
-                resultsDiv.innerHTML = `
-                    <div class="workspace-card bg-white rounded-xl shadow-md error-border border-gray-100 p-6">
-                        <span class="text-[10px] font-black uppercase text-red-500 tracking-widest block mb-1">API Error</span>
-                        <span class="text-sm font-bold text-gray-800">${xmlDoc.getElementsByTagName("faultstring")[0].textContent}</span>
-                    </div>`;
+                resDiv.innerHTML = `<span class="text-red-500 font-bold text-sm">API Error: ${xmlDoc.getElementsByTagName("faultstring")[0].textContent}</span>`;
                 return;
             }
 
-            // XML Parsers
             const getTagText = (tag) => {
                 const nodes = xmlDoc.getElementsByTagNameNS("*", tag);
-                if (nodes.length > 0) return nodes[0].textContent.trim();
-                const fallback = xmlDoc.getElementsByTagName(tag);
-                return fallback.length > 0 ? fallback[0].textContent.trim() : null;
+                return nodes.length > 0 ? nodes[0].textContent.trim() : (xmlDoc.getElementsByTagName(tag)[0]?.textContent.trim() || null);
             };
 
-            const getNodes = (tag) => {
-                const nodes = xmlDoc.getElementsByTagNameNS("*", tag);
-                return nodes.length > 0 ? Array.from(nodes) : Array.from(xmlDoc.getElementsByTagName(tag));
-            };
-
-            // Extract Data
             const billNumber = getTagText("BillNumber") || bill;
-            const shortDesc = getTagText("ShortDescription") || "No summary provided by legislature.";
-            const longDesc = getTagText("LongDescription") || "No detailed title available.";
+            const shortDesc = getTagText("ShortDescription") || "No summary provided.";
             const currentStatus = getTagText("HistoryLine") || "Unknown Status";
-
-            let sponsorNames = [];
+            
             let primeSponsor = "None Listed";
-            for (let s of getNodes("Sponsor")) {
-                const nameNode = s.getElementsByTagNameNS("*", "Name")[0] || s.getElementsByTagName("Name")[0];
-                const typeNode = s.getElementsByTagNameNS("*", "Type")[0] || s.getElementsByTagName("Type")[0];
-                if (nameNode) {
-                    const name = nameNode.textContent;
-                    if (typeNode && typeNode.textContent === "Primary") primeSponsor = name;
-                    sponsorNames.push(name);
+            for (let s of Array.from(xmlDoc.getElementsByTagNameNS("*", "Sponsor")).concat(Array.from(xmlDoc.getElementsByTagName("Sponsor")))) {
+                if (s.getElementsByTagNameNS("*", "Type")[0]?.textContent === "Primary" || s.getElementsByTagName("Type")[0]?.textContent === "Primary") {
+                    primeSponsor = (s.getElementsByTagNameNS("*", "Name")[0] || s.getElementsByTagName("Name")[0])?.textContent;
                 }
             }
-            const allSponsorsStr = sponsorNames.length > 0 ? sponsorNames.join(", ") : "N/A";
 
             let companions = [];
-            for (let c of getNodes("Companion")) {
-                let text = c.textContent.trim();
-                if (text) companions.push(text);
+            for (let c of Array.from(xmlDoc.getElementsByTagNameNS("*", "Companion")).concat(Array.from(xmlDoc.getElementsByTagName("Companion")))) {
+                if (c.textContent.trim()) companions.push(c.textContent.trim());
             }
-            const companionDisplay = companions.length > 0 ? companions.join(", ") : "None";
 
-            // Render Output using LegiTile Aesthetic
-            resultsDiv.innerHTML = `
-                <div class="workspace-card bg-white rounded-xl shadow-md live-border border border-gray-100 overflow-hidden">
-                    <div class="p-6 border-b border-gray-100 bg-gray-50 flex justify-between items-start">
-                        <div>
-                            <span class="text-[10px] font-black uppercase text-gray-400 block tracking-widest mb-1">Bill Identifier</span>
-                            <div class="text-3xl font-black text-[#002e5d] leading-none">${billNumber}</div>
-                        </div>
-                        <div class="text-right">
-                            <span class="text-[10px] font-black uppercase text-gray-400 block tracking-widest mb-1">Companion</span>
-                            <div class="inline-block bg-gray-200 text-gray-700 text-xs font-bold px-3 py-1 rounded">${companionDisplay}</div>
-                        </div>
+            // Storing the data temporarily in a data attribute to pass to the save function safely
+            const safeData = JSON.stringify({
+                billNumber, shortDesc, status: currentStatus, sponsor: primeSponsor, companion: companions.join(", ")
+            }).replace(/'/g, "&#39;").replace(/"/g, "&quot;");
+
+            resDiv.innerHTML = `
+                <div class="mt-4 p-4 bg-gray-50 border border-gray-200 rounded flex justify-between items-center">
+                    <div>
+                        <div class="text-sm font-black text-[#002e5d]">${billNumber}</div>
+                        <div class="text-xs text-gray-600 font-bold truncate max-w-md">${shortDesc}</div>
                     </div>
-
-                    <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-8">
-                        
-                        <div class="space-y-6">
-                            <div>
-                                <span class="text-[10px] font-black uppercase text-gray-400 block tracking-widest mb-1">Short Description</span>
-                                <div class="text-sm font-bold text-gray-800 leading-snug">${shortDesc}</div>
-                            </div>
-                            
-                            <div>
-                                <span class="text-[10px] font-black uppercase text-gray-400 block tracking-widest mb-1">Long Description</span>
-                                <div class="text-xs font-bold text-gray-500 leading-relaxed">${longDesc}</div>
-                            </div>
-                        </div>
-
-                        <div class="space-y-6">
-                            <div>
-                                <span class="text-[10px] font-black uppercase text-gray-400 block tracking-widest mb-1">Current Status</span>
-                                <div class="inline-block bg-orange-100 text-orange-800 text-sm font-black px-3 py-1 rounded border border-orange-200">
-                                    ${currentStatus}
-                                </div>
-                            </div>
-
-                            <div>
-                                <span class="text-[10px] font-black uppercase text-gray-400 block tracking-widest mb-1">Sponsorship</span>
-                                <div class="text-sm font-bold text-[#002e5d] mb-1"><span class="text-xs text-gray-500 uppercase">Prime:</span> ${primeSponsor}</div>
-                                <div class="text-xs font-bold text-gray-500"><span class="text-gray-400 uppercase">All:</span> ${allSponsorsStr}</div>
-                            </div>
-                        </div>
-
-                    </div>
+                    <button onclick='saveToWorkspace("${safeData}")' class="bg-green-600 hover:bg-green-700 text-white text-[10px] font-black uppercase px-4 py-2 rounded shadow-sm transition">
+                        Add to Workspace
+                    </button>
                 </div>
             `;
-        } catch (err) {
-            resultsDiv.innerHTML = `
-                <div class="workspace-card bg-white rounded-xl shadow-md error-border border-gray-100 p-6">
-                    <span class="text-[10px] font-black uppercase text-red-500 tracking-widest block mb-1">System Error</span>
-                    <span class="text-sm font-bold text-gray-800">Connection failed. Check Worker status.</span>
-                </div>`;
+        } catch (e) {
+            resDiv.innerHTML = `<span class="text-red-500 font-bold text-sm">Connection failed.</span>`;
         }
+    }
+
+    async function saveToWorkspace(dataStr) {
+        try {
+            const payload = JSON.parse(dataStr.replace(/&quot;/g, '"').replace(/&#39;/g, "'"));
+            const res = await fetch(`${workerBaseUrl}/save-bill`, {
+                method: 'POST',
+                headers: authHeaders,
+                body: JSON.stringify(payload)
+            });
+            if (res.ok) {
+                document.getElementById('apiResults').innerHTML = `<span class="text-green-600 font-bold text-sm">Added to workspace!</span>`;
+                loadWorkspace(); // Refresh the grid
+            }
+        } catch (e) { alert("Failed to save bill."); }
     }
 </script>
 
