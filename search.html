@@ -62,46 +62,56 @@
 
     function logout() { localStorage.clear(); window.location.href = 'index.html'; }
 
-    document.getElementById('searchForm').addEventListener('submit', async (e) => {
+document.getElementById('searchForm').addEventListener('submit', async (e) => {
         e.preventDefault();
         const query = document.getElementById('searchQuery').value.trim();
         const resultsDiv = document.getElementById('searchResults');
         
         if (!query) return;
 
-        resultsDiv.innerHTML = '<div class="text-blue-500 font-bold animate-pulse">Searching state archives...</div>';
+        resultsDiv.innerHTML = '<div class="text-blue-500 font-bold animate-pulse uppercase text-xs tracking-widest">Scanning Bill Text Archives...</div>';
 
         try {
-            const res = await fetch(`${workerBaseUrl}/search-bills?q=${encodeURIComponent(query)}`, { headers: authHeaders });
+            const res = await fetch(`${workerBaseUrl}/search-bill-text?q=${encodeURIComponent(query)}`, { headers: authHeaders });
             const xmlText = await res.text();
             const xmlDoc = new DOMParser().parseFromString(xmlText, "text/xml");
-            const bills = Array.from(xmlDoc.getElementsByTagNameNS("*", "LegislationInfo"));
+            
+            // The service returns 'LegislativeDocument' nodes
+            const docs = Array.from(xmlDoc.getElementsByTagNameNS("*", "LegislativeDocument"));
 
             resultsDiv.innerHTML = '';
 
-            if (bills.length === 0) {
-                resultsDiv.innerHTML = '<div class="text-orange-500 font-bold">No bills found for that topic in the 2025-26 biennium.</div>';
+            if (docs.length === 0) {
+                resultsDiv.innerHTML = '<div class="text-orange-500 font-bold">No matching bill language found for that phrase.</div>';
                 return;
             }
 
-            bills.forEach(b => {
-                const num = b.getElementsByTagNameNS("*", "BillNumber")[0]?.textContent || "N/A";
-                const desc = b.getElementsByTagNameNS("*", "ShortDescription")[0]?.textContent || "No description available.";
+            docs.forEach(doc => {
+                const name = doc.getElementsByTagNameNS("*", "Name")[0]?.textContent || "Document";
+                const path = doc.getElementsByTagNameNS("*", "Path")[0]?.textContent || "#";
+                // Extract bill number from document name (e.g., "1234.pdf" -> "1234")
+                const billNum = name.match(/\d+/)?.[0] || "";
                 
                 resultsDiv.innerHTML += `
                     <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-200 flex flex-col md:flex-row justify-between items-center gap-4 hover:border-[#002e5d] transition">
                         <div class="flex-1">
-                            <span class="text-lg font-black text-[#002e5d]">${num}</span>
-                            <p class="text-sm font-bold text-gray-600 mt-1">${desc}</p>
+                            <span class="text-[10px] font-black uppercase text-blue-500 block mb-1">Document Match</span>
+                            <span class="text-lg font-black text-[#002e5d]">${name}</span>
+                            <p class="text-[10px] font-bold text-gray-400 mt-1 uppercase tracking-tighter truncate">${path}</p>
                         </div>
-                        <button onclick="viewInWorkspace('${num}')" class="bg-gray-100 hover:bg-gray-200 text-[#002e5d] text-[10px] font-black uppercase px-4 py-2 rounded transition">
-                            View in Workspace
-                        </button>
+                        <div class="flex gap-2">
+                            <a href="https://lawfilesext.leg.wa.gov/biennium/2025-26/pdf/bills/${path}" target="_blank" class="bg-blue-50 hover:bg-blue-100 text-[#002e5d] text-[10px] font-black uppercase px-4 py-2 rounded transition border border-blue-100">
+                                Open PDF
+                            </a>
+                            ${billNum ? `<button onclick="viewInWorkspace('${billNum}')" class="bg-[#002e5d] hover:bg-blue-900 text-white text-[10px] font-black uppercase px-4 py-2 rounded transition">
+                                Track Bill
+                            </button>` : ''}
+                        </div>
                     </div>
                 `;
             });
         } catch (err) {
-            resultsDiv.innerHTML = '<div class="text-red-500 font-bold">Search failed. Please try a different keyword.</div>';
+            resultsDiv.innerHTML = '<div class="text-red-500 font-bold uppercase text-xs">Search Engine Offline. Try again shortly.</div>';
         }
     });
 
