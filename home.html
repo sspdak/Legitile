@@ -183,68 +183,69 @@ if (!localStorage.getItem('jwt_token')) window.location.href = 'index.html';
     }
 
     async function fetchMeetings() {
-    const list = document.getElementById('meetingList');
-    try {
-        const res = await fetch(`${workerBaseUrl}/today-meetings`, { headers: authHeaders });
-        const xmlText = await res.text();
-        const xmlDoc = new DOMParser().parseFromString(xmlText, "text/xml");
-        
-        // Use * to find tags regardless of namespace (e.g., <m:CommitteeMeeting> or <CommitteeMeeting>)
-        const allMeetings = Array.from(xmlDoc.getElementsByTagNameNS("*", "CommitteeMeeting")).length > 0 
-            ? Array.from(xmlDoc.getElementsByTagNameNS("*", "CommitteeMeeting"))
-            : Array.from(xmlDoc.getElementsByTagName("CommitteeMeeting"));
-
-        list.innerHTML = '';
-
-        if (allMeetings.length === 0) {
-            list.innerHTML = '<div class="text-xs font-bold text-gray-400 italic">No Floor Sessions or Committee meetings found for today.</div>';
-            return;
-        }
-
-        const seenIds = new Set();
-        const uniqueMeetings = allMeetings.filter(m => {
-            const idNode = m.getElementsByTagNameNS("*", "MtgId")[0] || m.getElementsByTagName("MtgId")[0];
-            const id = idNode ? idNode.textContent : Math.random().toString();
-            if (seenIds.has(id)) return false;
-            seenIds.add(id);
-            return true;
-        });
-
-        uniqueMeetings.forEach(m => {
-            const getTag = (tag) => {
-                const node = m.getElementsByTagNameNS("*", tag)[0] || m.getElementsByTagName(tag)[0];
-                return node ? node.textContent.trim() : "";
-            };
+        const list = document.getElementById('meetingList');
+        try {
+            const res = await fetch(`${workerBaseUrl}/today-meetings`, { headers: authHeaders });
+            const xmlText = await res.text();
+            const xmlDoc = new DOMParser().parseFromString(xmlText, "text/xml");
             
-            const agency = getTag("Agency") || "LEG";
-            const name = getTag("Name") || getTag("LongName") || "Meeting";
-            const dateRaw = getTag("Date"); 
-            const room = getTag("Room") || "Location TBD";
-            
-            let timeStr = "Time TBD";
-            if (dateRaw) {
-                // Ensure the date is parsed correctly even if it's missing the 'Z' or offset
-                const d = new Date(dateRaw);
-                timeStr = d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            // Collect both Committee Meetings and Floor Actions
+            const cm = Array.from(xmlDoc.getElementsByTagNameNS("*", "CommitteeMeeting"));
+            const fa = Array.from(xmlDoc.getElementsByTagNameNS("*", "FloorAction"));
+            const allItems = [...cm, ...fa];
+
+            list.innerHTML = '';
+
+            if (allItems.length === 0) {
+                list.innerHTML = '<div class="text-xs font-bold text-gray-400 italic">No Floor Sessions or Committee meetings found for today.</div>';
+                return;
             }
-            
-            let color = "bg-gray-400";
-            if (agency.toLowerCase().includes("senate")) color = "bg-red-500";
-            if (agency.toLowerCase().includes("house")) color = "bg-green-500";
-            
-            list.innerHTML += `
-                <div class="flex items-center gap-3 py-2 border-b border-gray-50 last:border-0">
-                    <div class="w-2 h-2 rounded-full ${color} shrink-0"></div>
-                    <div class="flex-1 min-w-0">
-                        <div class="text-[11px] font-black text-[#002e5d] truncate uppercase">${agency} ${name}</div>
-                        <div class="text-[9px] font-bold text-gray-500 truncate mt-0.5">${timeStr} • ${room}</div>
+
+            // Deduplicate by Name and Time to avoid clutter
+            const seen = new Set();
+            const uniqueItems = allItems.filter(item => {
+                const getTag = (t) => item.getElementsByTagNameNS("*", t)[0]?.textContent.trim() || "";
+                const key = `${getTag("Agency")}-${getTag("Name")}-${getTag("Date")}`;
+                if (seen.has(key)) return false;
+                seen.add(key);
+                return true;
+            });
+
+            uniqueItems.forEach(item => {
+                const getTag = (tag) => {
+                    const node = item.getElementsByTagNameNS("*", tag)[0] || item.getElementsByTagName(tag)[0];
+                    return node ? node.textContent.trim() : "";
+                };
+                
+                const agency = getTag("Agency") || "LEG";
+                let name = getTag("Name") || getTag("LongName") || "Legislative Session";
+                const dateRaw = getTag("Date"); 
+                const room = getTag("Room") || "Chamber Floor";
+                
+                // Clean up "FloorAction" names which can be long
+                if (name.includes("Convened")) name = "Floor Session";
+
+                let timeStr = "Time TBD";
+                if (dateRaw) {
+                    const d = new Date(dateRaw);
+                    timeStr = d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                }
+                
+                const color = agency.toLowerCase().includes("senate") ? "bg-red-500" : "bg-green-500";
+                
+                list.innerHTML += `
+                    <div class="flex items-center gap-3 py-2 border-b border-gray-50 last:border-0">
+                        <div class="w-2 h-2 rounded-full ${color} shrink-0"></div>
+                        <div class="flex-1 min-w-0">
+                            <div class="text-[11px] font-black text-[#002e5d] truncate uppercase">${agency} ${name}</div>
+                            <div class="text-[9px] font-bold text-gray-500 truncate mt-0.5">${timeStr} • ${room}</div>
+                        </div>
                     </div>
-                </div>
-            `;
-        });
-    } catch (e) {
-        console.error("Meeting fetch error:", e);
-        list.innerHTML = '<div class="text-xs font-bold text-red-400">Failed to load schedule.</div>';
+                `;
+            });
+        } catch (e) {
+            list.innerHTML = '<div class="text-xs font-bold text-red-400">Failed to load schedule.</div>';
+        }
     }
         function updateNavHighlight() {
     const path = window.location.pathname;
