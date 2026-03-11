@@ -86,25 +86,34 @@ document.getElementById('searchForm').addEventListener('submit', async (e) => {
                 return;
             }
 
-            docs.forEach(doc => {
-                const name = doc.getElementsByTagNameNS("*", "Name")[0]?.textContent || "Document";
-                const path = doc.getElementsByTagNameNS("*", "Path")[0]?.textContent || "#";
-                // Extract bill number from document name (e.g., "1234.pdf" -> "1234")
-                const billNum = name.match(/\d+/)?.[0] || "";
+docs.forEach(doc => {
+                const getTag = (t) => doc.getElementsByTagNameNS("*", t)[0]?.textContent || "";
                 
+                const name = getTag("Name");
+                const path = getTag("Path");
+                const htmUrl = getTag("HtmUrl"); // Some results provide a direct HTM link
+                const pdfUrl = getTag("PdfUrl"); // Some results provide a direct PDF link
+                
+                // Logic to extract Bill Number from the document name (e.g. "1234.pdf")
+                const billNum = name.match(/\d{4}/)?.[0] || "";
+                
+                // Construct the download URL if the API didn't provide a full one
+                // Most bill PDFs are hosted at: https://lawfilesext.leg.wa.gov/biennium/2025-26/pdf/bills/
+                const finalUrl = pdfUrl || htmUrl || `https://lawfilesext.leg.wa.gov/biennium/2025-26/pdf/bills/${path}`;
+
                 resultsDiv.innerHTML += `
                     <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-200 flex flex-col md:flex-row justify-between items-center gap-4 hover:border-[#002e5d] transition">
-                        <div class="flex-1">
-                            <span class="text-[10px] font-black uppercase text-blue-500 block mb-1">Document Match</span>
+                        <div class="flex-1 min-w-0">
+                            <span class="text-[10px] font-black uppercase text-orange-500 block mb-1">Text Match Found</span>
                             <span class="text-lg font-black text-[#002e5d]">${name}</span>
-                            <p class="text-[10px] font-bold text-gray-400 mt-1 uppercase tracking-tighter truncate">${path}</p>
+                            <p class="text-[10px] font-bold text-gray-400 mt-1 uppercase truncate">${path || 'Legislative Document'}</p>
                         </div>
-                        <div class="flex gap-2">
-                            <a href="https://lawfilesext.leg.wa.gov/biennium/2025-26/pdf/bills/${path}" target="_blank" class="bg-blue-50 hover:bg-blue-100 text-[#002e5d] text-[10px] font-black uppercase px-4 py-2 rounded transition border border-blue-100">
-                                Open PDF
+                        <div class="flex gap-2 shrink-0">
+                            <a href="${finalUrl}" target="_blank" class="bg-blue-50 hover:bg-blue-100 text-[#002e5d] text-[10px] font-black uppercase px-4 py-2 rounded transition border border-blue-100">
+                                Open Text
                             </a>
                             ${billNum ? `<button onclick="viewInWorkspace('${billNum}')" class="bg-[#002e5d] hover:bg-blue-900 text-white text-[10px] font-black uppercase px-4 py-2 rounded transition">
-                                Track Bill
+                                Track Bill ${billNum}
                             </button>` : ''}
                         </div>
                     </div>
