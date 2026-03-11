@@ -20,11 +20,17 @@
             <div class="text-6xl font-serif italic font-black text-transparent bg-clip-text bg-gradient-to-br from-orange-400 to-white drop-shadow-2xl leading-none">L</div>
             <div class="text-[10px] uppercase tracking-[0.2em] text-blue-200 font-bold mt-2 opacity-80">LegiTile</div>
         </div>
-        <nav class="flex-1 px-4 py-6 space-y-2">
-            <a href="home.html" class="flex items-center gap-3 px-4 py-3 text-blue-200 hover:bg-white/5 hover:text-white rounded-lg transition font-black text-xs uppercase tracking-wider"><span>🏠</span> Dashboard</a>
-            <a href="tracker.html" class="flex items-center gap-3 px-4 py-3 text-blue-200 hover:bg-white/5 hover:text-white rounded-lg transition font-black text-xs uppercase tracking-wider"><span>📑</span> Workspace</a>
-            <a href="search.html" class="flex items-center gap-3 px-4 py-3 bg-white/10 text-white rounded-lg transition font-black text-xs uppercase tracking-wider"><span>🔍</span> Search Text</a>
-        </nav>
+<nav id="mainNav" class="flex-1 px-4 py-6 space-y-2">
+    <a href="home.html" data-nav="home" class="nav-item flex items-center gap-3 px-4 py-3 text-blue-200 hover:bg-white/5 hover:text-white rounded-lg transition font-black text-xs uppercase tracking-wider">
+        <span>🏠</span> Dashboard
+    </a>
+    <a href="tracker.html" data-nav="tracker" class="nav-item flex items-center gap-3 px-4 py-3 text-blue-200 hover:bg-white/5 hover:text-white rounded-lg transition font-black text-xs uppercase tracking-wider">
+        <span>📑</span> Workspace
+    </a>
+    <a href="search.html" data-nav="search" class="nav-item flex items-center gap-3 px-4 py-3 text-blue-200 hover:bg-white/5 hover:text-white rounded-lg transition font-black text-xs uppercase tracking-wider">
+        <span>🔍</span> Search Text
+    </a>
+</nav>
         <div class="shrink-0 pb-6 px-4">
             <div class="bg-black/20 rounded-lg p-3 flex flex-col items-center text-center">
                 <span id="userEmailDisplay" class="text-xs font-bold text-white truncate w-full mb-3"></span>
@@ -63,70 +69,75 @@
     function logout() { localStorage.clear(); window.location.href = 'index.html'; }
 
 document.getElementById('searchForm').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const query = document.getElementById('searchQuery').value.trim();
-        const resultsDiv = document.getElementById('searchResults');
+    e.preventDefault();
+    const query = document.getElementById('searchQuery').value.trim();
+    const resultsDiv = document.getElementById('searchResults');
+    
+    if (!query) return;
+    resultsDiv.innerHTML = '<div class="text-blue-500 font-bold animate-pulse uppercase text-xs">Searching bill text...</div>';
+
+    try {
+        const res = await fetch(`${workerBaseUrl}/search-bill-text?q=${encodeURIComponent(query)}`, { headers: authHeaders });
+        const xmlText = await res.text();
+        const xmlDoc = new DOMParser().parseFromString(xmlText, "text/xml");
         
-        if (!query) return;
+        // Use the wildcard search to find documents regardless of namespace
+        const docs = Array.from(xmlDoc.getElementsByTagNameNS("*", "LegislativeDocument"));
 
-        resultsDiv.innerHTML = '<div class="text-blue-500 font-bold animate-pulse uppercase text-xs tracking-widest">Scanning Bill Text Archives...</div>';
-
-        try {
-            const res = await fetch(`${workerBaseUrl}/search-bill-text?q=${encodeURIComponent(query)}`, { headers: authHeaders });
-            const xmlText = await res.text();
-            const xmlDoc = new DOMParser().parseFromString(xmlText, "text/xml");
-            
-            // The service returns 'LegislativeDocument' nodes
-            const docs = Array.from(xmlDoc.getElementsByTagNameNS("*", "LegislativeDocument"));
-
-            resultsDiv.innerHTML = '';
-
-            if (docs.length === 0) {
-                resultsDiv.innerHTML = '<div class="text-orange-500 font-bold">No matching bill language found for that phrase.</div>';
-                return;
-            }
-
-docs.forEach(doc => {
-                const getTag = (t) => doc.getElementsByTagNameNS("*", t)[0]?.textContent || "";
-                
-                const name = getTag("Name");
-                const path = getTag("Path");
-                const htmUrl = getTag("HtmUrl"); // Some results provide a direct HTM link
-                const pdfUrl = getTag("PdfUrl"); // Some results provide a direct PDF link
-                
-                // Logic to extract Bill Number from the document name (e.g. "1234.pdf")
-                const billNum = name.match(/\d{4}/)?.[0] || "";
-                
-                // Construct the download URL if the API didn't provide a full one
-                // Most bill PDFs are hosted at: https://lawfilesext.leg.wa.gov/biennium/2025-26/pdf/bills/
-                const finalUrl = pdfUrl || htmUrl || `https://lawfilesext.leg.wa.gov/biennium/2025-26/pdf/bills/${path}`;
-
-                resultsDiv.innerHTML += `
-                    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-200 flex flex-col md:flex-row justify-between items-center gap-4 hover:border-[#002e5d] transition">
-                        <div class="flex-1 min-w-0">
-                            <span class="text-[10px] font-black uppercase text-orange-500 block mb-1">Text Match Found</span>
-                            <span class="text-lg font-black text-[#002e5d]">${name}</span>
-                            <p class="text-[10px] font-bold text-gray-400 mt-1 uppercase truncate">${path || 'Legislative Document'}</p>
-                        </div>
-                        <div class="flex gap-2 shrink-0">
-                            <a href="${finalUrl}" target="_blank" class="bg-blue-50 hover:bg-blue-100 text-[#002e5d] text-[10px] font-black uppercase px-4 py-2 rounded transition border border-blue-100">
-                                Open Text
-                            </a>
-                            ${billNum ? `<button onclick="viewInWorkspace('${billNum}')" class="bg-[#002e5d] hover:bg-blue-900 text-white text-[10px] font-black uppercase px-4 py-2 rounded transition">
-                                Track Bill ${billNum}
-                            </button>` : ''}
-                        </div>
-                    </div>
-                `;
-            });
-        } catch (err) {
-            resultsDiv.innerHTML = '<div class="text-red-500 font-bold uppercase text-xs">Search Engine Offline. Try again shortly.</div>';
+        if (docs.length === 0) {
+            resultsDiv.innerHTML = '<div class="text-orange-500 font-bold">No matching text found. Tip: Try using a wildcard like "hous*" or shorter phrases.</div>';
+            return;
         }
-    });
+
+        resultsDiv.innerHTML = '';
+        docs.forEach(doc => {
+            const getTag = (t) => doc.getElementsByTagNameNS("*", t)[0]?.textContent || "";
+            const name = getTag("Name");
+            const path = getTag("Path");
+            const billNum = name.match(/\d{4}/)?.[0] || "";
+            
+            // Construct official PDF link
+            const finalUrl = `https://lawfilesext.leg.wa.gov/biennium/2025-26/pdf/bills/${path}`;
+
+            resultsDiv.innerHTML += `
+                <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-200 flex justify-between items-center gap-4 hover:border-[#002e5d] transition">
+                    <div class="flex-1 truncate">
+                        <span class="text-lg font-black text-[#002e5d]">${name}</span>
+                        <p class="text-[10px] font-bold text-gray-400 uppercase truncate">${path}</p>
+                    </div>
+                    <div class="flex gap-2">
+                        <a href="${finalUrl}" target="_blank" class="bg-blue-50 text-[#002e5d] text-[10px] font-black uppercase px-4 py-2 rounded border border-blue-100">Open</a>
+                        ${billNum ? `<button onclick="viewInWorkspace('${billNum}')" class="bg-[#002e5d] text-white text-[10px] font-black uppercase px-4 py-2 rounded">Track</button>` : ''}
+                    </div>
+                </div>`;
+        });
+    } catch (err) {
+        resultsDiv.innerHTML = '<div class="text-red-500 font-bold">Search failed. Check your internet connection.</div>';
+    }
+});
 
     function viewInWorkspace(billNum) {
         // Redirect to workspace and trigger a search for that bill
         window.location.href = `tracker.html?autosearch=${billNum}`;
+        function updateNavHighlight() {
+    const path = window.location.pathname;
+    const navItems = document.querySelectorAll('.nav-item');
+    
+    navItems.forEach(item => {
+        // Remove existing highlight
+        item.classList.remove('bg-white/10', 'text-white');
+        item.classList.add('text-blue-200');
+        
+        // If the link href matches the current file name, highlight it
+        if (path.includes(item.getAttribute('href'))) {
+            item.classList.add('bg-white/10', 'text-white');
+            item.classList.remove('text-blue-200');
+        }
+    });
+}
+
+// Call this on page load
+updateNavHighlight();
     }
 </script>
 </body>
