@@ -4,134 +4,93 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LegiTile | Search</title>
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgcng9IjIwIiBmaWxsPSIjMDAyZTVkIi8+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCUiIHkxPSIwJSIgeDI9IjEwMCUiIHkyPSIxMDAlIj48c3RvcCBvZmZzZXQ9IjAlIiBzdG9wLWNvbG9yPSIjZmI5MjNjIi8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjZmZmZmZmIi8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHRleHQgeD0iNTAiIHk9Ijc1IiBmb250LWZhbWlseT0ic2VyaWYiIGZvbnQtc3R5bGU9Iml0YWxpYyIgZm9udC13ZWlnaHQ9IjkwMCIgZm9udC1zaXplPSI3NSIgZmlsbD0idXJsKCNnKSIgdGV4dC1hbmNob3I9Im1pZGRsZSI+TDwvdGV4dD48L3N2Zz4=">
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         .leg-navy { background-color: #002e5d; }
-        ::-webkit-scrollbar { width: 6px; height: 6px; }
-        ::-webkit-scrollbar-track { background: transparent; }
+        .highlight { background-color: #fef08a; font-weight: 700; padding: 0 2px; border-radius: 2px; }
+        ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
     </style>
 </head>
 <body class="bg-gray-100 h-screen font-sans text-gray-900 overflow-hidden flex flex-col md:flex-row">
 
     <aside class="leg-navy text-white w-full md:w-48 flex-shrink-0 flex flex-col shadow-2xl z-50 md:h-full">
-        <div class="py-8 flex flex-col items-center border-b border-white/10 shrink-0">
-            <div class="text-6xl font-serif italic font-black text-transparent bg-clip-text bg-gradient-to-br from-orange-400 to-white drop-shadow-2xl leading-none">L</div>
+        <div class="py-8 flex flex-col items-center border-b border-white/10">
+            <div class="text-6xl font-serif italic font-black text-transparent bg-clip-text bg-gradient-to-br from-orange-400 to-white leading-none">L</div>
             <div class="text-[10px] uppercase tracking-[0.2em] text-blue-200 font-bold mt-2 opacity-80">LegiTile</div>
         </div>
-        
-        <nav id="mainNav" class="flex-1 px-4 py-6 space-y-2">
-            <a href="home.html" class="nav-item flex items-center gap-3 px-4 py-3 text-blue-200 hover:bg-white/5 hover:text-white rounded-lg transition font-black text-xs uppercase tracking-wider">
-                <span>🏠</span> Dashboard
-            </a>
-            <a href="tracker.html" class="nav-item flex items-center gap-3 px-4 py-3 text-blue-200 hover:bg-white/5 hover:text-white rounded-lg transition font-black text-xs uppercase tracking-wider">
-                <span>📑</span> Workspace
-            </a>
-            <a href="search.html" class="nav-item flex items-center gap-3 px-4 py-3 text-blue-200 hover:bg-white/5 hover:text-white rounded-lg transition font-black text-xs uppercase tracking-wider">
-                <span>🔍</span> Search Text
-            </a>
+        <nav class="flex-1 px-4 py-6 space-y-2">
+            <a href="home.html" class="flex items-center gap-3 px-4 py-3 text-blue-200 hover:bg-white/5 hover:text-white rounded-lg transition font-black text-xs uppercase tracking-wider">🏠 Dashboard</a>
+            <a href="tracker.html" class="flex items-center gap-3 px-4 py-3 text-blue-200 hover:bg-white/5 hover:text-white rounded-lg transition font-black text-xs uppercase tracking-wider">📑 Workspace</a>
+            <a href="search.html" class="bg-white/10 flex items-center gap-3 px-4 py-3 text-white rounded-lg transition font-black text-xs uppercase tracking-wider font-bold">🔍 Search Text</a>
         </nav>
-
-        <div class="shrink-0 pb-6 px-4">
-            <div class="bg-black/20 rounded-lg p-3 flex flex-col items-center text-center">
-                <span id="userEmailDisplay" class="text-xs font-bold text-white truncate w-full mb-3"></span>
-                <button onclick="logout()" class="w-full bg-red-500/20 hover:bg-red-500/40 text-red-200 text-[10px] font-black uppercase py-2 rounded transition border border-red-500/30">Log Out</button>
-            </div>
-        </div>
     </aside>
 
-    <div class="flex-1 flex flex-col h-full overflow-hidden relative">
-        <header class="shrink-0 pt-8 pb-4 px-6 md:px-10 z-40 bg-gray-100 border-b border-gray-200">
-            <h1 class="text-2xl font-black text-gray-800 uppercase tracking-tight">Legislative Search</h1>
+    <div class="flex-1 flex flex-col h-full overflow-hidden">
+        <header class="shrink-0 pt-8 pb-4 px-6 md:px-10 bg-gray-100 border-b border-gray-200">
+            <h1 class="text-2xl font-black text-gray-800 uppercase tracking-tight">Full-Text Search</h1>
+            <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">Search the actual content of your tracked bills</p>
         </header>
 
-        <main class="flex-1 overflow-y-auto p-6 md:p-10 scroll-smooth">
-            <div class="bg-white p-6 rounded-xl shadow-sm mb-8 border border-gray-100">
-                <label class="text-[10px] font-black uppercase text-gray-400 tracking-widest mb-2 block">Search Full Bill Language (Phrase or Word)</label>
-                <form id="searchForm" class="flex gap-3 w-full">
-                    <input type="text" id="searchQuery" placeholder="e.g., 'rent control' or 'carbon tax'" class="flex-1 border-2 border-gray-200 p-3 rounded-lg outline-none focus:border-[#002e5d] font-bold text-gray-700">
-                    <button type="submit" class="bg-[#002e5d] hover:bg-blue-900 text-white text-[12px] font-black uppercase px-8 py-3 rounded-lg shadow-sm transition">Search</button>
-                </form>
+        <main class="flex-1 flex flex-col p-6 md:p-10 overflow-hidden">
+            <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-200 mb-6 flex gap-3">
+                <input type="text" id="searchInput" placeholder="Search keywords (e.g. 'housing', 'tax', 'education')..." 
+                       class="flex-1 bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium">
+                <button onclick="performSearch()" class="leg-navy text-white px-8 py-3 rounded-lg font-black text-xs uppercase tracking-widest hover:bg-blue-900 transition">Search</button>
             </div>
 
-            <div id="searchResults" class="grid grid-cols-1 gap-4 pb-20">
-                <div class="text-gray-400 font-bold italic text-sm">Results will appear here.</div>
+            <div class="flex-1 overflow-y-auto pr-2 space-y-4" id="resultsArea">
+                <div class="text-center py-20 text-gray-400">
+                    <span class="text-4xl block mb-4">🔎</span>
+                    <p class="text-xs font-bold uppercase tracking-widest">Enter a query to search your indexed bills</p>
+                </div>
             </div>
         </main>
     </div>
 
-<script>
-    if (!localStorage.getItem('jwt_token')) window.location.href = 'index.html';
-    document.getElementById('userEmailDisplay').innerText = localStorage.getItem('user_email') || 'Staff';
+    <script>
+        const API_BASE = "https://your-worker.workers.dev"; // UPDATE THIS
 
-    const workerBaseUrl = "https://misty-credit-9e6a.ewing-jacob.workers.dev";
-    const authHeaders = { 'Authorization': `Bearer ${localStorage.getItem('jwt_token')}` };
+        async function performSearch() {
+            const query = document.getElementById('searchInput').value;
+            const resultsArea = document.getElementById('resultsArea');
+            const token = localStorage.getItem('token');
 
-    function logout() { localStorage.clear(); window.location.href = 'index.html'; }
+            if (!query) return;
 
-    // Navigation Highlight Logic
-    function updateNavHighlight() {
-        const path = window.location.pathname;
-        const navItems = document.querySelectorAll('.nav-item');
-        navItems.forEach(item => {
-            if (path.includes(item.getAttribute('href'))) {
-                item.classList.add('bg-white/10', 'text-white');
-                item.classList.remove('text-blue-200');
-            }
-        });
-    }
-    updateNavHighlight();
+            resultsArea.innerHTML = '<div class="text-center py-10 text-xs font-bold text-blue-500 animate-pulse">SEARCHING DATABASE...</div>';
 
-    document.getElementById('searchForm').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const query = document.getElementById('searchQuery').value.trim();
-        const resDiv = document.getElementById('searchResults');
-        
-        if (!query) return;
-        resDiv.innerHTML = '<div class="text-blue-600 font-bold animate-pulse text-xs uppercase tracking-widest">Scanning State Records...</div>';
+            try {
+                const response = await fetch(`${API_BASE}/search-internal?q=${encodeURIComponent(query)}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
 
-        try {
-            const res = await fetch(`${workerBaseUrl}/search-bill-text?q=${encodeURIComponent(query)}`, { headers: authHeaders });
-            const xmlText = await res.text();
-            const xmlDoc = new DOMParser().parseFromString(xmlText, "text/xml");
-            
-            // Aggressive Tag Discovery
-            const docs = Array.from(xmlDoc.querySelectorAll('LegislativeDocument'));
+                const results = await response.json();
+                
+                if (results.length === 0) {
+                    resultsArea.innerHTML = '<div class="text-center py-10 text-gray-400 text-xs font-bold uppercase">No matches found in your tracked bills.</div>';
+                    return;
+                }
 
-            if (docs.length === 0) {
-                resDiv.innerHTML = '<div class="text-orange-500 font-bold">No documents matched that phrase. <br><span class="text-[10px] text-gray-400 font-normal">Try shorter keywords if phrases fail.</span></div>';
-                return;
-            }
-
-            resDiv.innerHTML = '';
-            docs.forEach(doc => {
-                const name = doc.querySelector('Name')?.textContent || "Bill Document";
-                const path = doc.querySelector('Path')?.textContent || "";
-                const billNum = name.match(/\d{4}/)?.[0] || "";
-                const pdfUrl = `https://lawfilesext.leg.wa.gov/biennium/2025-26/pdf/bills/${path}`;
-
-                resDiv.innerHTML += `
-                    <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-200 flex justify-between items-center gap-4 hover:border-[#002e5d] transition group">
-                        <div class="flex-1 min-w-0">
-                            <span class="text-[9px] font-black text-blue-500 uppercase tracking-widest block mb-1">Language Match</span>
-                            <span class="text-lg font-black text-[#002e5d] group-hover:text-blue-700 transition">${name}</span>
-                            <p class="text-[10px] font-bold text-gray-400 mt-1 uppercase truncate">${path}</p>
+                resultsArea.innerHTML = results.map(res => `
+                    <div class="bg-white p-6 rounded-xl border border-gray-200 shadow-sm hover:border-blue-300 transition group">
+                        <div class="flex justify-between items-start mb-3">
+                            <span class="bg-blue-50 text-blue-700 text-[10px] font-black px-2 py-1 rounded border border-blue-100 uppercase tracking-tighter">Bill ${res.bill_id}</span>
+                            <a href="https://app.leg.wa.gov/billinfo/default.aspx?BillNumber=${res.bill_id}&year=2025" target="_blank" class="text-[10px] font-bold text-gray-400 hover:text-blue-600 uppercase tracking-widest">View Official Site ➔</a>
                         </div>
-                        <div class="flex gap-2 shrink-0">
-                            <a href="${pdfUrl}" target="_blank" class="bg-blue-50 text-[#002e5d] text-[10px] font-black uppercase px-4 py-2 rounded border border-blue-100 hover:bg-blue-100 transition">View PDF</a>
-                            ${billNum ? `<button onclick="viewInWorkspace('${billNum}')" class="bg-[#002e5d] text-white text-[10px] font-black uppercase px-4 py-2 rounded hover:bg-blue-900 transition">Track ${billNum}</button>` : ''}
-                        </div>
-                    </div>`;
-            });
-        } catch (err) {
-            resDiv.innerHTML = '<div class="text-red-500 font-bold uppercase text-[10px]">API Connection Error. Please try again.</div>';
+                        <p class="text-sm text-gray-600 leading-relaxed italic">"...${res.match}..."</p>
+                    </div>
+                `).join('');
+
+            } catch (err) {
+                resultsArea.innerHTML = `<div class="text-red-500 text-xs font-bold">SEARCH ERROR: ${err.message}</div>`;
+            }
         }
-    });
 
-    function viewInWorkspace(num) {
-        window.location.href = `tracker.html?autosearch=${num}`;
-    }
-</script>
+        // Allow 'Enter' key to search
+        document.getElementById('searchInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') performSearch();
+        });
+    </script>
 </body>
 </html>
