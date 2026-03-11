@@ -3,154 +3,91 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WA Legislative Tool</title>
+    <title>WA Legislative Tool - Welcome</title>
     <style>
-        body { font-family: -apple-system, sans-serif; background: #eaeff1; padding: 20px; color: #202124; margin: 0; }
-        .container { max-width: 800px; margin: auto; }
-        .card { background: white; padding: 25px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); margin-bottom: 20px; }
-        h2, h4 { margin-top: 0; color: #1a73e8; }
-        .input-group { display: flex; gap: 10px; margin-bottom: 15px; }
-        input { flex: 1; padding: 12px; border: 1px solid #dadce0; border-radius: 4px; font-size: 16px; }
-        button { padding: 12px 24px; background: #1a73e8; color: white; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; }
-        .data-point { margin-bottom: 20px; border-bottom: 1px solid #f1f3f4; padding-bottom: 15px; }
-        .label { font-weight: 600; color: #5f6368; display: block; margin-bottom: 6px; text-transform: uppercase; font-size: 0.85rem; }
-        .value { line-height: 1.5; font-size: 1rem; }
-        .message { font-weight: bold; margin-top: 10px; font-size: 0.9rem; }
+        body { font-family: -apple-system, sans-serif; background: #eaeff1; padding: 40px 20px; color: #202124; margin: 0; display: flex; justify-content: center; }
+        .container { max-width: 400px; width: 100%; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h2 { margin-top: 0; color: #1a73e8; text-align: center; }
+        .input-group { display: flex; flex-direction: column; gap: 15px; margin-bottom: 20px; }
+        input { padding: 12px; border: 1px solid #dadce0; border-radius: 4px; font-size: 16px; }
+        button { padding: 12px; background: #1a73e8; color: white; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; }
+        .toggle-btn { background: none; color: #1a73e8; border: none; padding: 0; cursor: pointer; text-decoration: underline; font-weight: normal; margin-top: 15px; width: 100%; text-align: center;}
+        .message { font-weight: bold; margin-top: 10px; font-size: 0.9rem; text-align: center; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2>WA Legislative Tool</h2>
-
-    <div class="card">
-        <h4>Staff Registration</h4>
-        <div class="input-group">
-            <input type="email" id="regEmail" placeholder="Work Email" required>
-            <input type="password" id="regPass" placeholder="Password" required>
-            <button onclick="registerUser()">Create Account</button>
-        </div>
-        <div id="regStatus" class="message"></div>
+    <h2 id="formTitle">Staff Login</h2>
+    <div class="input-group">
+        <input type="email" id="email" placeholder="Work Email" required>
+        <input type="password" id="password" placeholder="Password" required>
+        <button id="submitBtn" onclick="handleAuth()">Log In</button>
     </div>
-
-    <div class="card">
-        <h4>Track a Bill</h4>
-        <div class="input-group">
-            <input type="text" id="billNum" placeholder="Enter Bill Number (e.g. 1000)">
-            <button onclick="fetchSummaryData()">Search API</button>
-        </div>
-        <div id="results">Awaiting input...</div>
-    </div>
+    <div id="statusMsg" class="message"></div>
+    <button class="toggle-btn" onclick="toggleMode()" id="toggleText">Need an account? Register here.</button>
 </div>
 
 <script>
-    const workerBaseUrl = "https://misty-credit-9e6a.ewing-jacob.workers.dev";
+    // Redirect if already logged in
+    if (localStorage.getItem('user_logged_in')) {
+        window.location.href = 'tracker.html';
+    }
 
-    // --- REGISTRATION LOGIC ---
-    async function registerUser() {
-        const email = document.getElementById('regEmail').value.trim();
-        const password = document.getElementById('regPass').value.trim();
-        const statusDiv = document.getElementById('regStatus');
+    const workerBaseUrl = "https://misty-credit-9e6a.ewing-jacob.workers.dev";
+    let isLoginMode = true;
+
+    function toggleMode() {
+        isLoginMode = !isLoginMode;
+        document.getElementById('formTitle').innerText = isLoginMode ? "Staff Login" : "Staff Registration";
+        document.getElementById('submitBtn').innerText = isLoginMode ? "Log In" : "Create Account";
+        document.getElementById('toggleText').innerText = isLoginMode ? "Need an account? Register here." : "Already have an account? Log in.";
+        document.getElementById('statusMsg').innerText = "";
+    }
+
+    async function handleAuth() {
+        const email = document.getElementById('email').value.trim();
+        const password = document.getElementById('password').value.trim();
+        const statusDiv = document.getElementById('statusMsg');
         
         if (!email || !password) {
             statusDiv.style.color = "#d93025";
-            statusDiv.innerText = "Please enter both an email and a password.";
+            statusDiv.innerText = "Please enter both email and password.";
             return;
         }
 
         statusDiv.style.color = "#5f6368";
-        statusDiv.innerText = "Creating account...";
+        statusDiv.innerText = isLoginMode ? "Authenticating..." : "Creating account...";
+
+        const endpoint = isLoginMode ? "/login" : "/register";
 
         try {
-            const response = await fetch(`${workerBaseUrl}/register`, {
+            const response = await fetch(`${workerBaseUrl}${endpoint}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ email, password })
             });
 
             if (response.ok) {
-                statusDiv.style.color = "#137333";
-                statusDiv.innerText = "Account created successfully!";
-                document.getElementById('regEmail').value = '';
-                document.getElementById('regPass').value = '';
+                if (!isLoginMode) {
+                    statusDiv.style.color = "#137333";
+                    statusDiv.innerText = "Account created! You can now log in.";
+                    toggleMode(); // Switch to login view
+                    document.getElementById('password').value = ''; 
+                } else {
+                    // Login successful
+                    localStorage.setItem('user_logged_in', 'true');
+                    localStorage.setItem('user_email', email);
+                    window.location.href = 'tracker.html'; // Redirect to the tool
+                }
             } else {
                 const errorText = await response.text();
                 statusDiv.style.color = "#d93025";
-                statusDiv.innerText = `Registration failed: ${errorText}`;
+                statusDiv.innerText = `${isLoginMode ? "Login" : "Registration"} failed: ${errorText}`;
             }
         } catch (err) {
             statusDiv.style.color = "#d93025";
             statusDiv.innerText = "Network error. Make sure your Worker is deployed.";
-        }
-    }
-
-    // --- BILL FETCHING LOGIC ---
-    async function fetchSummaryData() {
-        const bill = document.getElementById('billNum').value;
-        const resultsDiv = document.getElementById('results');
-        
-        if (!bill) return;
-        resultsDiv.innerHTML = "Fetching dataset from WSL...";
-
-        try {
-            const response = await fetch(`${workerBaseUrl}/fetch-bill?bill=${bill}`);
-            const xmlText = await response.text();
-            
-            const parser = new DOMParser();
-            const xmlDoc = parser.parseFromString(xmlText, "text/xml");
-
-            if (xmlDoc.getElementsByTagName("faultstring").length > 0) {
-                resultsDiv.innerHTML = `<span style="color:#d93025; font-weight:bold;">API Error: ${xmlDoc.getElementsByTagName("faultstring")[0].textContent}</span>`;
-                return;
-            }
-
-            const getTagText = (tag) => {
-                const nodes = xmlDoc.getElementsByTagNameNS("*", tag);
-                if (nodes.length > 0) return nodes[0].textContent.trim();
-                const fallback = xmlDoc.getElementsByTagName(tag);
-                return fallback.length > 0 ? fallback[0].textContent.trim() : null;
-            };
-
-            const getNodes = (tag) => {
-                const nodes = xmlDoc.getElementsByTagNameNS("*", tag);
-                return nodes.length > 0 ? Array.from(nodes) : Array.from(xmlDoc.getElementsByTagName(tag));
-            };
-
-            const billNumber = getTagText("BillNumber") || bill;
-            const shortDesc = getTagText("ShortDescription") || "N/A";
-            const longDesc = getTagText("LongDescription") || "N/A";
-            const currentStatus = getTagText("HistoryLine") || "N/A";
-
-            let sponsorNames = [];
-            let primeSponsor = "N/A";
-            for (let s of getNodes("Sponsor")) {
-                const nameNode = s.getElementsByTagNameNS("*", "Name")[0] || s.getElementsByTagName("Name")[0];
-                const typeNode = s.getElementsByTagNameNS("*", "Type")[0] || s.getElementsByTagName("Type")[0];
-                if (nameNode) {
-                    const name = nameNode.textContent;
-                    if (typeNode && typeNode.textContent === "Primary") primeSponsor = name;
-                    sponsorNames.push(name);
-                }
-            }
-            const sponsorDisplay = sponsorNames.length > 0 ? `<strong>Prime:</strong> ${primeSponsor}<br><strong>All:</strong> ${sponsorNames.join(", ")}` : "N/A";
-
-            let companions = [];
-            for (let c of getNodes("Companion")) {
-                let text = c.textContent.trim();
-                if (text) companions.push(text);
-            }
-            const companionDisplay = companions.length > 0 ? companions.join(", ") : "None";
-
-            resultsDiv.innerHTML = `
-                <div class="data-point"><span class="label">Bill Number</span><div class="value">${billNumber}</div></div>
-                <div class="data-point"><span class="label">Sponsor(s)</span><div class="value">${sponsorDisplay}</div></div>
-                <div class="data-point"><span class="label">Short Description</span><div class="value">${shortDesc}</div></div>
-                <div class="data-point"><span class="label">Long Description</span><div class="value">${longDesc}</div></div>
-                <div class="data-point"><span class="label">Current Status</span><div class="value">${currentStatus}</div></div>
-                <div class="data-point"><span class="label">Companion</span><div class="value">${companionDisplay}</div></div>
-            `;
-        } catch (err) {
-            resultsDiv.innerHTML = `<span style="color:#d93025; font-weight:bold;">Error connecting to Worker: ${err.message}</span>`;
         }
     }
 </script>
