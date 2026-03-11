@@ -198,8 +198,11 @@
 
 async function fetchMeetings() {
         const list = document.getElementById('meetingList');
+        const now = new Date();
+        const thirtyDaysFromNow = new Date();
+        thirtyDaysFromNow.setDate(now.getDate() + 30);
+
         try {
-            // Updated to the new endpoint name
             const res = await fetch(`${workerBaseUrl}/upcoming-meetings`, { headers: authHeaders });
             const xmlText = await res.text();
             const xmlDoc = new DOMParser().parseFromString(xmlText, "text/xml");
@@ -208,35 +211,35 @@ async function fetchMeetings() {
             const fa = Array.from(xmlDoc.getElementsByTagNameNS("*", "FloorAction"));
             const allItems = [...cm, ...fa];
 
-            if (allItems.length === 0) {
-                list.innerHTML = '<div class="text-xs font-bold text-gray-400 italic">No legislative activity scheduled for the next 30 days.</div>';
-                return;
-            }
-
             list.innerHTML = '';
             const seen = new Set();
             
-            // Sort items chronologically
-            const sortedItems = allItems.map(item => {
+            const filteredItems = allItems.map(item => {
                 const getTag = (t) => item.getElementsByTagNameNS("*", t)[0]?.textContent.trim() || "";
+                const date = new Date(getTag("Date"));
                 return {
                     node: item,
                     agency: getTag("Agency") || "LEG",
-                    name: getTag("Name") || getTag("LongName") || "Legislative Session",
-                    date: new Date(getTag("Date")),
+                    name: getTag("Name") || getTag("LongName") || "Meeting",
+                    date: date,
                     room: getTag("Room") || "Chamber Floor",
                     key: `${getTag("Agency")}-${getTag("Name")}-${getTag("Date")}`
                 };
             }).filter(item => {
-                if (seen.has(item.key)) return false;
+                // FILTER: Only show meetings in our 30-day window
+                const isUpcoming = item.date >= now && item.date <= thirtyDaysFromNow;
+                if (!isUpcoming || seen.has(item.key)) return false;
                 seen.add(item.key);
                 return true;
             }).sort((a, b) => a.date - b.date);
 
-            let lastDateLabel = "";
+            if (filteredItems.length === 0) {
+                list.innerHTML = '<div class="text-xs font-bold text-gray-400 italic">No meetings scheduled for the next 30 days.</div>';
+                return;
+            }
 
-            sortedItems.forEach(item => {
-                // Add Date Headers (e.g., "MARCH 12")
+            let lastDateLabel = "";
+            filteredItems.forEach(item => {
                 const dateLabel = item.date.toLocaleDateString([], { month: 'long', day: 'numeric' }).toUpperCase();
                 if (dateLabel !== lastDateLabel) {
                     list.innerHTML += `<div class="text-[9px] font-black text-gray-400 tracking-widest mt-4 mb-2 border-b border-gray-100 pb-1">${dateLabel}</div>`;
@@ -244,13 +247,11 @@ async function fetchMeetings() {
                 }
 
                 const timeStr = item.date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                
-                // Enhanced Color Coding
-                let color = "bg-gray-400"; // Default
-                const agencyLower = item.agency.toLowerCase();
-                if (agencyLower.includes("senate")) color = "bg-red-500";
-                else if (agencyLower.includes("house")) color = "bg-green-500";
-                else if (agencyLower.includes("joint")) color = "bg-blue-600"; // Joint Committees
+                let color = "bg-gray-400";
+                const ag = item.agency.toLowerCase();
+                if (ag.includes("senate")) color = "bg-red-500";
+                else if (ag.includes("house")) color = "bg-green-500";
+                else if (ag.includes("joint") || ag.includes("jlarc")) color = "bg-blue-600";
                 
                 let displayName = item.name;
                 if (displayName.includes("Convened")) displayName = "Floor Session";
@@ -262,11 +263,10 @@ async function fetchMeetings() {
                             <div class="text-[11px] font-black text-[#002e5d] truncate uppercase">${item.agency} ${displayName}</div>
                             <div class="text-[9px] font-bold text-gray-500 truncate mt-0.5">${timeStr} • ${item.room}</div>
                         </div>
-                    </div>
-                `;
+                    </div>`;
             });
         } catch (e) {
-            list.innerHTML = '<div class="text-xs font-bold text-red-400">Schedule unavailable.</div>';
+            list.innerHTML = '<div class="text-xs font-bold text-red-400">Schedule sync failed.</div>';
         }
     }
 </script>
