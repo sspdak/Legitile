@@ -62,7 +62,7 @@
     let currentBillData = null; 
     let workspaceItems = [];
     let expandedCards = new Set();
-    let activeTabs = {}; // Tracks which tab is active for a group
+    let activeTabs = {};
 
     const LIVE_STATUS_OPTIONS = ["Introduced", "Public Hearing", "Executive Action", "Fiscal", "Rules", "Floor", "House", "Concurrence", "Passed", "Dead"];
     const STATUS_TASKS = {
@@ -107,9 +107,8 @@
         }
 
         workspaceItems.forEach(item => {
-            if (processedIds.has(item.id)) return; // Skip if already rendered as a tab
+            if (processedIds.has(item.id)) return;
 
-            // Check if there is a companion in the workspace
             let compBillStr = item.companion ? item.companion.split(',')[0].trim() : "";
             let compItem = compBillStr ? workspaceItems.find(i => i.bill_number === compBillStr || i.companion.includes(item.bill_number)) : null;
 
@@ -120,7 +119,6 @@
             }
             processedIds.add(item.id);
 
-            // Determine active tab
             let activeId = activeTabs[item.id] || item.id;
             let activeItem = group.find(i => i.id === activeId) || item;
             
@@ -129,7 +127,6 @@
             let tasks = STATUS_TASKS[status] || STATUS_TASKS["Default"];
             let progress = activeItem.task_progress[status] || {};
 
-            // Render Tabs Header HTML
             let tabsHtml = '';
             if (group.length > 1) {
                 tabsHtml = `
@@ -202,6 +199,13 @@
                                 </div>
                             </div>
                         </div>
+
+                        <div class="flex justify-between items-center mt-6 pt-4 border-t border-gray-200">
+                            <span class="text-[9px] font-black uppercase tracking-widest text-gray-400">Workspace Controls</span>
+                            <button onclick="deleteBill(${activeItem.id})" class="text-[10px] font-black uppercase text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 px-4 py-2 rounded transition border border-red-100">
+                                Remove from Workspace
+                            </button>
+                        </div>
                     </div>
                 </div>`;
         });
@@ -210,11 +214,10 @@
     function switchTab(groupId, targetId) {
         event.stopPropagation();
         activeTabs[groupId] = targetId;
-        expandedCards.add(groupId); // Keep the card open when switching tabs
+        expandedCards.add(groupId); 
         renderGrid();
     }
 
-    // Auto-populates search and clicks it when a user wants to track an untracked companion
     window.autoTrack = function(billNum) {
         document.getElementById('billNum').value = billNum;
         fetchAPI();
@@ -274,14 +277,41 @@
         } catch (e) { console.error("Failed to sync to database."); }
     }
 
-   async function fetchAPI() {
+    async function deleteBill(id) {
+        if (!confirm("Are you sure you want to remove this bill from your workspace?")) return;
+        
+        try {
+            const res = await fetch(`${workerBaseUrl}/delete-bill`, {
+                method: 'DELETE',
+                headers: authHeaders,
+                body: JSON.stringify({ id: id })
+            });
+            if (res.ok) {
+                loadWorkspace();
+            } else {
+                alert("Failed to delete bill.");
+            }
+        } catch (e) {
+            alert("Network error while deleting bill.");
+        }
+    }
+
+    async function fetchAPI() {
         const rawBill = document.getElementById('billNum').value;
         const resDiv = document.getElementById('apiResults');
         if (!rawBill) return;
         
-        // NEW: Strip out all letters and spaces, leaving only the digits
-        const bill = rawBill.replace(/\D/g, '');
+        // Smarter Bill Extraction: Filter out biennium dates
+        const fourDigitMatches = rawBill.match(/\d{4}/g);
+        let bill = "";
         
+        if (fourDigitMatches) {
+            const validBills = fourDigitMatches.filter(n => n !== "2025" && n !== "2026");
+            bill = validBills.length > 0 ? validBills[validBills.length - 1] : fourDigitMatches[0];
+        } else {
+            bill = rawBill.replace(/\D/g, '');
+        }
+
         if (!bill) {
             resDiv.innerHTML = `<span class="text-orange-500 font-bold text-sm">Please enter a valid numeric bill number.</span>`;
             return;
