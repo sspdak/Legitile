@@ -9,10 +9,9 @@ on:
 jobs:
   sync_database:
     runs-on: ubuntu-latest
+    # This suppresses the Node.js 20 deprecation warning
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-    steps:
-      # ... rest of your steps
 
     steps:
       - name: Checkout repository
