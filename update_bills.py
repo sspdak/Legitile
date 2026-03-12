@@ -16,11 +16,20 @@ HEADERS = {
 
 def execute_d1_query(sql_statement, params=None):
     """Sends a SQL query to Cloudflare D1."""
-    payload = {"sql": sql_statement}
+    # Strip whitespace and trailing semicolons to prevent multi-statement 400 errors
+    clean_sql = sql_statement.strip().rstrip(';')
+    
+    payload = {"sql": clean_sql}
     if params:
         payload["params"] = params
         
     response = requests.post(D1_API_URL, headers=HEADERS, json=payload)
+    
+    # Print the exact Cloudflare error message before crashing
+    if not response.ok:
+        print(f"Cloudflare API Error: {response.status_code}")
+        print(f"Response Body: {response.text}")
+        
     response.raise_for_status()
     return response.json()
 
