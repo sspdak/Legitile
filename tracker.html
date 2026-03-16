@@ -70,7 +70,6 @@
         </header>
 
         <main class="flex-1 overflow-y-auto p-6 md:p-10 scroll-smooth">
-            
             <div class="bg-white p-4 rounded-xl shadow-sm mb-6 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 border border-gray-100">
                 <div class="flex flex-wrap gap-2 w-full xl:w-auto items-center">
                     <select onchange="setCommittee(this.value)" id="committeeSelect" class="bg-white border-2 border-gray-100 text-blue-900 font-black uppercase text-[10px] rounded-lg px-2 py-1.5 outline-none focus:border-blue-900 transition shadow-sm cursor-pointer">
@@ -85,7 +84,7 @@
                     </select>
                     <select onchange="setStatusFilter(this.value)" id="statusFilter" class="bg-gray-50 text-[10px] font-black uppercase rounded-lg px-2 py-1.5 border-none outline-none text-gray-600 focus:text-blue-900 cursor-pointer hover:bg-gray-100 transition">
                         <option value="All">All Steps</option>
-                        </select>
+                    </select>
                     <select onchange="setSort(this.value)" class="bg-gray-50 text-[10px] font-black uppercase rounded-lg px-2 py-1.5 border-none outline-none text-gray-600 focus:text-blue-900 cursor-pointer hover:bg-gray-100 transition">
                         <option value="priority">Sort: Priority</option>
                         <option value="alpha">Sort: Bill #</option>
@@ -129,8 +128,8 @@
                 </select>
                 <textarea id="draftBlurb" placeholder="Initial policy notes..." class="w-full border-2 p-3 rounded-lg h-32 outline-none focus:border-orange-500"></textarea>
                 <div class="flex gap-2">
-                    <button onclick="alert('Hook this up to your worker script to save drafts!'); hideAllModals();" class="bg-orange-500 text-white font-bold px-6 py-3 rounded-lg flex-1 uppercase">Create Workspace</button>
-                    <button onclick="hideAllModals()" class="bg-gray-200 py-3 px-4 rounded-lg font-bold uppercase text-gray-600">Cancel</button>
+                    <button onclick="createDraft()" class="bg-orange-500 text-white font-bold px-6 py-3 rounded-lg flex-1 uppercase hover:bg-orange-600 transition">Create Workspace</button>
+                    <button onclick="hideAllModals()" class="bg-gray-200 py-3 px-4 rounded-lg font-bold uppercase text-gray-600 hover:bg-gray-300 transition">Cancel</button>
                 </div>
             </div>
         </div>
@@ -144,8 +143,8 @@
                     <input type="text" id="existingNum" placeholder="Bill # (e.g., 1234)" class="w-full border-2 p-3 rounded-lg">
                 </div>
                 <div class="flex gap-2">
-                    <button onclick="document.getElementById('billNum').value = document.getElementById('existingNum').value; fetchAPI(); hideAllModals();" class="bg-[#002e5d] text-white font-bold px-6 py-3 rounded-lg flex-1 uppercase">Fetch from WSL API</button>
-                    <button onclick="hideAllModals()" class="bg-gray-200 py-3 px-4 rounded-lg font-bold uppercase text-gray-600">Cancel</button>
+                    <button onclick="document.getElementById('billNum').value = document.getElementById('existingNum').value; fetchAPI(); hideAllModals();" class="bg-[#002e5d] text-white font-bold px-6 py-3 rounded-lg flex-1 uppercase hover:bg-[#001f3f] transition">Fetch from WSL API</button>
+                    <button onclick="hideAllModals()" class="bg-gray-200 py-3 px-4 rounded-lg font-bold uppercase text-gray-600 hover:bg-gray-300 transition">Cancel</button>
                 </div>
             </div>
         </div>
@@ -163,7 +162,6 @@
     let expandedCards = new Set();
     let activeTabs = {};
 
-    // Filter Variables
     let currentCommittee = 'All';
     let currentType = 'All';
     let currentStatus = 'All';
@@ -181,7 +179,6 @@
         "House": [], "Dead": [], "Default": ["Review Bill", "Monitor Testimony"]
     };
 
-    // --- SINE DIE TIMER LOGIC ---
     const SINE_DIE_DATE = new Date("2026-03-11T23:59:59");
     function updateSessionTimer() {
         const now = new Date();
@@ -200,7 +197,6 @@
     setInterval(updateSessionTimer, 60000); 
     updateSessionTimer();
 
-    // --- MODAL & FILTER LOGIC ---
     function showScreen(id) {
         hideAllModals();
         const form = document.getElementById(id);
@@ -242,13 +238,11 @@
 
     function logout() { localStorage.clear(); window.location.href = 'index.html'; }
 
-    // Initial Load Sequence
     window.onload = async () => {
         updateNavHighlight();
         await loadWorkspace();
         handleAutoSearch();
         
-        // Populate Status Filter
         const filterSelect = document.getElementById('statusFilter');
         LIVE_STATUS_OPTIONS.forEach(opt => {
             const option = document.createElement('option');
@@ -286,6 +280,7 @@
             
             workspaceItems = rawBills.map(item => ({
                 ...item,
+                tracking_status: item.tracking_status || "Introduced", // Initializes decoupled internal status
                 task_progress: JSON.parse(item.task_progress || '{}'),
                 custom_tasks: JSON.parse(item.custom_tasks || '[]'),
                 amendments: JSON.parse(item.amendments || '[]')
@@ -300,10 +295,8 @@
         grid.innerHTML = '';
         let processedIds = new Set();
 
-        // Apply filters (basic filtering to support the newly added filter bar)
         let filteredItems = workspaceItems.filter(item => {
-            if (currentStatus !== 'All' && item.status !== currentStatus) return false;
-            // Add custom filtering logic here if you add 'committee' or 'type' to your DB
+            if (currentStatus !== 'All' && item.tracking_status !== currentStatus) return false;
             return true;
         });
 
@@ -332,10 +325,13 @@
             let activeId = activeTabs[item.id] || item.id;
             let activeItem = group.find(i => i.id === activeId) || item;
             
-            let isDead = activeItem.status === 'Dead';
-            let status = LIVE_STATUS_OPTIONS.includes(activeItem.status) ? activeItem.status : "Default";
-            let tasks = STATUS_TASKS[status] || STATUS_TASKS["Default"];
-            let progress = activeItem.task_progress[status] || {};
+            // Decoupled Statuses
+            let officialStatus = activeItem.status || "Unknown";
+            let internalStatus = activeItem.tracking_status || "Introduced";
+            
+            let isDead = officialStatus === 'Dead';
+            let tasks = STATUS_TASKS[internalStatus] || STATUS_TASKS["Default"];
+            let progress = activeItem.task_progress[internalStatus] || {};
 
             let tabsHtml = '';
             if (group.length > 1) {
@@ -373,7 +369,7 @@
                         </div>
                         <div class="md:border-l md:pl-6 w-48 flex-shrink-0">
                             <span class="text-[9px] font-black uppercase text-gray-400 block tracking-widest mb-1">Status & Sponsor</span>
-                            <div class="text-[10px] font-black uppercase text-[#002e5d]">${activeItem.status}</div>
+                            <div class="text-[10px] font-black uppercase text-[#002e5d]">${officialStatus}</div>
                             <div class="text-[10px] font-bold text-gray-500 truncate mt-1">${activeItem.sponsor}</div>
                         </div>
                     </div>
@@ -384,8 +380,8 @@
                             <div class="space-y-4">
                                 <div class="flex items-center justify-between">
                                     <h3 class="text-[10px] font-black uppercase tracking-widest text-gray-400">Status & Tasks</h3>
-                                    <select onchange="updateDB(${activeItem.id}, 'status', this.value)" class="text-[10px] font-black uppercase bg-gray-100 px-2 py-1 rounded outline-none cursor-pointer border border-gray-200">
-                                        ${LIVE_STATUS_OPTIONS.map(opt => `<option value="${opt}" ${activeItem.status === opt ? 'selected' : ''}>${opt}</option>`).join('')}
+                                    <select onchange="updateDB(${activeItem.id}, 'tracking_status', this.value)" class="text-[10px] font-black uppercase bg-gray-100 px-2 py-1 rounded outline-none cursor-pointer border border-gray-200">
+                                        ${LIVE_STATUS_OPTIONS.map(opt => `<option value="${opt}" ${internalStatus === opt ? 'selected' : ''}>${opt}</option>`).join('')}
                                     </select>
                                 </div>
                                 
@@ -396,7 +392,7 @@
                                         return `
                                         <div class="flex items-center justify-between py-1">
                                             <label class="flex items-center gap-3 text-sm cursor-pointer w-full">
-                                                <input type="checkbox" onchange="toggleTask(${activeItem.id}, '${tName}', '${status}')" ${done ? 'checked' : ''} class="h-4 w-4 rounded text-blue-900 border-gray-300">
+                                                <input type="checkbox" onchange="toggleTask(${activeItem.id}, '${tName}', '${internalStatus}')" ${done ? 'checked' : ''} class="h-4 w-4 rounded text-blue-900 border-gray-300">
                                                 <span class="${done ? 'text-gray-400 line-through' : 'font-bold text-gray-700'}">${tName}</span>
                                             </label>
                                         </div>`;
@@ -426,7 +422,41 @@
         });
     }
 
-    // --- SYNC FUNCTIONS ---
+    // --- CREATE DRAFT FUNCTION ---
+    async function createDraft() {
+        const title = document.getElementById('draftTitle').value || "Untitled Draft";
+        const companion = document.getElementById('draftCompanion').value || "";
+        const committee = document.getElementById('draftCommittee').value;
+        const blurb = document.getElementById('draftBlurb').value || "";
+
+        const payload = {
+            billNumber: title,
+            shortDesc: blurb,
+            status: "Draft", 
+            tracking_status: "Introduced",
+            sponsor: "Self",
+            companion: companion,
+            committee: committee,
+            type: "draft"
+        };
+
+        try {
+            const res = await fetch(`${workerBaseUrl}/save-bill`, {
+                method: 'POST',
+                headers: authHeaders,
+                body: JSON.stringify(payload)
+            });
+            
+            if (res.ok) {
+                hideAllModals();
+                await loadWorkspace(); 
+            } else {
+                alert("Failed to save draft. Please check your Worker script configuration.");
+            }
+        } catch (e) { 
+            alert("Draft save failed. Ensure API is reachable."); 
+        }
+    }
 
     async function syncBill(event, id, billNumber) {
         event.stopPropagation();
@@ -470,8 +500,6 @@
         btn.innerHTML = originalText;
         icon.classList.remove('animate-spin');
     }
-
-    // --- UI INTERACTION ---
 
     function switchTab(event, groupId, targetId) {
         event.stopPropagation();
@@ -519,7 +547,8 @@
         renderGrid(); 
         const payload = {
             id: item.id,
-            status: item.status,
+            status: item.status, 
+            tracking_status: item.tracking_status,
             live_notes: item.live_notes || "",
             task_progress: JSON.stringify(item.task_progress),
             custom_tasks: JSON.stringify(item.custom_tasks),
@@ -547,8 +576,6 @@
             if (res.ok) loadWorkspace();
         } catch (e) { alert("Delete failed"); }
     }
-
-    // --- API LOGIC ---
 
     async function fetchAPI() {
         const rawBill = document.getElementById('billNum').value;
@@ -594,11 +621,20 @@
 
     async function saveToWorkspace() {
         if (!currentBillData) return;
+        
+        // Ensure new fields are mapped here as well so the backend receives a consistent payload
+        const payload = {
+            ...currentBillData,
+            tracking_status: "Introduced",
+            committee: "Unknown",
+            type: "live"
+        };
+
         try {
             const res = await fetch(`${workerBaseUrl}/save-bill`, {
                 method: 'POST',
                 headers: authHeaders,
-                body: JSON.stringify(currentBillData)
+                body: JSON.stringify(payload)
             });
             if (res.ok) {
                 document.getElementById('apiResults').innerHTML = `<span class="text-green-600 font-bold text-sm">Added!</span>`;
