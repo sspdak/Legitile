@@ -3,11 +3,129 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LegiTile | Welcome</title>
+    <title>LegiTile</title>
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgcng9IjIwIiBmaWxsPSIjMDAyZTVkIi8+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCUiIHkxPSIwJSIgeDI9IjEwMCUiIHkyPSIxMDAlIj48c3RvcCBvZmZzZXQ9IjAlIiBzdG9wLWNvbG9yPSIjZmI5MjNjIi8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjZmZmZmZmIi8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHRleHQgeD0iNTAiIHk9Ijc1IiBmb250LWZhbWlseT0ic2VyaWYiIGZvbnQtc3R5bGU9Iml0YWxpYyIgZm9udC13ZWlnaHQ9IjkwMCIgZm9udC1zaXplPSI3NSIgZmlsbD0idXJsKCNnKSIgdGV4dC1hbmNob3I9Im1pZGRsZSI+TDwvdGV4dD48L3N2Zz4=">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .leg-navy { background-color: #002e5d; }
+    </style>
 </head>
-<body>
-    <h1>WELCOME</h1>
-    <h2><a href="home.html">Let's get started.</a></h2>
+<body class="bg-gray-100 min-h-screen font-sans text-gray-900 flex items-center justify-center p-4">
+
+    <div class="w-full max-w-md bg-white rounded-xl shadow-2xl overflow-hidden border-t-8 border-[#002e5d] transition-all duration-300">
+        
+        <div class="leg-navy py-10 flex flex-col items-center shrink-0 relative overflow-hidden">
+            <div class="absolute -top-10 -right-10 w-32 h-32 bg-white opacity-5 rounded-full blur-2xl"></div>
+            <div class="text-6xl font-serif italic font-black text-transparent bg-clip-text bg-gradient-to-br from-orange-400 to-white drop-shadow-2xl leading-none z-10">L</div>
+            <div class="text-[10px] uppercase tracking-[0.2em] text-blue-200 font-bold mt-2 opacity-80 z-10">LegiTile</div>
+        </div>
+
+        <div class="p-8">
+            <h2 id="formTitle" class="text-xl font-black text-gray-800 uppercase tracking-tight text-center mb-6">Staff Login</h2>
+            
+            <div class="space-y-4">
+                <div>
+                    <label class="text-[10px] font-black uppercase text-gray-400 tracking-widest mb-1 block">Work Email</label>
+                    <input type="email" id="email" placeholder="staff@leg.wa.gov" required 
+                           class="w-full border-2 border-gray-200 p-3 rounded-lg outline-none focus:border-[#002e5d] font-bold text-gray-700 transition placeholder:text-gray-300 placeholder:font-normal">
+                </div>
+                
+                <div>
+                    <label class="text-[10px] font-black uppercase text-gray-400 tracking-widest mb-1 block">Password</label>
+                    <input type="password" id="password" placeholder="••••••••" required 
+                           class="w-full border-2 border-gray-200 p-3 rounded-lg outline-none focus:border-[#002e5d] font-bold text-gray-700 transition placeholder:text-gray-300">
+                </div>
+
+                <div id="statusMsg" class="text-xs font-bold text-center h-4 mt-2"></div>
+
+                <button id="submitBtn" onclick="handleAuth()" 
+                        class="w-full bg-[#002e5d] hover:bg-blue-900 text-white text-[12px] font-black uppercase px-6 py-4 rounded-lg shadow-sm hover:shadow-md transition mt-2">
+                    Log In
+                </button>
+            </div>
+
+            <div class="mt-6 pt-6 border-t border-gray-100 text-center">
+                <button onclick="toggleMode()" id="toggleText" class="text-[10px] font-black uppercase text-gray-400 hover:text-[#002e5d] transition tracking-widest">
+                    Need an account? Register here.
+                </button>
+            </div>
+        </div>
+    </div>
+
+<script>
+    // Redirect to home if already logged in
+    if (localStorage.getItem('jwt_token')) {
+        window.location.href = 'home.html';
+    }
+
+    const workerBaseUrl = "https://misty-credit-9e6a.ewing-jacob.workers.dev";
+    let isLoginMode = true;
+
+    function toggleMode() {
+        isLoginMode = !isLoginMode;
+        document.getElementById('formTitle').innerText = isLoginMode ? "Staff Login" : "Staff Registration";
+        document.getElementById('submitBtn').innerText = isLoginMode ? "Secure Log In" : "Create Account";
+        document.getElementById('toggleText').innerText = isLoginMode ? "Need an account? Register here." : "Already have an account? Log in.";
+        
+        const statusDiv = document.getElementById('statusMsg');
+        statusDiv.innerText = "";
+        statusDiv.className = "text-xs font-bold text-center h-4 mt-2";
+    }
+
+    async function handleAuth() {
+        const email = document.getElementById('email').value.trim();
+        const password = document.getElementById('password').value.trim();
+        const statusDiv = document.getElementById('statusMsg');
+        
+        if (!email || !password) {
+            statusDiv.className = "text-xs font-bold text-center h-4 mt-2 text-red-500";
+            statusDiv.innerText = "Please enter both email and password.";
+            return;
+        }
+
+        statusDiv.className = "text-xs font-bold text-center h-4 mt-2 text-gray-500 animate-pulse";
+        statusDiv.innerText = isLoginMode ? "Authenticating securely..." : "Creating account...";
+
+        const endpoint = isLoginMode ? "/login" : "/register";
+
+        try {
+            const response = await fetch(`${workerBaseUrl}${endpoint}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password })
+            });
+
+            if (response.ok) {
+                if (!isLoginMode) {
+                    statusDiv.className = "text-xs font-bold text-center h-4 mt-2 text-green-600";
+                    statusDiv.innerText = "Account created! You can now log in.";
+                    setTimeout(() => {
+                        toggleMode(); 
+                        document.getElementById('password').value = ''; 
+                    }, 1500);
+                } else {
+                    const data = await response.json();
+                    localStorage.setItem('jwt_token', data.token);
+                    localStorage.setItem('user_email', data.email);
+                    window.location.href = 'home.html'; 
+                }
+            } else {
+                const errorText = await response.text();
+                statusDiv.className = "text-xs font-bold text-center h-4 mt-2 text-red-500";
+                statusDiv.innerText = `${isLoginMode ? "Login" : "Registration"} failed: ${errorText}`;
+            }
+        } catch (err) {
+            statusDiv.className = "text-xs font-bold text-center h-4 mt-2 text-red-500";
+            statusDiv.innerText = "Network error. Make sure your Worker is deployed.";
+        }
+    }
+
+    document.getElementById('password').addEventListener('keypress', function (e) {
+        if (e.key === 'Enter') {
+            handleAuth();
+        }
+    });
+</script>
+
 </body>
 </html>
