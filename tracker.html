@@ -144,6 +144,29 @@
         </div>
     </div>
 
+    <div id="editForm" style="display: none;" class="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-white p-8 rounded-xl shadow-2xl max-w-2xl w-full border-t-8 border-gray-600">
+            <h2 class="text-2xl font-bold mb-4 text-gray-800 uppercase">Edit Details</h2>
+            <div class="space-y-4">
+                <div class="flex gap-4">
+                    <input type="text" id="editBillNum" placeholder="Bill / Concept Name" class="w-2/3 border-2 p-3 rounded-lg outline-none focus:border-gray-500">
+                    <input type="text" id="editCompanion" placeholder="Comp. (Optional)" class="w-1/3 border-2 p-3 rounded-lg outline-none focus:border-gray-500">
+                </div>
+                <input type="text" id="editSponsor" placeholder="Sponsor" class="w-full border-2 p-3 rounded-lg outline-none focus:border-gray-500">
+                <select id="editCommittee" class="w-full border-2 p-3 rounded-lg font-bold outline-none focus:border-gray-500">
+                    <option value="Health Care">Health Care</option>
+                    <option value="Local Government">Local Government</option>
+                    <option value="Unknown">Unknown</option>
+                </select>
+                <textarea id="editShortDesc" placeholder="Summary or Description..." class="w-full border-2 p-3 rounded-lg h-24 outline-none focus:border-gray-500"></textarea>
+                <div class="flex gap-2">
+                    <button onclick="saveEdit()" class="bg-gray-600 text-white font-bold px-6 py-3 rounded-lg flex-1 uppercase hover:bg-gray-700 transition">Save Changes</button>
+                    <button onclick="hideAllModals()" class="bg-gray-200 py-3 px-4 rounded-lg font-bold uppercase text-gray-600 hover:bg-gray-300 transition">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
 <script>
     if (!localStorage.getItem('jwt_token')) window.location.href = 'index.html';
     document.getElementById('userEmailDisplay').innerText = localStorage.getItem('user_email') || 'Unknown';
@@ -155,6 +178,7 @@
     let workspaceItems = [];
     let expandedCards = new Set();
     let activeTabs = {};
+    let editItemId = null; // Used for tracking which item is being edited
 
     let currentCommittee = 'All';
     let currentType = 'All';
@@ -162,6 +186,7 @@
     let currentSort = 'priority';
 
     const LIVE_STATUS_OPTIONS = ["Introduced", "Public Hearing", "Executive Action", "Fiscal", "Rules", "Floor", "House", "Concurrence", "Passed", "Dead"];
+    const DRAFT_STEPS = ["Draft Approved", "Draft to CRO", "CRO Version Received", "Bill & Pink Sheet Sent"];
     const STATUS_TASKS = {
         "Introduced": ["Review bill", "Add summary to tracker", "Prep talking points"],
         "Public Hearing": ["Submit Bill Report", "Create Bill Presentation", "Submit Public Testimony"],
@@ -201,7 +226,7 @@
     }
 
     function hideAllModals() {
-        ['draftForm', 'existingForm'].forEach(id => {
+        ['draftForm', 'existingForm', 'editForm'].forEach(id => {
             const el = document.getElementById(id);
             if (el) el.style.setProperty('display', 'none', 'important');
         });
@@ -319,9 +344,57 @@
             }
 
             let visualModifier = (isDead && !isDraft) ? 'grayscale-[0.5]' : '';
-
-            let tasks = STATUS_TASKS[internalStatus] || STATUS_TASKS["Default"];
             let progress = activeItem.task_progress[internalStatus] || {};
+            if (isDraft) progress = activeItem.task_progress["Draft"] || {}; // Fetch draft-specific progress
+
+            // Build Tasks/Status HTML conditionally
+            let statusSectionHtml = '';
+            
+            if (isDraft) {
+                let draftTasksHtml = DRAFT_STEPS.map(tName => {
+                    const done = progress[tName];
+                    return `
+                    <div class="flex items-center justify-between py-1">
+                        <label class="flex items-center gap-3 text-sm cursor-pointer w-full">
+                            <input type="checkbox" onchange="toggleTask(${activeItem.id}, '${tName}', 'Draft')" ${done ? 'checked' : ''} class="h-4 w-4 rounded text-orange-500 border-gray-300">
+                            <span class="${done ? 'text-gray-400 line-through' : 'font-bold text-gray-700'}">${tName}</span>
+                        </label>
+                    </div>`;
+                }).join('');
+
+                statusSectionHtml = `
+                    <div class="flex items-center justify-between mb-2">
+                        <h3 class="text-[10px] font-black uppercase tracking-widest text-gray-400">Draft Steps</h3>
+                    </div>
+                    <div class="space-y-1 bg-orange-50 p-3 rounded border border-orange-100">
+                        ${draftTasksHtml}
+                    </div>
+                `;
+            } else {
+                let tasks = STATUS_TASKS[internalStatus] || STATUS_TASKS["Default"];
+                let liveTasksHtml = tasks.length === 0 ? '<span class="text-xs font-bold text-gray-400">No default tasks for this stage.</span>' : tasks.map(tName => {
+                    const done = progress[tName];
+                    return `
+                    <div class="flex items-center justify-between py-1">
+                        <label class="flex items-center gap-3 text-sm cursor-pointer w-full">
+                            <input type="checkbox" onchange="toggleTask(${activeItem.id}, '${tName}', '${internalStatus}')" ${done ? 'checked' : ''} class="h-4 w-4 rounded text-blue-900 border-gray-300">
+                            <span class="${done ? 'text-gray-400 line-through' : 'font-bold text-gray-700'}">${tName}</span>
+                        </label>
+                    </div>`;
+                }).join('');
+
+                statusSectionHtml = `
+                    <div class="flex items-center justify-between mb-2">
+                        <h3 class="text-[10px] font-black uppercase tracking-widest text-gray-400">Status & Tasks</h3>
+                        <select onchange="updateDB(${activeItem.id}, 'tracking_status', this.value)" class="text-[10px] font-black uppercase bg-gray-100 px-2 py-1 rounded outline-none cursor-pointer border border-gray-200">
+                            ${LIVE_STATUS_OPTIONS.map(opt => `<option value="${opt}" ${internalStatus === opt ? 'selected' : ''}>${opt}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div class="space-y-1 bg-yellow-50 p-3 rounded border border-yellow-100">
+                        ${liveTasksHtml}
+                    </div>
+                `;
+            }
 
             let tabsHtml = '';
             if (group.length > 1) {
@@ -340,6 +413,12 @@
                     </button>
                 </div>`;
             }
+
+            let promoteBtn = isDraft ? `
+                <button onclick="promoteToLive(${activeItem.id})" class="text-[10px] font-black uppercase text-green-600 hover:text-green-800 bg-green-50 hover:bg-green-100 px-4 py-2 rounded transition border border-green-200">
+                    Promote to Bill
+                </button>
+            ` : '';
 
             let cardHtml = `
                 <div class="bg-white rounded-xl shadow-md ${borderClass} border border-gray-100 overflow-hidden ${visualModifier}">
@@ -365,26 +444,7 @@
                         <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-4">
                             
                             <div class="space-y-4">
-                                <div class="flex items-center justify-between">
-                                    <h3 class="text-[10px] font-black uppercase tracking-widest text-gray-400">Status & Tasks</h3>
-                                    <select onchange="updateDB(${activeItem.id}, 'tracking_status', this.value)" class="text-[10px] font-black uppercase bg-gray-100 px-2 py-1 rounded outline-none cursor-pointer border border-gray-200">
-                                        ${LIVE_STATUS_OPTIONS.map(opt => `<option value="${opt}" ${internalStatus === opt ? 'selected' : ''}>${opt}</option>`).join('')}
-                                    </select>
-                                </div>
-                                
-                                <div class="space-y-1 bg-yellow-50 p-3 rounded border border-yellow-100">
-                                    ${tasks.length === 0 ? '<span class="text-xs font-bold text-gray-400">No default tasks for this stage.</span>' : ''}
-                                    ${tasks.map(tName => {
-                                        const done = progress[tName];
-                                        return `
-                                        <div class="flex items-center justify-between py-1">
-                                            <label class="flex items-center gap-3 text-sm cursor-pointer w-full">
-                                                <input type="checkbox" onchange="toggleTask(${activeItem.id}, '${tName}', '${internalStatus}')" ${done ? 'checked' : ''} class="h-4 w-4 rounded text-blue-900 border-gray-300">
-                                                <span class="${done ? 'text-gray-400 line-through' : 'font-bold text-gray-700'}">${tName}</span>
-                                            </label>
-                                        </div>`;
-                                    }).join('')}
-                                </div>
+                                ${statusSectionHtml}
                             </div>
 
                             <div class="space-y-4 flex flex-col h-full">
@@ -400,9 +460,15 @@
 
                         <div class="flex justify-between items-center mt-6 pt-4 border-t border-gray-200">
                             <span class="text-[9px] font-black uppercase tracking-widest text-gray-400">Workspace Controls</span>
-                            <button onclick="deleteBill(${activeItem.id})" class="text-[10px] font-black uppercase text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 px-4 py-2 rounded transition border border-red-100">
-                                Remove from Workspace
-                            </button>
+                            <div class="flex flex-wrap gap-2">
+                                ${promoteBtn}
+                                <button onclick="openEdit(${activeItem.id})" class="text-[10px] font-black uppercase text-gray-600 hover:text-gray-800 bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded transition border border-gray-200">
+                                    Edit
+                                </button>
+                                <button onclick="deleteBill(${activeItem.id})" class="text-[10px] font-black uppercase text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 px-4 py-2 rounded transition border border-red-100">
+                                    Remove
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>`;
@@ -455,6 +521,55 @@
         }
     }
 
+    // Modal logic for Editing
+    function openEdit(id) {
+        editItemId = id;
+        const item = workspaceItems.find(i => i.id === id);
+        
+        document.getElementById('editBillNum').value = item.bill_number || "";
+        document.getElementById('editShortDesc').value = item.short_desc || "";
+        document.getElementById('editSponsor').value = item.sponsor || "";
+        document.getElementById('editCompanion').value = item.companion || "";
+        
+        const committeeSelect = document.getElementById('editCommittee');
+        // If they had a custom committee string saved, ensure it exists in the dropdown before selecting
+        let found = Array.from(committeeSelect.options).some(opt => opt.value === item.committee);
+        if (!found && item.committee) {
+            const opt = document.createElement('option');
+            opt.value = item.committee;
+            opt.innerText = item.committee;
+            committeeSelect.appendChild(opt);
+        }
+        committeeSelect.value = item.committee || "Unknown";
+
+        showScreen('editForm');
+    }
+
+    async function saveEdit() {
+        if (!editItemId) return;
+        const item = workspaceItems.find(i => i.id === editItemId);
+        
+        item.bill_number = document.getElementById('editBillNum').value;
+        item.short_desc = document.getElementById('editShortDesc').value;
+        item.sponsor = document.getElementById('editSponsor').value;
+        item.companion = document.getElementById('editCompanion').value;
+        item.committee = document.getElementById('editCommittee').value;
+        
+        hideAllModals();
+        await syncToServer(item);
+    }
+
+    async function promoteToLive(id) {
+        if (!confirm("Promote this draft to a live tracked bill?")) return;
+        const item = workspaceItems.find(i => i.id === id);
+        
+        item.type = 'live';
+        item.status = 'Introduced'; // Sets official status to introduced
+        item.tracking_status = 'Introduced'; // Resets internal tracking status
+        
+        await syncToServer(item);
+    }
+
     async function syncAllBills() {
         const btn = document.getElementById('syncAllBtn');
         const icon = document.getElementById('syncAllIcon');
@@ -465,6 +580,8 @@
         icon.classList.add('animate-spin');
         
         for (const item of workspaceItems) {
+            if (item.type === 'draft' || item.status === 'Draft') continue; // Don't sync drafts with external API
+            
             btn.innerHTML = `<span>🔄</span> Syncing ${item.bill_number}...`;
             try {
                 await fetch(`${workerBaseUrl}/sync-bill`, {
@@ -530,6 +647,12 @@
             id: item.id,
             status: item.status, 
             tracking_status: item.tracking_status,
+            type: item.type, // Make sure 'type' changes get pushed to worker
+            bill_number: item.bill_number,
+            short_desc: item.short_desc,
+            sponsor: item.sponsor,
+            companion: item.companion,
+            committee: item.committee,
             live_notes: item.live_notes || "",
             task_progress: JSON.stringify(item.task_progress),
             custom_tasks: JSON.stringify(item.custom_tasks),
@@ -547,7 +670,7 @@
     }
 
     async function deleteBill(id) {
-        if (!confirm("Are you sure?")) return;
+        if (!confirm("Are you sure you want to remove this?")) return;
         try {
             const res = await fetch(`${workerBaseUrl}/delete-bill`, {
                 method: 'DELETE',
