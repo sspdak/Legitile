@@ -167,6 +167,21 @@
         </div>
     </div>
 
+    <div id="promoteForm" style="display: none;" class="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-white p-8 rounded-xl shadow-2xl max-w-md w-full border-t-8 border-green-500">
+            <h2 class="text-2xl font-bold mb-2 text-green-700 uppercase">Promote to Bill</h2>
+            <p class="text-xs text-gray-500 mb-6 font-bold">Enter the official bill number assigned to this draft. The system will automatically check for companion bills.</p>
+            <div class="space-y-4">
+                <input type="text" id="promoteBillNum" placeholder="Bill # (e.g., 1234)" class="w-full border-2 p-3 rounded-lg outline-none focus:border-green-500 font-bold text-gray-700">
+                <div id="promoteStatus" class="text-xs font-bold text-blue-600 hidden">Checking WSL API...</div>
+                <div class="flex gap-2 pt-2">
+                    <button onclick="confirmPromote()" class="bg-green-600 text-white font-bold px-6 py-3 rounded-lg flex-1 uppercase hover:bg-green-700 transition">Promote Draft</button>
+                    <button onclick="hideAllModals()" class="bg-gray-200 py-3 px-4 rounded-lg font-bold uppercase text-gray-600 hover:bg-gray-300 transition">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
 <script>
     if (!localStorage.getItem('jwt_token')) window.location.href = 'index.html';
     document.getElementById('userEmailDisplay').innerText = localStorage.getItem('user_email') || 'Unknown';
@@ -178,7 +193,8 @@
     let workspaceItems = [];
     let expandedCards = new Set();
     let activeTabs = {};
-    let editItemId = null; // Used for tracking which item is being edited
+    let editItemId = null; 
+    let promoteItemId = null;
 
     let currentCommittee = 'All';
     let currentType = 'All';
@@ -226,7 +242,7 @@
     }
 
     function hideAllModals() {
-        ['draftForm', 'existingForm', 'editForm'].forEach(id => {
+        ['draftForm', 'existingForm', 'editForm', 'promoteForm'].forEach(id => {
             const el = document.getElementById(id);
             if (el) el.style.setProperty('display', 'none', 'important');
         });
@@ -337,26 +353,23 @@
             let isDraft = activeItem.type === 'draft' || activeItem.status === 'Draft';
 
             let borderClass = 'live-border';
-            if (isDraft) {
-                borderClass = 'draft-border';
-            } else if (isDead) {
-                borderClass = 'dead-border';
-            }
+            if (isDraft) borderClass = 'draft-border';
+            else if (isDead) borderClass = 'dead-border';
 
             let visualModifier = (isDead && !isDraft) ? 'grayscale-[0.5]' : '';
             let progress = activeItem.task_progress[internalStatus] || {};
-            if (isDraft) progress = activeItem.task_progress["Draft"] || {}; // Fetch draft-specific progress
+            if (isDraft) progress = activeItem.task_progress["Draft"] || {}; 
 
-            // Build Tasks/Status HTML conditionally
             let statusSectionHtml = '';
             
             if (isDraft) {
                 let draftTasksHtml = DRAFT_STEPS.map(tName => {
                     const done = progress[tName];
+                    const safeName = tName.replace(/"/g, '&quot;').replace(/'/g, "\\'");
                     return `
                     <div class="flex items-center justify-between py-1">
                         <label class="flex items-center gap-3 text-sm cursor-pointer w-full">
-                            <input type="checkbox" onchange="toggleTask(${activeItem.id}, '${tName}', 'Draft')" ${done ? 'checked' : ''} class="h-4 w-4 rounded text-orange-500 border-gray-300">
+                            <input type="checkbox" onchange="toggleTask(${activeItem.id}, '${safeName}', 'Draft')" ${done ? 'checked' : ''} class="h-4 w-4 rounded text-orange-500 border-gray-300 outline-none">
                             <span class="${done ? 'text-gray-400 line-through' : 'font-bold text-gray-700'}">${tName}</span>
                         </label>
                     </div>`;
@@ -374,10 +387,11 @@
                 let tasks = STATUS_TASKS[internalStatus] || STATUS_TASKS["Default"];
                 let liveTasksHtml = tasks.length === 0 ? '<span class="text-xs font-bold text-gray-400">No default tasks for this stage.</span>' : tasks.map(tName => {
                     const done = progress[tName];
+                    const safeName = tName.replace(/"/g, '&quot;').replace(/'/g, "\\'");
                     return `
                     <div class="flex items-center justify-between py-1">
                         <label class="flex items-center gap-3 text-sm cursor-pointer w-full">
-                            <input type="checkbox" onchange="toggleTask(${activeItem.id}, '${tName}', '${internalStatus}')" ${done ? 'checked' : ''} class="h-4 w-4 rounded text-blue-900 border-gray-300">
+                            <input type="checkbox" onchange="toggleTask(${activeItem.id}, '${safeName}', '${internalStatus}')" ${done ? 'checked' : ''} class="h-4 w-4 rounded text-[#002e5d] border-gray-300 outline-none">
                             <span class="${done ? 'text-gray-400 line-through' : 'font-bold text-gray-700'}">${tName}</span>
                         </label>
                     </div>`;
@@ -390,11 +404,43 @@
                             ${LIVE_STATUS_OPTIONS.map(opt => `<option value="${opt}" ${internalStatus === opt ? 'selected' : ''}>${opt}</option>`).join('')}
                         </select>
                     </div>
-                    <div class="space-y-1 bg-yellow-50 p-3 rounded border border-yellow-100">
+                    <div class="space-y-1 bg-blue-50/50 p-3 rounded border border-blue-100/50">
                         ${liveTasksHtml}
                     </div>
                 `;
             }
+
+            // Custom Tasks HTML Build
+            let customTasksHtml = (activeItem.custom_tasks || []).map(tName => {
+                let customProg = activeItem.task_progress["Custom"] || {};
+                const done = customProg[tName];
+                const safeName = tName.replace(/"/g, '&quot;').replace(/'/g, "\\'");
+                return `
+                <div class="flex items-center justify-between py-1 group">
+                    <label class="flex items-center gap-3 text-sm cursor-pointer w-full">
+                        <input type="checkbox" onchange="toggleCustomTask(${activeItem.id}, '${safeName}')" ${done ? 'checked' : ''} class="h-4 w-4 rounded text-purple-600 border-gray-300 outline-none">
+                        <span class="${done ? 'text-gray-400 line-through' : 'font-bold text-gray-700'}">${tName}</span>
+                    </label>
+                    <button onclick="deleteCustomTask(${activeItem.id}, '${safeName}')" class="text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition px-2 focus:opacity-100" title="Delete Task">×</button>
+                </div>`;
+            }).join('');
+
+            let addTaskHtml = `
+                <div class="mt-2 flex gap-2">
+                    <input type="text" id="newTask_${activeItem.id}" placeholder="Add custom to-do..." class="text-xs font-bold text-gray-600 p-2 border border-gray-200 rounded flex-1 outline-none focus:border-gray-400" onkeypress="if(event.key === 'Enter') addCustomTask(${activeItem.id})">
+                    <button onclick="addCustomTask(${activeItem.id})" class="bg-gray-100 hover:bg-gray-200 border border-gray-200 text-gray-600 px-3 py-1 rounded text-lg font-bold transition outline-none focus:border-gray-400">+</button>
+                </div>
+            `;
+
+            statusSectionHtml += `
+                <div class="mt-4 pt-4 border-t border-gray-100">
+                    <h3 class="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2">Custom To-Dos</h3>
+                    <div class="space-y-1">
+                        ${customTasksHtml}
+                    </div>
+                    ${addTaskHtml}
+                </div>
+            `;
 
             let tabsHtml = '';
             if (group.length > 1) {
@@ -415,7 +461,7 @@
             }
 
             let promoteBtn = isDraft ? `
-                <button onclick="promoteToLive(${activeItem.id})" class="text-[10px] font-black uppercase text-green-600 hover:text-green-800 bg-green-50 hover:bg-green-100 px-4 py-2 rounded transition border border-green-200">
+                <button onclick="openPromoteModal(${activeItem.id})" class="text-[10px] font-black uppercase text-green-600 hover:text-green-800 bg-green-50 hover:bg-green-100 px-4 py-2 rounded transition border border-green-200">
                     Promote to Bill
                 </button>
             ` : '';
@@ -521,7 +567,6 @@
         }
     }
 
-    // Modal logic for Editing
     function openEdit(id) {
         editItemId = id;
         const item = workspaceItems.find(i => i.id === id);
@@ -532,7 +577,6 @@
         document.getElementById('editCompanion').value = item.companion || "";
         
         const committeeSelect = document.getElementById('editCommittee');
-        // If they had a custom committee string saved, ensure it exists in the dropdown before selecting
         let found = Array.from(committeeSelect.options).some(opt => opt.value === item.committee);
         if (!found && item.committee) {
             const opt = document.createElement('option');
@@ -559,15 +603,89 @@
         await syncToServer(item);
     }
 
-    async function promoteToLive(id) {
-        if (!confirm("Promote this draft to a live tracked bill?")) return;
-        const item = workspaceItems.find(i => i.id === id);
-        
+    function openPromoteModal(id) {
+        promoteItemId = id;
+        document.getElementById('promoteBillNum').value = '';
+        document.getElementById('promoteStatus').classList.add('hidden');
+        showScreen('promoteForm');
+    }
+
+    async function confirmPromote() {
+        if (!promoteItemId) return;
+        const rawBill = document.getElementById('promoteBillNum').value.trim();
+        if (!rawBill) {
+            alert("Please enter a bill number.");
+            return;
+        }
+
+        const statusDiv = document.getElementById('promoteStatus');
+        statusDiv.classList.remove('hidden');
+        statusDiv.innerText = "Checking WSL API for companion...";
+
+        const fourDigitMatches = rawBill.match(/\d{4}/g);
+        let bill = fourDigitMatches ? (fourDigitMatches.filter(n => n !== "2025" && n !== "2026")[0] || fourDigitMatches[0]) : rawBill.replace(/\D/g, '');
+
+        let fetchedCompanion = "";
+        if (bill) {
+            try {
+                const res = await fetch(`${workerBaseUrl}/fetch-bill?bill=${bill}`, { headers: authHeaders });
+                const xmlText = await res.text();
+                const xmlDoc = new DOMParser().parseFromString(xmlText, "text/xml");
+                let companions = [];
+                for (let c of xmlDoc.getElementsByTagNameNS("*", "Companion")) companions.push(c.textContent.trim());
+                fetchedCompanion = companions.join(", ");
+            } catch (e) {
+                console.error("Failed to fetch companion data");
+            }
+        }
+
+        const item = workspaceItems.find(i => i.id === promoteItemId);
+        item.bill_number = bill || rawBill;
         item.type = 'live';
-        item.status = 'Introduced'; // Sets official status to introduced
-        item.tracking_status = 'Introduced'; // Resets internal tracking status
+        item.status = 'Introduced';
+        item.tracking_status = 'Introduced';
         
+        if (fetchedCompanion && fetchedCompanion !== "None") {
+            item.companion = fetchedCompanion;
+        }
+
+        hideAllModals();
         await syncToServer(item);
+    }
+
+    // Custom Tasks Logic
+    function addCustomTask(id) {
+        const input = document.getElementById(`newTask_${id}`);
+        const task = input.value.trim();
+        if (!task) return;
+
+        const item = workspaceItems.find(i => i.id === id);
+        if (!item.custom_tasks) item.custom_tasks = [];
+        
+        if (!item.custom_tasks.includes(task)) {
+            item.custom_tasks.push(task);
+            syncToServer(item);
+        }
+        input.value = '';
+    }
+
+    function toggleCustomTask(id, tName) {
+        const item = workspaceItems.find(i => i.id === id);
+        if (!item.task_progress["Custom"]) item.task_progress["Custom"] = {};
+        if (item.task_progress["Custom"][tName]) delete item.task_progress["Custom"][tName];
+        else item.task_progress["Custom"][tName] = true;
+        syncToServer(item);
+    }
+
+    function deleteCustomTask(id, tName) {
+        const item = workspaceItems.find(i => i.id === id);
+        if (!item.custom_tasks) return;
+        
+        item.custom_tasks = item.custom_tasks.filter(t => t !== tName);
+        if (item.task_progress["Custom"] && item.task_progress["Custom"][tName]) {
+            delete item.task_progress["Custom"][tName];
+        }
+        syncToServer(item);
     }
 
     async function syncAllBills() {
@@ -580,7 +698,7 @@
         icon.classList.add('animate-spin');
         
         for (const item of workspaceItems) {
-            if (item.type === 'draft' || item.status === 'Draft') continue; // Don't sync drafts with external API
+            if (item.type === 'draft' || item.status === 'Draft') continue; 
             
             btn.innerHTML = `<span>🔄</span> Syncing ${item.bill_number}...`;
             try {
@@ -647,7 +765,7 @@
             id: item.id,
             status: item.status, 
             tracking_status: item.tracking_status,
-            type: item.type, // Make sure 'type' changes get pushed to worker
+            type: item.type,
             bill_number: item.bill_number,
             short_desc: item.short_desc,
             sponsor: item.sponsor,
