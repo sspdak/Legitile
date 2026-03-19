@@ -170,7 +170,7 @@
     <div id="promoteForm" style="display: none;" class="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4 backdrop-blur-sm">
         <div class="bg-white p-8 rounded-xl shadow-2xl max-w-md w-full border-t-8 border-green-500">
             <h2 class="text-2xl font-bold mb-2 text-green-700 uppercase">Promote to Bill</h2>
-            <p class="text-xs text-gray-500 mb-6 font-bold">Enter the official bill number assigned to this draft. The system will automatically check for companion bills.</p>
+            <p class="text-xs text-gray-500 mb-6 font-bold">Enter the official bill number assigned to this draft. The system will auto-fetch the sponsor, summary, and check for companions.</p>
             <div class="space-y-4">
                 <input type="text" id="promoteBillNum" placeholder="Bill # (e.g., 1234)" class="w-full border-2 p-3 rounded-lg outline-none focus:border-green-500 font-bold text-gray-700">
                 <div id="promoteStatus" class="text-xs font-bold text-blue-600 hidden">Checking WSL API...</div>
@@ -360,6 +360,22 @@
             let progress = activeItem.task_progress[internalStatus] || {};
             if (isDraft) progress = activeItem.task_progress["Draft"] || {}; 
 
+            // Inline Companion Pill Logic (Replaces full-width Tabs)
+            let companionUI = '';
+            if (group.length > 1) {
+                companionUI = `
+                    <div class="flex bg-gray-100 rounded-lg p-0.5 ml-3 border border-gray-200">
+                        ${group.map(g => `
+                            <button onclick="switchTab(event, ${item.id}, ${g.id})" class="px-3 py-1 text-[10px] font-black uppercase rounded-md transition-all ${activeItem.id === g.id ? 'bg-white text-[#002e5d] shadow-sm' : 'text-gray-500 hover:text-gray-700'}">${g.bill_number}</button>
+                        `).join('')}
+                    </div>`;
+            } else if (compBillStr && compBillStr !== "None") {
+                companionUI = `
+                    <button onclick="autoTrack(event, '${compBillStr}')" class="ml-3 px-3 py-1 text-[9px] font-black uppercase rounded-lg border border-dashed border-gray-300 text-gray-500 hover:border-[#002e5d] hover:text-[#002e5d] transition flex items-center gap-1 bg-gray-50 hover:bg-blue-50">
+                        <span class="text-lg leading-none mt-[-2px]">+</span> Companion: ${compBillStr}
+                    </button>`;
+            }
+
             let statusSectionHtml = '';
             
             if (isDraft) {
@@ -442,24 +458,6 @@
                 </div>
             `;
 
-            let tabsHtml = '';
-            if (group.length > 1) {
-                tabsHtml = `
-                <div class="flex border-b border-gray-200 bg-gray-100 rounded-t-xl overflow-hidden">
-                    ${group.map(g => `
-                        <button onclick="switchTab(event, ${item.id}, ${g.id})" class="px-6 py-3 text-xs font-black uppercase transition-all ${activeItem.id === g.id ? 'bg-white border-t-4 border-[#002e5d] text-[#002e5d] shadow-sm' : 'text-gray-500 hover:bg-gray-200 border-t-4 border-transparent'}">${g.bill_number}</button>
-                    `).join('')}
-                </div>`;
-            } else if (compBillStr && compBillStr !== "None") {
-                 tabsHtml = `
-                 <div class="flex border-b border-gray-200 bg-gray-100 rounded-t-xl overflow-hidden">
-                    <button class="px-6 py-3 text-xs font-black uppercase bg-white border-t-4 border-[#002e5d] text-[#002e5d] shadow-sm">${activeItem.bill_number}</button>
-                    <button onclick="autoTrack('${compBillStr}')" class="px-6 py-3 text-xs font-black uppercase text-gray-400 hover:text-[#002e5d] hover:bg-gray-200 border-t-4 border-transparent flex items-center gap-2">
-                        <span class="text-[14px] leading-none">+</span> Track Companion (${compBillStr})
-                    </button>
-                </div>`;
-            }
-
             let promoteBtn = isDraft ? `
                 <button onclick="openPromoteModal(${activeItem.id})" class="text-[10px] font-black uppercase text-green-600 hover:text-green-800 bg-green-50 hover:bg-green-100 px-4 py-2 rounded transition border border-green-200">
                     Promote to Bill
@@ -468,18 +466,18 @@
 
             let cardHtml = `
                 <div class="bg-white rounded-xl shadow-md ${borderClass} border border-gray-100 overflow-hidden ${visualModifier}">
-                    ${tabsHtml}
                     <div class="p-5 flex flex-col md:flex-row gap-4 items-start md:items-center cursor-pointer hover:bg-gray-50 transition" onclick="toggleCard(${item.id})">
-                        <div class="w-48 flex-shrink-0">
+                        <div class="w-auto flex-shrink-0">
                             <div class="flex items-center gap-2">
                                 <span class="text-xl font-black text-gray-800 leading-tight block">${activeItem.bill_number}</span>
+                                ${companionUI}
                             </div>
                         </div>
-                        <div class="md:border-l md:pl-6 flex-1">
+                        <div class="md:border-l md:pl-6 flex-1 mt-2 md:mt-0">
                             <span class="text-[9px] font-black uppercase text-gray-400 block tracking-widest">Summary</span>
                             <span class="text-sm text-gray-700 font-bold line-clamp-2">${activeItem.short_desc}</span>
                         </div>
-                        <div class="md:border-l md:pl-6 w-48 flex-shrink-0">
+                        <div class="md:border-l md:pl-6 w-48 flex-shrink-0 mt-2 md:mt-0">
                             <span class="text-[9px] font-black uppercase text-gray-400 block tracking-widest mb-1">Status & Sponsor</span>
                             <div class="text-[10px] font-black uppercase text-[#002e5d]">${officialStatus}</div>
                             <div class="text-[10px] font-bold text-gray-500 truncate mt-1">${activeItem.sponsor}</div>
@@ -620,29 +618,42 @@
 
         const statusDiv = document.getElementById('promoteStatus');
         statusDiv.classList.remove('hidden');
-        statusDiv.innerText = "Checking WSL API for companion...";
+        statusDiv.innerText = "Checking WSL API for data...";
 
         const fourDigitMatches = rawBill.match(/\d{4}/g);
         let bill = fourDigitMatches ? (fourDigitMatches.filter(n => n !== "2025" && n !== "2026")[0] || fourDigitMatches[0]) : rawBill.replace(/\D/g, '');
 
         let fetchedCompanion = "";
+        let fetchedDesc = "";
+        let fetchedSponsor = "";
+        let fetchedStatus = "Introduced";
+
         if (bill) {
             try {
                 const res = await fetch(`${workerBaseUrl}/fetch-bill?bill=${bill}`, { headers: authHeaders });
                 const xmlText = await res.text();
                 const xmlDoc = new DOMParser().parseFromString(xmlText, "text/xml");
+                const getTagText = (tag) => xmlDoc.getElementsByTagNameNS("*", tag)[0]?.textContent.trim() || xmlDoc.getElementsByTagName(tag)[0]?.textContent.trim() || null;
+                
+                fetchedDesc = getTagText("ShortDescription") || "";
+                fetchedSponsor = getTagText("Name") || "";
+                fetchedStatus = getTagText("HistoryLine") || "Introduced";
+
                 let companions = [];
                 for (let c of xmlDoc.getElementsByTagNameNS("*", "Companion")) companions.push(c.textContent.trim());
                 fetchedCompanion = companions.join(", ");
             } catch (e) {
-                console.error("Failed to fetch companion data");
+                console.error("Failed to fetch bill data during promotion.");
             }
         }
 
         const item = workspaceItems.find(i => i.id === promoteItemId);
         item.bill_number = bill || rawBill;
         item.type = 'live';
-        item.status = 'Introduced';
+        
+        if (fetchedDesc) item.short_desc = fetchedDesc;
+        if (fetchedSponsor) item.sponsor = fetchedSponsor;
+        if (fetchedStatus) item.status = fetchedStatus;
         item.tracking_status = 'Introduced';
         
         if (fetchedCompanion && fetchedCompanion !== "None") {
@@ -724,7 +735,8 @@
         renderGrid();
     }
 
-    window.autoTrack = function(billNum) {
+    window.autoTrack = function(event, billNum) {
+        event.stopPropagation(); // Prevents the card from collapsing when clicking the add button
         document.getElementById('billNum').value = billNum;
         fetchAPI();
         window.scrollTo({ top: 0, behavior: 'smooth' });
