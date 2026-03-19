@@ -4,12 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LegiTile | Workspace</title>
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgcng9IjIwIiBmaWxsPSIjMDAyZTVkIi8+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCUiIHkxPSIwJSIgeDI9IjEwMCUiIHkyPSIxMDAlIj48c3RvcCBvZmZzZXQ9IjAlIiBzdG9wLWNvbG9yPSIjZmI5MjNjIi8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjZmZmZmZmIi8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHRleHQgeD0iNTAiIHk9Ijc1IiBmb250LWZhbWlseT0ic2VyaWYiIGZvbnQtc3R5bGU9Iml0YWxpYyIgZm9udC13ZWlnaHQ9IjkwMCIgZm9udC1zaXplPSI3NSIgZmlsbD0idXJsKCNnKSIgdGV4dC1hbmNob3I9Im1pZGRsZSI+TDwvdGV4dD48L3N2Zz4=">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgcng9IjIwIiBmaWxsPSIjMDAyZTVkIi8+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT= "0UiIHkxPSIwJSIgeDI= "1MDAlIiB5Mj= "1MDAlIj48c3RvcCBvZmZzZXQ9IjAlIiBzdG9wLWNvbG9yPSIjZmI5MjNjIi8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjZmZmZmZmIi8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHRleHQgeD= "1MCIgeT= "1NSIgZm9udC1mYW1pbHk9InNlcmlmIiBmb250LXN0eWxlPSJpdGFsaWMiIGZvbnQtd2VpZ2h0PSI5MDAiIGZvbnQtc2l6ZT0iNzUiIGZpbGw9InVybCgjZykiIHRleHQtYW5jaG9yPSJtaWRkbGUiPkw8L3RleHQ+PC9zdmc+">
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         .leg-navy { background-color: #002e5d; }
         .live-border { border-left: 8px solid #002e5d; }
         .dead-border { border-left: 8px solid #64748b; opacity: 0.8; }
+        /* Thin orange strip matching bg-orange-500 (#f97316) */
+        .draft-border { border-left: 4px solid #f97316; } 
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
@@ -300,7 +302,21 @@
             let officialStatus = activeItem.status || "Unknown";
             let internalStatus = activeItem.tracking_status || "Introduced";
             
+            // Visual logic based on status and type
             let isDead = officialStatus === 'Dead';
+            let isDraft = activeItem.type === 'draft';
+
+            // Determine border class (Priority: Draft > Dead > Live)
+            let borderClass = 'live-border';
+            if (isDraft) {
+                borderClass = 'draft-border';
+            } else if (isDead) {
+                borderClass = 'dead-border';
+            }
+
+            // Grayscale applies if dead and not a draft
+            let visualModifier = (isDead && !isDraft) ? 'grayscale-[0.5]' : '';
+
             let tasks = STATUS_TASKS[internalStatus] || STATUS_TASKS["Default"];
             let progress = activeItem.task_progress[internalStatus] || {};
 
@@ -323,7 +339,7 @@
             }
 
             grid.innerHTML += `
-                <div class="bg-white rounded-xl shadow-md ${isDead ? 'dead-border' : 'live-border'} border border-gray-100 overflow-hidden ${isDead ? 'grayscale-[0.5]' : ''}">
+                <div class="bg-white rounded-xl shadow-md ${borderClass} border border-gray-100 overflow-hidden ${visualModifier}">
                     ${tabsHtml}
                     <div class="p-5 flex flex-col md:flex-row gap-4 items-start md:items-center cursor-pointer hover:bg-gray-50 transition" onclick="toggleCard(${item.id})">
                         <div class="w-48 flex-shrink-0">
