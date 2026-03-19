@@ -100,6 +100,9 @@
                 </div>
             </div>
 
+            <h2 class="text-xs font-black text-gray-400 uppercase tracking-widest mb-4">My Bill Drafts</h2>
+            <div id="draftsGrid" class="flex flex-col gap-6 mb-8"></div>
+
             <h2 class="text-xs font-black text-gray-400 uppercase tracking-widest mb-4">My Tracked Bills</h2>
             <div id="workspaceGrid" class="flex flex-col gap-6 pb-20"></div>
         </main>
@@ -264,22 +267,26 @@
     }
 
     function renderGrid() {
-        const grid = document.getElementById('workspaceGrid');
-        grid.innerHTML = '';
+        const liveGrid = document.getElementById('workspaceGrid');
+        const draftGrid = document.getElementById('draftsGrid');
+        liveGrid.innerHTML = '';
+        draftGrid.innerHTML = '';
         let processedIds = new Set();
+        let liveCount = 0;
+        let draftCount = 0;
 
         let filteredItems = workspaceItems.filter(item => {
             if (currentStatus !== 'All' && item.tracking_status !== currentStatus) return false;
+            
+            let isItemDraft = item.type === 'draft' || item.status === 'Draft';
+            if (currentType === 'draft' && !isItemDraft) return false;
+            if (currentType === 'live' && isItemDraft) return false;
+            
             return true;
         });
 
         if (currentSort === 'alpha') {
             filteredItems.sort((a, b) => (a.bill_number || "").localeCompare(b.bill_number || ""));
-        }
-
-        if (filteredItems.length === 0) {
-            grid.innerHTML = '<div class="text-gray-400 font-bold italic text-sm">No items match your current filters.</div>';
-            return;
         }
 
         filteredItems.forEach(item => {
@@ -334,16 +341,13 @@
                 </div>`;
             }
 
-            grid.innerHTML += `
+            let cardHtml = `
                 <div class="bg-white rounded-xl shadow-md ${borderClass} border border-gray-100 overflow-hidden ${visualModifier}">
                     ${tabsHtml}
                     <div class="p-5 flex flex-col md:flex-row gap-4 items-start md:items-center cursor-pointer hover:bg-gray-50 transition" onclick="toggleCard(${item.id})">
                         <div class="w-48 flex-shrink-0">
                             <div class="flex items-center gap-2">
                                 <span class="text-xl font-black text-gray-800 leading-tight block">${activeItem.bill_number}</span>
-                                <button onclick="syncBill(event, ${activeItem.id}, '${activeItem.bill_number}')" class="text-gray-400 hover:text-[#002e5d] transition" title="Sync Status">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
-                                </button>
                             </div>
                         </div>
                         <div class="md:border-l md:pl-6 flex-1">
@@ -402,7 +406,18 @@
                         </div>
                     </div>
                 </div>`;
+
+            if (isDraft) {
+                draftGrid.innerHTML += cardHtml;
+                draftCount++;
+            } else {
+                liveGrid.innerHTML += cardHtml;
+                liveCount++;
+            }
         });
+
+        if (draftCount === 0) draftGrid.innerHTML = '<div class="text-gray-400 font-bold italic text-sm">No drafts to display.</div>';
+        if (liveCount === 0) liveGrid.innerHTML = '<div class="text-gray-400 font-bold italic text-sm">No tracked bills to display.</div>';
     }
 
     async function createDraft() {
@@ -438,22 +453,6 @@
         } catch (e) { 
             alert("Draft save failed. Ensure API is reachable."); 
         }
-    }
-
-    async function syncBill(event, id, billNumber) {
-        event.stopPropagation();
-        const btn = event.currentTarget;
-        btn.classList.add('animate-spin');
-        
-        try {
-            const res = await fetch(`${workerBaseUrl}/sync-bill`, {
-                method: 'POST',
-                headers: authHeaders,
-                body: JSON.stringify({ id, billNumber })
-            });
-            if (res.ok) await loadWorkspace();
-        } catch (e) { console.error("Sync failed"); }
-        btn.classList.remove('animate-spin');
     }
 
     async function syncAllBills() {
