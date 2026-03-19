@@ -8,9 +8,6 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         .leg-navy { background-color: #002e5d; }
-        .live-border { border-left: 4px solid #002e5d !important; }
-        .dead-border { border-left: 4px solid #64748b !important; opacity: 0.8; }
-        .draft-border { border-left: 4px solid #f97316 !important; } 
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
@@ -39,9 +36,9 @@
             <div class="bg-white p-4 rounded-xl shadow-sm mb-8 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 border border-gray-100">
                 
                 <div class="flex flex-wrap gap-2 w-full xl:w-auto items-center">
-                    <select onchange="setCommittee(this.value)" id="committeeSelect" class="bg-purple-50 border-2 border-purple-100 text-purple-900 font-black uppercase text-[10px] rounded-lg px-2 py-1.5 outline-none focus:border-purple-300 transition shadow-sm cursor-pointer hover:bg-purple-100">
+                    <select onchange="setCommittee(this.value)" id="committeeSelect" class="bg-gray-50 border-2 border-gray-200 text-gray-700 font-black uppercase text-[10px] rounded-lg px-2 py-1.5 outline-none focus:border-gray-400 transition shadow-sm cursor-pointer hover:bg-gray-100">
                         <option value="All">All Committees</option>
-                        </select>
+                    </select>
                     <select onchange="setType(this.value)" id="typeSelect" class="bg-gray-50 text-[10px] font-black uppercase rounded-lg px-2 py-1.5 border-none outline-none text-gray-600 focus:text-blue-900 cursor-pointer hover:bg-gray-100 transition">
                         <option value="All">All Types</option>
                         <option value="draft">Drafts Only</option>
@@ -157,12 +154,45 @@
     let activeTabs = {};
     let editItemId = null; 
     let promoteItemId = null;
-    let userProfileCommittees = []; // Will hold the committees from Account Settings
+    let userProfileCommittees = []; 
 
     let currentCommittee = 'All';
     let currentType = 'All';
     let currentStatus = 'All';
     let currentSort = 'priority';
+
+    const committeeColors = {
+        "Agriculture & Natural Resources": "#15803d",
+        "Appropriations": "#047857", 
+        "Capital Budget": "#0f766e", 
+        "Civil Rights & Judiciary": "#4338ca", 
+        "Community Safety": "#b91c1c", 
+        "Consumer Protection & Business": "#ea580c", 
+        "Early Learning & Human Services": "#db2777", 
+        "Education": "#be185d", 
+        "Environment & Energy": "#16a34a", 
+        "Finance": "#0369a1", 
+        "Health Care & Wellness": "#0284c7", 
+        "Housing": "#7e22ce", 
+        "Labor & Workplace Standards": "#b45309", 
+        "Local Government": "#6d28d9", 
+        "Postsecondary Education & Workforce": "#1d4ed8", 
+        "Rules": "#334155", 
+        "State Government & Tribal Relations": "#a21caf", 
+        "Technology, Economic Development, & Veterans": "#0f172a", 
+        "Transportation": "#eab308", 
+        "Business, Trade & Economic Development": "#c2410c",
+        "Early Learning & K-12 Education": "#be185d",
+        "Environment, Energy & Technology": "#16a34a",
+        "Health & Long-Term Care": "#0284c7",
+        "Higher Education & Workforce Development": "#1d4ed8",
+        "Human Services": "#db2777",
+        "Labor & Commerce": "#b45309",
+        "Law & Justice": "#4338ca",
+        "State Government, Tribal Affairs & Elections": "#a21caf",
+        "Ways & Means": "#047857",
+        "Unknown": "#002e5d" 
+    };
 
     const LIVE_STATUS_OPTIONS = ["Introduced", "Public Hearing", "Executive Action", "Fiscal", "Rules", "Floor", "House", "Concurrence", "Passed", "Dead"];
     const DRAFT_STEPS = ["Draft Approved", "Draft to CRO", "CRO Version Received", "Bill & Pink Sheet Sent"];
@@ -219,7 +249,6 @@
 
     function logout() { localStorage.clear(); window.location.href = 'index.html'; }
 
-    // Navigation and Init Logic
     async function loadSidebar() {
         try {
             const response = await fetch('sidebar.html');
@@ -245,7 +274,6 @@
         }
     }
 
-    // Fetch user profile to populate committee dropdowns
     async function fetchUserProfile() {
         try {
             const res = await fetch(`${workerBaseUrl}/me`, { headers: authHeaders });
@@ -253,7 +281,6 @@
                 const userData = await res.json();
                 userProfileCommittees = userData.committees || [];
                 
-                // Update Tracker Filter Dropdown
                 const filterSelect = document.getElementById('committeeSelect');
                 filterSelect.innerHTML = '<option value="All">All Committees</option>';
                 
@@ -264,7 +291,6 @@
                     filterSelect.appendChild(opt);
                 });
 
-                // Update New Draft Modal Dropdown
                 const draftSelect = document.getElementById('draftCommittee');
                 draftSelect.innerHTML = '<option value="Unknown">Assign Committee...</option>';
                 userProfileCommittees.forEach(c => {
@@ -365,25 +391,30 @@
             let isDead = officialStatus === 'Dead';
             let isDraft = activeItem.type === 'draft' || activeItem.status === 'Draft';
 
-            let borderClass = 'live-border';
-            if (isDraft) borderClass = 'draft-border';
-            else if (isDead) borderClass = 'dead-border';
-
-            let visualModifier = (isDead && !isDraft) ? 'grayscale-[0.5]' : '';
             let progress = activeItem.task_progress[internalStatus] || {};
             if (isDraft) progress = activeItem.task_progress["Draft"] || {}; 
+
+            let visualModifier = (isDead && !isDraft) ? 'grayscale-[0.5]' : '';
+            
+            const safeCommittee = activeItem.committee || "Unknown";
+            const commColor = committeeColors[safeCommittee] || "#002e5d";
+
+            // Determine border color dynamically based on state
+            let borderColor = commColor;
+            if (isDraft) borderColor = '#f97316'; // orange
+            if (isDead) borderColor = '#64748b'; // slate
 
             let companionUI = '';
             if (group.length > 1) {
                 companionUI = `
-                    <div class="flex bg-gray-100 rounded-lg p-0.5 ml-3 border border-gray-200">
+                    <div class="flex bg-gray-100 rounded-lg p-0.5 mt-1 border border-gray-200 w-fit">
                         ${group.map(g => `
                             <button onclick="switchTab(event, ${item.id}, ${g.id})" class="px-3 py-1 text-[10px] font-black uppercase rounded-md transition-all ${activeItem.id === g.id ? 'bg-white text-[#002e5d] shadow-sm' : 'text-gray-500 hover:text-gray-700'}">${g.bill_number}</button>
                         `).join('')}
                     </div>`;
             } else if (compBillStr && compBillStr !== "None") {
                 companionUI = `
-                    <button onclick="quickAddCompanion(event, '${compBillStr}')" class="ml-3 px-3 py-1 text-[9px] font-black uppercase rounded-lg border border-dashed border-gray-300 text-gray-500 hover:border-[#002e5d] hover:text-[#002e5d] transition flex items-center gap-1 bg-gray-50 hover:bg-blue-50">
+                    <button onclick="quickAddCompanion(event, '${compBillStr}')" class="mt-1 px-3 py-1 text-[9px] font-black uppercase rounded-lg border border-dashed border-gray-300 text-gray-500 hover:border-[#002e5d] hover:text-[#002e5d] transition flex items-center gap-1 bg-gray-50 hover:bg-blue-50 w-fit">
                         <span class="text-lg leading-none mt-[-2px]">+</span> Companion: ${compBillStr}
                     </button>`;
             }
@@ -475,42 +506,44 @@
                 </button>
             ` : '';
 
-            // Dynamically build the inline committee dropdown using profile data
-            const safeCommittee = activeItem.committee || "Unknown";
             let commOptions = `<option value="Unknown" ${safeCommittee === 'Unknown' ? 'selected' : ''}>Assign Comm...</option>`;
-            
             userProfileCommittees.forEach(c => {
                 commOptions += `<option value="${c}" ${safeCommittee === c ? 'selected' : ''}>${c}</option>`;
             });
 
-            // If the bill's committee isn't in their profile list, make sure it still shows up
             if (safeCommittee !== 'Unknown' && !userProfileCommittees.includes(safeCommittee)) {
                 commOptions += `<option value="${safeCommittee}" selected>${safeCommittee}</option>`;
             }
 
+            // Updated Card Layout using dynamic border color
             let cardHtml = `
-                <div class="bg-white rounded-xl shadow-md ${borderClass} border border-gray-100 overflow-hidden ${visualModifier}">
-                    <div class="p-5 flex flex-col md:flex-row gap-4 items-start md:items-center cursor-pointer hover:bg-gray-50 transition" onclick="toggleCard(${item.id})">
-                        <div class="w-auto flex-shrink-0">
-                            <div class="flex items-center gap-2">
-                                <span class="text-xl font-black text-gray-800 leading-tight block">${activeItem.bill_number}</span>
-                                ${companionUI}
+                <div class="bg-white rounded-xl shadow-md border border-gray-100 overflow-hidden ${visualModifier}" style="border-left: 5px solid ${borderColor};">
+                    <div class="p-5 flex flex-col md:flex-row gap-4 items-start cursor-pointer hover:bg-gray-50 transition" onclick="toggleCard(${item.id})">
+                        
+                        <div class="w-auto flex-shrink-0 md:w-32 pt-1">
+                            <span class="text-xl font-black text-gray-800 leading-tight block">${activeItem.bill_number}</span>
+                            ${companionUI}
+                        </div>
+                        
+                        <div class="md:border-l md:pl-6 flex-1">
+                            <span class="text-[9px] font-black uppercase text-gray-400 block tracking-widest mb-1">Summary</span>
+                            <span class="text-sm text-gray-700 font-bold line-clamp-2">${activeItem.short_desc}</span>
+                            
+                            <div class="mt-3 flex flex-wrap items-center gap-2">
+                                <div class="bg-gray-100 border border-gray-200 text-gray-600 text-[9px] font-black uppercase px-2 py-1 rounded" title="${officialStatus}">${officialStatus}</div>
+                                <div class="text-[10px] font-bold text-gray-500 border-l border-gray-300 pl-2 ml-1" title="${activeItem.sponsor}">Sponsor: ${activeItem.sponsor}</div>
                             </div>
                         </div>
-                        <div class="md:border-l md:pl-6 flex-1 mt-2 md:mt-0">
-                            <span class="text-[9px] font-black uppercase text-gray-400 block tracking-widest">Summary</span>
-                            <span class="text-sm text-gray-700 font-bold line-clamp-2">${activeItem.short_desc}</span>
-                        </div>
-                        <div class="md:border-l md:pl-6 w-48 flex-shrink-0 mt-2 md:mt-0 flex flex-col justify-center">
-                            <span class="text-[9px] font-black uppercase text-gray-400 block tracking-widest mb-1">Status, Sponsor & Committee</span>
-                            <div class="text-[10px] font-black uppercase text-[#002e5d] truncate mt-0.5" title="${officialStatus}">${officialStatus}</div>
-                            <div class="text-[10px] font-bold text-gray-500 truncate mt-0.5" title="${activeItem.sponsor}">${activeItem.sponsor}</div>
-                            <div class="mt-2 w-full">
-                                <select onchange="updateDB(${activeItem.id}, 'committee', this.value); event.stopPropagation();" onclick="event.stopPropagation()" class="w-full text-[9px] font-black uppercase tracking-widest bg-purple-50 text-purple-700 rounded px-1.5 py-1.5 outline-none cursor-pointer border border-purple-200 hover:bg-purple-100 transition appearance-none text-center shadow-sm">
+
+                        <div class="md:border-l md:pl-6 w-48 flex-shrink-0 flex flex-col pt-1">
+                            <span class="text-[9px] font-black uppercase text-gray-400 block tracking-widest mb-2 text-center">Committee</span>
+                            <div class="w-full">
+                                <select onchange="updateDB(${activeItem.id}, 'committee', this.value); event.stopPropagation();" onclick="event.stopPropagation()" class="w-full text-[9px] font-black uppercase tracking-widest bg-gray-50 text-gray-800 rounded px-1.5 py-1.5 outline-none cursor-pointer hover:bg-gray-100 transition appearance-none text-center shadow-sm border" style="border-color: ${commColor}40;">
                                     ${commOptions}
                                 </select>
                             </div>
                         </div>
+
                     </div>
                     
                     <div id="details_${activeItem.id}" class="px-6 pb-6 pt-2 border-t border-gray-50 ${expandedCards.has(item.id) ? '' : 'details-hidden'}">
