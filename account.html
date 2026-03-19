@@ -53,8 +53,8 @@
                             <label class="text-[10px] font-black uppercase text-gray-400 tracking-widest block">Tracked Committees</label>
                             <span class="text-[9px] font-bold text-gray-400 italic">Select all that apply</span>
                         </div>
-                        <div id="committeeContainer" class="w-full border-2 border-gray-200 p-4 rounded-lg h-48 overflow-y-auto custom-scroll bg-gray-50 grid grid-cols-1 md:grid-cols-2 gap-2">
-                            <span class="text-xs font-bold text-gray-400 italic col-span-2">Loading committees...</span>
+                        <div id="committeeContainer" class="w-full border-2 border-gray-200 p-4 rounded-lg h-48 overflow-y-auto custom-scroll bg-gray-50 flex flex-col gap-2">
+                            <span class="text-xs font-bold text-gray-400 italic">Loading committees...</span>
                         </div>
                     </div>
 
@@ -112,7 +112,7 @@
 
             const userEmail = localStorage.getItem('user_email');
             document.getElementById('userEmailDisplay').innerText = userEmail || 'Unknown';
-            document.getElementById('profileEmail').value = userEmail; // Populate the read-only field
+            document.getElementById('profileEmail').value = userEmail; 
 
             // Highlight active link
             const path = window.location.pathname;
@@ -166,10 +166,10 @@
             const isChecked = savedCommittees.includes(committee) ? "checked" : "";
             
             const label = document.createElement('label');
-            label.className = "flex items-start gap-3 text-xs font-bold text-gray-700 cursor-pointer p-2 hover:bg-gray-100 rounded-lg transition border border-transparent hover:border-gray-200";
+            label.className = "flex items-start gap-3 text-sm font-bold text-gray-700 cursor-pointer p-2 hover:bg-gray-100 rounded-lg transition border border-transparent hover:border-gray-200";
             
             label.innerHTML = `
-                <input type="checkbox" value="${committee}" ${isChecked} class="mt-0.5 w-4 h-4 rounded text-[#002e5d] border-gray-300 outline-none">
+                <input type="checkbox" value="${committee}" ${isChecked} class="mt-1 w-4 h-4 rounded text-[#002e5d] border-gray-300 outline-none">
                 <span>${committee}</span>
             `;
             
