@@ -59,8 +59,8 @@
             <div class="bg-white p-6 rounded-xl shadow-sm mb-6 border border-gray-100">
                 <label class="text-[10px] font-black uppercase text-gray-400 tracking-widest mb-2 block">Lookup & Track a Bill</label>
                 <div class="flex gap-3 w-full mb-4">
-                    <input type="text" id="billNum" placeholder="Enter Bill Number (e.g. 1000)" class="flex-1 border-2 border-gray-200 p-3 rounded-lg outline-none focus:border-[#002e5d] font-bold text-gray-700">
-                    <button onclick="fetchAPI()" class="bg-gray-200 hover:bg-gray-300 text-gray-700 text-[12px] font-black uppercase px-6 py-3 rounded-lg shadow-sm transition">Search API</button>
+                    <input type="text" id="billNum" placeholder="Enter Bill Number (e.g. 1000)" class="flex-1 border-2 border-gray-200 p-3 rounded-lg outline-none focus:border-[#002e5d] font-bold text-gray-700" onkeypress="if(event.key === 'Enter') fetchAPI()">
+                    <button onclick="fetchAPI()" class="bg-gray-200 hover:bg-gray-300 text-gray-700 text-[12px] font-black uppercase px-6 py-3 rounded-lg shadow-sm transition">Search</button>
                 </div>
                 <div id="apiResults"></div>
             </div>
@@ -317,8 +317,13 @@
         let draftCount = 0;
 
         let filteredItems = workspaceItems.filter(item => {
+            // Check status filter
             if (currentStatus !== 'All' && item.tracking_status !== currentStatus) return false;
             
+            // Check committee filter
+            if (currentCommittee !== 'All' && item.committee !== currentCommittee) return false;
+            
+            // Check type filter
             let isItemDraft = item.type === 'draft' || item.status === 'Draft';
             if (currentType === 'draft' && !isItemDraft) return false;
             if (currentType === 'live' && isItemDraft) return false;
