@@ -3,103 +3,148 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LegiTile | Home</title>
+    <title>LegiTile | Workspace</title>
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgcng9IjIwIiBmaWxsPSIjMDAyZTVkIi8+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCUiIHkxPSIwJSIgeDI9IjEwMCUiIHkyPSIxMDAlIj48c3RvcCBvZmZzZXQ9IjAlIiBzdG9wLWNvbG9yPSIjZmI5MjNjIi8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjZmZmZmZmIi8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHRleHQgeD0iNTAiIHk9Ijc1IiBmb250LWZhbWlseT0ic2VyaWYiIGZvbnQtc3R5bGU9Iml0YWxpYyIgZm9udC13ZWlnaHQ9IjkwMCIgZm9udC1zaXplPSI3NSIgZmlsbD0idXJsKCNnKSIgdGV4dC1hbmNob3I9Im1pZGRsZSI+TDwvdGV4dD48L3N2Zz4=">
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         .leg-navy { background-color: #002e5d; }
+        .live-border { border-left: 8px solid #002e5d; }
+        .dead-border { border-left: 8px solid #64748b; opacity: 0.8; }
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        .details-hidden { display: none; }
     </style>
 </head>
 <body class="bg-gray-100 h-screen font-sans text-gray-900 overflow-hidden flex flex-col md:flex-row">
 
-    <aside class="leg-navy text-white w-full md:w-48 flex-shrink-0 flex flex-col shadow-2xl z-50 md:h-full">
-        <div class="py-8 flex flex-col items-center border-b border-white/10 shrink-0">
-            <div class="text-6xl font-serif italic font-black text-transparent bg-clip-text bg-gradient-to-br from-orange-400 to-white drop-shadow-2xl leading-none">L</div>
-            <div class="text-[10px] uppercase tracking-[0.2em] text-blue-200 font-bold mt-2 opacity-80">LegiTile</div>
+    <aside class="leg-navy text-white w-full md:w-28 flex-shrink-0 flex flex-col shadow-2xl z-50 md:h-full no-print">
+        <div class="py-6 flex flex-col items-center border-b border-white/10 shrink-0">
+            <div class="text-5xl font-serif italic font-black text-transparent bg-clip-text bg-gradient-to-br from-orange-400 to-white drop-shadow-2xl leading-none">L</div>
+            <div class="text-[8px] uppercase tracking-[0.2em] text-blue-200 font-bold mt-2 opacity-80">LegiTile</div>
         </div>
-        
-        <nav id="mainNav" class="flex-1 px-4 py-6 space-y-2">
-            <a href="home.html" class="nav-item flex items-center gap-3 px-4 py-3 text-blue-200 hover:bg-white/5 hover:text-white rounded-lg transition font-black text-xs uppercase tracking-wider">
-                <span>🏠</span> Dashboard
+
+        <nav id="mainNav" class="flex-1 px-2 py-6 space-y-3 flex flex-col items-center">
+            <a href="home.html" class="nav-item flex flex-col items-center gap-1 w-full py-2 text-blue-200 hover:bg-white/5 hover:text-white rounded-lg transition font-black text-[9px] uppercase tracking-wider text-center">
+                <span class="text-lg">🏠</span> Dashboard
             </a>
-            <a href="tracker.html" class="nav-item flex items-center gap-3 px-4 py-3 text-blue-200 hover:bg-white/5 hover:text-white rounded-lg transition font-black text-xs uppercase tracking-wider">
-                <span>📑</span> Workspace
-            </a>
-            <a href="search.html" class="nav-item flex items-center gap-3 px-4 py-3 text-blue-200 hover:bg-white/5 hover:text-white rounded-lg transition font-black text-xs uppercase tracking-wider">
-                <span>🔍</span> Search Text
+            <a href="tracker.html" class="nav-item flex flex-col items-center gap-1 w-full py-2 text-blue-200 hover:bg-white/5 hover:text-white rounded-lg transition font-black text-[9px] uppercase tracking-wider text-center">
+                <span class="text-lg">📑</span> Workspace
             </a>
         </nav>
 
-        <div class="shrink-0 pb-6 px-4">
-            <div class="bg-black/20 rounded-lg p-3 flex flex-col items-center text-center">
-                <span id="userEmailDisplay" class="text-xs font-bold text-white truncate w-full mb-3"></span>
-                <button onclick="logout()" class="w-full bg-red-500/20 hover:bg-red-500/40 text-red-200 text-[10px] font-black uppercase py-2 rounded transition border border-red-500/30">Log Out</button>
+        <div class="shrink-0 pb-4 px-2 flex flex-col items-center">
+            <div id="sessionTimer" class="flex flex-col items-center mb-4">
+                <span class="text-[8px] uppercase tracking-widest text-orange-300/80 font-bold mb-1">Sine Die</span>
+                <div class="flex flex-col items-center leading-none">
+                    <span id="daysLeft" class="text-2xl font-mono font-black text-white">--</span>
+                    <span class="text-[9px] font-bold text-gray-400 uppercase">Days</span>
+                </div>
+            </div>
+
+            <div class="bg-black/20 rounded-lg p-2 flex flex-col items-center text-center w-full">
+                <span id="userEmailDisplay" class="text-[9px] font-bold text-white truncate w-full mb-2"></span>
+                <button onclick="logout()" class="w-full bg-red-500/20 hover:bg-red-500/40 text-red-200 text-[9px] font-black uppercase py-1.5 rounded transition border border-red-500/30">Log Out</button>
             </div>
         </div>
     </aside>
 
     <div class="flex-1 flex flex-col h-full overflow-hidden relative">
-        <header class="shrink-0 pt-8 pb-4 px-6 md:px-10 z-40 bg-gray-100 border-b border-gray-200">
-            <h1 class="text-2xl font-black text-gray-800 uppercase tracking-tight">Dashboard</h1>
+        <header class="shrink-0 pt-8 pb-4 px-6 md:px-10 z-40 bg-gray-100 border-b border-gray-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <h1 class="text-2xl font-black text-gray-800 uppercase tracking-tight">Bill Tracker</h1>
+            
+            <div class="flex flex-wrap gap-2 w-full md:w-auto">
+                <button onclick="showScreen('draftForm')" class="flex-1 md:flex-none bg-orange-500 hover:bg-orange-600 text-white text-[10px] font-black uppercase px-4 py-2 rounded-lg shadow-sm hover:shadow-md transition flex items-center justify-center gap-2">
+                    <span>📝</span> New Draft
+                </button>
+                <button onclick="showScreen('existingForm')" class="flex-1 md:flex-none bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-black uppercase px-4 py-2 rounded-lg shadow-sm hover:shadow-md transition flex items-center justify-center gap-2">
+                    <span>📑</span> Track Bill
+                </button>
+                <button onclick="syncAllBills()" id="syncAllBtn" class="flex-1 md:flex-none bg-white hover:bg-gray-50 text-[#002e5d] text-[10px] font-black uppercase px-4 py-2 rounded-lg shadow-sm border border-gray-200 transition flex items-center justify-center gap-2">
+                    <span id="syncAllIcon">🔄</span> Refresh
+                </button>
+            </div>
         </header>
 
         <main class="flex-1 overflow-y-auto p-6 md:p-10 scroll-smooth">
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full">
-                
-                <div class="lg:col-span-1 flex flex-col gap-6">
-                    
-                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 flex flex-col flex-1 max-h-[500px]">
-                        <div class="flex justify-between items-center mb-3">
-                            <span class="text-[10px] font-black uppercase tracking-widest text-gray-400">Upcoming Meetings</span>
-                            <span class="text-[9px] font-bold text-blue-500 animate-pulse">30-DAY WINDOW</span>
-                        </div>
-                        <div class="space-y-3 overflow-y-auto pr-2" id="meetingList">
-                            <span class="text-xs font-bold text-gray-400 italic">Scanning biennium records...</span>
-                        </div>
-                    </div>
-
-                    <div class="bg-[#002e5d] rounded-xl shadow-md border border-[#001f3f] p-6 flex flex-col justify-center items-center text-center relative overflow-hidden shrink-0">
-                        <div class="absolute -top-10 -right-10 w-32 h-32 bg-white opacity-5 rounded-full blur-2xl"></div>
-                        <span class="text-[10px] font-black uppercase tracking-[0.2em] text-orange-400 mb-2 z-10">Countdown to Sine Die</span>
-                        <div class="text-5xl font-black text-white leading-none tracking-tighter z-10" id="countdownDays">--</div>
-                        <span class="text-xs font-bold text-blue-200 mt-1 z-10">Days Remaining</span>
-                    </div>
-
-                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 flex flex-col justify-center shrink-0">
-                        <span class="text-[10px] font-black uppercase text-gray-400 mb-4 block">Biennium Bill Volume</span>
-                        <div class="flex justify-around items-center">
-                            <div class="text-center">
-                                <div class="text-3xl font-black text-gray-800" id="houseCount">--</div>
-                                <span class="text-[10px] font-bold uppercase text-gray-500">House</span>
-                            </div>
-                            <div class="h-10 w-px bg-gray-200"></div>
-                            <div class="text-center">
-                                <div class="text-3xl font-black text-gray-800" id="senateCount">--</div>
-                                <span class="text-[10px] font-bold uppercase text-gray-500">Senate</span>
-                            </div>
-                        </div>
-                    </div>
+            <div class="bg-white p-4 rounded-xl shadow-sm mb-6 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 border border-gray-100">
+                <div class="flex flex-wrap gap-2 w-full xl:w-auto items-center">
+                    <select onchange="setCommittee(this.value)" id="committeeSelect" class="bg-white border-2 border-gray-100 text-blue-900 font-black uppercase text-[10px] rounded-lg px-2 py-1.5 outline-none focus:border-blue-900 transition shadow-sm cursor-pointer">
+                        <option value="All">All Committees</option>
+                        <option value="Health Care">Health Care</option>
+                        <option value="Local Government">Local Government</option>
+                    </select>
+                    <select onchange="setType(this.value)" id="typeSelect" class="bg-gray-50 text-[10px] font-black uppercase rounded-lg px-2 py-1.5 border-none outline-none text-gray-600 focus:text-blue-900 cursor-pointer hover:bg-gray-100 transition">
+                        <option value="All">All Types</option>
+                        <option value="draft">Drafts Only</option>
+                        <option value="live">Live Bills</option>
+                    </select>
+                    <select onchange="setStatusFilter(this.value)" id="statusFilter" class="bg-gray-50 text-[10px] font-black uppercase rounded-lg px-2 py-1.5 border-none outline-none text-gray-600 focus:text-blue-900 cursor-pointer hover:bg-gray-100 transition">
+                        <option value="All">All Steps</option>
+                    </select>
+                    <select onchange="setSort(this.value)" class="bg-gray-50 text-[10px] font-black uppercase rounded-lg px-2 py-1.5 border-none outline-none text-gray-600 focus:text-blue-900 cursor-pointer hover:bg-gray-100 transition">
+                        <option value="priority">Sort: Priority</option>
+                        <option value="alpha">Sort: Bill #</option>
+                    </select>
                 </div>
-
-                <div class="lg:col-span-2 flex flex-col gap-6">
-                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col flex-1 overflow-hidden h-full">
-                        <div class="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50 shrink-0">
-                            <span class="text-[10px] font-black uppercase tracking-widest text-gray-400">Tracked Bills Radar</span>
-                            <a href="tracker.html" class="text-[10px] font-black uppercase text-[#002e5d] hover:text-blue-700 bg-blue-50 px-3 py-1.5 rounded transition border border-blue-100">Go to Workspace ➔</a>
-                        </div>
-                        <div class="p-6 overflow-y-auto flex-1">
-                            <div class="flex flex-col gap-3" id="recentUpdatesGrid">
-                                <div class="text-sm font-bold text-gray-400 italic">Loading radar items...</div>
-                            </div>
-                        </div>
-                    </div>
+                <div class="flex bg-gray-100 p-1 rounded-lg ml-auto">
+                    <button onclick="setView('grid')" id="viewGrid" class="p-1.5 rounded-md shadow-sm bg-white text-blue-900" title="Grid View">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>
+                    </button>
+                    <button onclick="setView('list')" id="viewList" class="p-1.5 rounded-md text-gray-500 hover:text-blue-900 transition" title="List View">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" /></svg>
+                    </button>
                 </div>
-
             </div>
+
+            <div class="bg-white p-6 rounded-xl shadow-sm mb-8 border border-gray-100">
+                <label class="text-[10px] font-black uppercase text-gray-400 tracking-widest mb-2 block">Lookup & Track a Bill</label>
+                <div class="flex gap-3 w-full mb-4">
+                    <input type="text" id="billNum" placeholder="Enter Bill Number (e.g. 1000)" class="flex-1 border-2 border-gray-200 p-3 rounded-lg outline-none focus:border-[#002e5d] font-bold text-gray-700">
+                    <button onclick="fetchAPI()" class="bg-gray-200 hover:bg-gray-300 text-gray-700 text-[12px] font-black uppercase px-6 py-3 rounded-lg shadow-sm transition">Search API</button>
+                </div>
+                <div id="apiResults"></div>
+            </div>
+
+            <h2 class="text-xs font-black text-gray-400 uppercase tracking-widest mb-4">My Tracked Bills</h2>
+            <div id="workspaceGrid" class="flex flex-col gap-6 pb-20"></div>
         </main>
+    </div>
+
+    <div id="draftForm" style="display: none;" class="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-white p-8 rounded-xl shadow-2xl max-w-2xl w-full border-t-8 border-orange-500">
+            <h2 class="text-2xl font-bold mb-4 text-orange-600 uppercase">New Draft</h2>
+            <div class="space-y-4">
+                <div class="flex gap-4">
+                    <input type="text" id="draftTitle" placeholder="Concept Name" class="w-2/3 border-2 p-3 rounded-lg outline-none focus:border-orange-500">
+                    <input type="text" id="draftCompanion" placeholder="Comp. (Optional)" class="w-1/3 border-2 p-3 rounded-lg outline-none focus:border-orange-500">
+                </div>
+                <select id="draftCommittee" class="w-full border-2 p-3 rounded-lg font-bold">
+                    <option value="Health Care">Health Care</option>
+                    <option value="Local Government">Local Government</option>
+                </select>
+                <textarea id="draftBlurb" placeholder="Initial policy notes..." class="w-full border-2 p-3 rounded-lg h-32 outline-none focus:border-orange-500"></textarea>
+                <div class="flex gap-2">
+                    <button onclick="createDraft()" class="bg-orange-500 text-white font-bold px-6 py-3 rounded-lg flex-1 uppercase hover:bg-orange-600 transition">Create Workspace</button>
+                    <button onclick="hideAllModals()" class="bg-gray-200 py-3 px-4 rounded-lg font-bold uppercase text-gray-600 hover:bg-gray-300 transition">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="existingForm" style="display: none;" class="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-white p-8 rounded-xl shadow-2xl max-w-2xl w-full border-t-8 border-[#002e5d]">
+            <h2 class="text-2xl font-bold mb-4 text-[#002e5d] uppercase">Track Bill</h2>
+            <div class="space-y-4">
+                <div class="flex gap-4">
+                    <input type="text" id="existingNum" placeholder="Bill # (e.g., 1234)" class="w-full border-2 p-3 rounded-lg">
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="document.getElementById('billNum').value = document.getElementById('existingNum').value; fetchAPI(); hideAllModals();" class="bg-[#002e5d] text-white font-bold px-6 py-3 rounded-lg flex-1 uppercase hover:bg-[#001f3f] transition">Fetch from WSL API</button>
+                    <button onclick="hideAllModals()" class="bg-gray-200 py-3 px-4 rounded-lg font-bold uppercase text-gray-600 hover:bg-gray-300 transition">Cancel</button>
+                </div>
+            </div>
+        </div>
     </div>
 
 <script>
