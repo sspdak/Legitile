@@ -68,7 +68,7 @@
             <div class="bg-white p-4 rounded-xl shadow-sm mb-8 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 border border-gray-100">
                 
                 <div class="flex flex-wrap gap-2 w-full xl:w-auto items-center">
-                    <select onchange="setCommittee(this.value)" id="committeeSelect" class="bg-white border-2 border-gray-100 text-blue-900 font-black uppercase text-[10px] rounded-lg px-2 py-1.5 outline-none focus:border-blue-900 transition shadow-sm cursor-pointer">
+                    <select onchange="setCommittee(this.value)" id="committeeSelect" class="bg-purple-50 border-2 border-purple-100 text-purple-900 font-black uppercase text-[10px] rounded-lg px-2 py-1.5 outline-none focus:border-purple-300 transition shadow-sm cursor-pointer hover:bg-purple-100">
                         <option value="All">All Committees</option>
                         <option value="Health Care">Health Care</option>
                         <option value="Local Government">Local Government</option>
@@ -117,6 +117,7 @@
                     <input type="text" id="draftCompanion" placeholder="Comp. (Optional)" class="w-1/3 border-2 p-3 rounded-lg outline-none focus:border-orange-500">
                 </div>
                 <select id="draftCommittee" class="w-full border-2 p-3 rounded-lg font-bold">
+                    <option value="Unknown">Assign Committee...</option>
                     <option value="Health Care">Health Care</option>
                     <option value="Local Government">Local Government</option>
                 </select>
@@ -153,11 +154,6 @@
                     <input type="text" id="editCompanion" placeholder="Comp. (Optional)" class="w-1/3 border-2 p-3 rounded-lg outline-none focus:border-gray-500">
                 </div>
                 <input type="text" id="editSponsor" placeholder="Sponsor" class="w-full border-2 p-3 rounded-lg outline-none focus:border-gray-500">
-                <select id="editCommittee" class="w-full border-2 p-3 rounded-lg font-bold outline-none focus:border-gray-500">
-                    <option value="Health Care">Health Care</option>
-                    <option value="Local Government">Local Government</option>
-                    <option value="Unknown">Unknown</option>
-                </select>
                 <textarea id="editShortDesc" placeholder="Summary or Description..." class="w-full border-2 p-3 rounded-lg h-24 outline-none focus:border-gray-500"></textarea>
                 <div class="flex gap-2">
                     <button onclick="saveEdit()" class="bg-gray-600 text-white font-bold px-6 py-3 rounded-lg flex-1 uppercase hover:bg-gray-700 transition">Save Changes</button>
@@ -236,7 +232,7 @@
         hideAllModals();
         const form = document.getElementById(id);
         form.querySelectorAll('input, textarea, select').forEach(f => {
-            if (f.tagName === 'SELECT') f.selectedIndex = 0; else f.value = '';
+            if (f.tagName === 'SELECT' && f.id !== 'draftCommittee') f.selectedIndex = 0; else if (f.tagName !== 'SELECT') f.value = '';
         });
         form.style.display = 'flex';
     }
@@ -468,6 +464,15 @@
                 </button>
             ` : '';
 
+            // Render safe committee option HTML
+            const safeCommittee = activeItem.committee || "Unknown";
+            const commOptions = `
+                <option value="Unknown" ${safeCommittee === 'Unknown' ? 'selected' : ''}>Assign Comm...</option>
+                <option value="Health Care" ${safeCommittee === 'Health Care' ? 'selected' : ''}>Health Care</option>
+                <option value="Local Government" ${safeCommittee === 'Local Government' ? 'selected' : ''}>Local Government</option>
+                ${(safeCommittee !== 'Unknown' && safeCommittee !== 'Health Care' && safeCommittee !== 'Local Government') ? `<option value="${safeCommittee}" selected>${safeCommittee}</option>` : ''}
+            `;
+
             let cardHtml = `
                 <div class="bg-white rounded-xl shadow-md ${borderClass} border border-gray-100 overflow-hidden ${visualModifier}">
                     <div class="p-5 flex flex-col md:flex-row gap-4 items-start md:items-center cursor-pointer hover:bg-gray-50 transition" onclick="toggleCard(${item.id})">
@@ -481,10 +486,15 @@
                             <span class="text-[9px] font-black uppercase text-gray-400 block tracking-widest">Summary</span>
                             <span class="text-sm text-gray-700 font-bold line-clamp-2">${activeItem.short_desc}</span>
                         </div>
-                        <div class="md:border-l md:pl-6 w-48 flex-shrink-0 mt-2 md:mt-0">
-                            <span class="text-[9px] font-black uppercase text-gray-400 block tracking-widest mb-1">Status & Sponsor</span>
-                            <div class="text-[10px] font-black uppercase text-[#002e5d]">${officialStatus}</div>
-                            <div class="text-[10px] font-bold text-gray-500 truncate mt-1">${activeItem.sponsor}</div>
+                        <div class="md:border-l md:pl-6 w-48 flex-shrink-0 mt-2 md:mt-0 flex flex-col justify-center">
+                            <span class="text-[9px] font-black uppercase text-gray-400 block tracking-widest mb-1">Status, Sponsor & Committee</span>
+                            <div class="text-[10px] font-black uppercase text-[#002e5d] truncate mt-0.5" title="${officialStatus}">${officialStatus}</div>
+                            <div class="text-[10px] font-bold text-gray-500 truncate mt-0.5" title="${activeItem.sponsor}">${activeItem.sponsor}</div>
+                            <div class="mt-2 w-full">
+                                <select onchange="updateDB(${activeItem.id}, 'committee', this.value); event.stopPropagation();" onclick="event.stopPropagation()" class="w-full text-[9px] font-black uppercase tracking-widest bg-purple-50 text-purple-700 rounded px-1.5 py-1.5 outline-none cursor-pointer border border-purple-200 hover:bg-purple-100 transition appearance-none text-center shadow-sm">
+                                    ${commOptions}
+                                </select>
+                            </div>
                         </div>
                     </div>
                     
@@ -511,7 +521,7 @@
                             <div class="flex flex-wrap gap-2">
                                 ${promoteBtn}
                                 <button onclick="openEdit(${activeItem.id})" class="text-[10px] font-black uppercase text-gray-600 hover:text-gray-800 bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded transition border border-gray-200">
-                                    Edit
+                                    Edit Core Info
                                 </button>
                                 <button onclick="deleteBill(${activeItem.id})" class="text-[10px] font-black uppercase text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 px-4 py-2 rounded transition border border-red-100">
                                     Remove
@@ -611,7 +621,7 @@
             tracking_status: "Introduced",
             sponsor: "Self",
             companion: companion,
-            committee: committee,
+            committee: committee || "Unknown",
             type: "draft"
         };
 
@@ -641,16 +651,6 @@
         document.getElementById('editShortDesc').value = item.short_desc || "";
         document.getElementById('editSponsor').value = item.sponsor || "";
         document.getElementById('editCompanion').value = item.companion || "";
-        
-        const committeeSelect = document.getElementById('editCommittee');
-        let found = Array.from(committeeSelect.options).some(opt => opt.value === item.committee);
-        if (!found && item.committee) {
-            const opt = document.createElement('option');
-            opt.value = item.committee;
-            opt.innerText = item.committee;
-            committeeSelect.appendChild(opt);
-        }
-        committeeSelect.value = item.committee || "Unknown";
 
         showScreen('editForm');
     }
@@ -663,7 +663,6 @@
         item.short_desc = document.getElementById('editShortDesc').value;
         item.sponsor = document.getElementById('editSponsor').value;
         item.companion = document.getElementById('editCompanion').value;
-        item.committee = document.getElementById('editCommittee').value;
         
         hideAllModals();
         await syncToServer(item);
@@ -726,7 +725,7 @@
             tracking_status: 'Introduced',
             sponsor: fetchedSponsor || oldItem.sponsor,
             companion: fetchedCompanion || oldItem.companion || "",
-            committee: oldItem.committee,
+            committee: oldItem.committee || "Unknown",
             type: 'live',
             live_notes: oldItem.live_notes || "",
             task_progress: JSON.stringify(oldItem.task_progress || {}),
@@ -871,13 +870,13 @@
             shortDesc: item.short_desc,   
             sponsor: item.sponsor,
             companion: item.companion,
-            committee: item.committee,
+            committee: item.committee || "Unknown",
             live_notes: item.live_notes || "",
-            task_progress: JSON.stringify(item.task_progress),
-            custom_tasks: JSON.stringify(item.custom_tasks),
+            task_progress: JSON.stringify(item.task_progress || {}),
+            custom_tasks: JSON.stringify(item.custom_tasks || []),
             hearing_date: item.hearing_date || "",
             exec_date: item.exec_date || "",
-            amendments: JSON.stringify(item.amendments)
+            amendments: JSON.stringify(item.amendments || [])
         };
         try {
             await fetch(`${workerBaseUrl}/update-bill`, {
