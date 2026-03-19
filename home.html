@@ -3,37 +3,48 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LegiTile | Home</title>
+    <title>LegiTile | Workspace</title>
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgcng9IjIwIiBmaWxsPSIjMDAyZTVkIi8+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCUiIHkxPSIwJSIgeDI9IjEwMCUiIHkyPSIxMDAlIj48c3RvcCBvZmZzZXQ9IjAlIiBzdG9wLWNvbG9yPSIjZmI5MjNjIi8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjZmZmZmZmIi8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHRleHQgeD0iNTAiIHk9Ijc1IiBmb250LWZhbWlseT0ic2VyaWYiIGZvbnQtc3R5bGU9Iml0YWxpYyIgZm9udC13ZWlnaHQ9IjkwMCIgZm9udC1zaXplPSI3NSIgZmlsbD0idXJsKCNnKSIgdGV4dC1hbmNob3I9Im1pZGRsZSI+TDwvdGV4dD48L3N2Zz4=">
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         .leg-navy { background-color: #002e5d; }
+        .live-border { border-left: 8px solid #002e5d; }
+        .dead-border { border-left: 8px solid #64748b; opacity: 0.8; }
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        .details-hidden { display: none; }
     </style>
 </head>
 <body class="bg-gray-100 h-screen font-sans text-gray-900 overflow-hidden flex flex-col md:flex-row">
 
-    <aside class="leg-navy text-white w-full md:w-48 flex-shrink-0 flex flex-col shadow-2xl z-50 md:h-full">
-        <div class="py-8 flex flex-col items-center border-b border-white/10 shrink-0">
-            <div class="text-6xl font-serif italic font-black text-transparent bg-clip-text bg-gradient-to-br from-orange-400 to-white drop-shadow-2xl leading-none">L</div>
-            <div class="text-[10px] uppercase tracking-[0.2em] text-blue-200 font-bold mt-2 opacity-80">LegiTile</div>
+    <aside class="leg-navy text-white w-full md:w-28 flex-shrink-0 flex flex-col shadow-2xl z-50 md:h-full no-print">
+        <div class="py-6 flex flex-col items-center border-b border-white/10 shrink-0">
+            <div class="text-5xl font-serif italic font-black text-transparent bg-clip-text bg-gradient-to-br from-orange-400 to-white drop-shadow-2xl leading-none">L</div>
+            <div class="text-[8px] uppercase tracking-[0.2em] text-blue-200 font-bold mt-2 opacity-80">LegiTile</div>
         </div>
 
-        <nav id="mainNav" class="flex-1 px-4 py-6 space-y-2">
-            <a href="home.html" class="nav-item flex items-center gap-3 px-4 py-3 text-blue-200 hover:bg-white/5 hover:text-white rounded-lg transition font-black text-xs uppercase tracking-wider">
-                <span>🏠</span> Dashboard
+        <nav id="mainNav" class="flex-1 px-2 py-6 space-y-3 flex flex-col items-center">
+            <a href="home.html" class="nav-item flex flex-col items-center gap-1 w-full py-2 text-blue-200 hover:bg-white/5 hover:text-white rounded-lg transition font-black text-[9px] uppercase tracking-wider text-center">
+                <span class="text-lg">🏠</span> Dashboard
             </a>
-            <a href="tracker.html" class="nav-item flex items-center gap-3 px-4 py-3 text-blue-200 hover:bg-white/5 hover:text-white rounded-lg transition font-black text-xs uppercase tracking-wider">
-                <span>📑</span> Bill Tracker
+            <a href="tracker.html" class="nav-item flex flex-col items-center gap-1 w-full py-2 text-blue-200 hover:bg-white/5 hover:text-white rounded-lg transition font-black text-[9px] uppercase tracking-wider text-center">
+                <span class="text-lg">📑</span> Bill Tracker
             </a>
         </nav>
 
-        <div class="shrink-0 pb-6 px-4">
-            <div class="bg-black/20 rounded-lg p-3 flex flex-col items-center text-center">
-                <span id="userEmailDisplay" class="text-xs font-bold text-white truncate w-full mb-3"></span>
-                <button onclick="logout()" class="w-full bg-red-500/20 hover:bg-red-500/40 text-red-200 text-[10px] font-black uppercase py-2 rounded transition border border-red-500/30">Log Out</button>
+        <div class="shrink-0 pb-4 px-2 flex flex-col items-center">
+            <div id="sessionTimer" class="flex flex-col items-center mb-4">
+                <span class="text-[8px] uppercase tracking-widest text-orange-300/80 font-bold mb-1">Sine Die</span>
+                <div class="flex flex-col items-center leading-none">
+                    <span id="daysLeft" class="text-2xl font-mono font-black text-white">--</span>
+                    <span class="text-[9px] font-bold text-gray-400 uppercase">Days</span>
+                </div>
+            </div>
+
+            <div class="bg-black/20 rounded-lg p-2 flex flex-col items-center text-center w-full">
+                <span id="userEmailDisplay" class="text-[9px] font-bold text-white truncate w-full mb-2"></span>
+                <button onclick="logout()" class="w-full bg-red-500/20 hover:bg-red-500/40 text-red-200 text-[9px] font-black uppercase py-1.5 rounded transition border border-red-500/30">Log Out</button>
             </div>
         </div>
     </aside>
