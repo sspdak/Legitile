@@ -8,8 +8,8 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         .leg-navy { background-color: #002e5d; }
-        .live-border { border-left: 8px solid #002e5d; }
-        .dead-border { border-left: 8px solid #64748b; opacity: 0.8; }
+        .live-border { border-left: 4px solid #002e5d !important; }
+        .dead-border { border-left: 4px solid #64748b !important; opacity: 0.8; }
         .draft-border { border-left: 4px solid #f97316 !important; } 
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
@@ -360,7 +360,7 @@
             let progress = activeItem.task_progress[internalStatus] || {};
             if (isDraft) progress = activeItem.task_progress["Draft"] || {}; 
 
-            // Inline Companion Pill Logic (Replaces full-width Tabs)
+            // Inline Companion Pill Logic
             let companionUI = '';
             if (group.length > 1) {
                 companionUI = `
@@ -371,7 +371,7 @@
                     </div>`;
             } else if (compBillStr && compBillStr !== "None") {
                 companionUI = `
-                    <button onclick="autoTrack(event, '${compBillStr}')" class="ml-3 px-3 py-1 text-[9px] font-black uppercase rounded-lg border border-dashed border-gray-300 text-gray-500 hover:border-[#002e5d] hover:text-[#002e5d] transition flex items-center gap-1 bg-gray-50 hover:bg-blue-50">
+                    <button onclick="quickAddCompanion(event, '${compBillStr}')" class="ml-3 px-3 py-1 text-[9px] font-black uppercase rounded-lg border border-dashed border-gray-300 text-gray-500 hover:border-[#002e5d] hover:text-[#002e5d] transition flex items-center gap-1 bg-gray-50 hover:bg-blue-50">
                         <span class="text-lg leading-none mt-[-2px]">+</span> Companion: ${compBillStr}
                     </button>`;
             }
@@ -426,7 +426,6 @@
                 `;
             }
 
-            // Custom Tasks HTML Build
             let customTasksHtml = (activeItem.custom_tasks || []).map(tName => {
                 let customProg = activeItem.task_progress["Custom"] || {};
                 const done = customProg[tName];
@@ -528,6 +527,70 @@
 
         if (draftCount === 0) draftGrid.innerHTML = '<div class="text-gray-400 font-bold italic text-sm">No drafts to display.</div>';
         if (liveCount === 0) liveGrid.innerHTML = '<div class="text-gray-400 font-bold italic text-sm">No tracked bills to display.</div>';
+    }
+
+    // New One-Click Companion Add Function
+    async function quickAddCompanion(event, compBillStr) {
+        event.stopPropagation();
+        const btn = event.currentTarget;
+        const originalHTML = btn.innerHTML;
+        
+        btn.innerHTML = `<span class="animate-spin text-lg leading-none mt-[-2px]">↻</span> Adding...`;
+        btn.disabled = true;
+
+        const fourDigitMatches = compBillStr.match(/\d{4}/g);
+        let bill = fourDigitMatches ? (fourDigitMatches.filter(n => n !== "2025" && n !== "2026")[0] || fourDigitMatches[0]) : compBillStr.replace(/\D/g, '');
+
+        if (!bill) {
+            alert("Could not extract a valid companion bill number.");
+            btn.innerHTML = originalHTML;
+            btn.disabled = false;
+            return;
+        }
+
+        try {
+            const res = await fetch(`${workerBaseUrl}/fetch-bill?bill=${bill}`, { headers: authHeaders });
+            const xmlText = await res.text();
+            const xmlDoc = new DOMParser().parseFromString(xmlText, "text/xml");
+            const getTagText = (tag) => xmlDoc.getElementsByTagNameNS("*", tag)[0]?.textContent.trim() || xmlDoc.getElementsByTagName(tag)[0]?.textContent.trim() || null;
+
+            const billNumber = getTagText("BillNumber") || bill;
+            const shortDesc = getTagText("ShortDescription") || "No summary provided.";
+            const currentStatus = getTagText("HistoryLine") || "Unknown Status";
+            const sponsor = getTagText("Name") || "None Listed";
+
+            let companions = [];
+            for (let c of xmlDoc.getElementsByTagNameNS("*", "Companion")) companions.push(c.textContent.trim());
+
+            const payload = {
+                billNumber: billNumber,
+                shortDesc: shortDesc,
+                status: currentStatus,
+                sponsor: sponsor,
+                companion: companions.join(", "),
+                tracking_status: "Introduced",
+                committee: "Unknown",
+                type: "live"
+            };
+
+            const saveRes = await fetch(`${workerBaseUrl}/save-bill`, {
+                method: 'POST',
+                headers: authHeaders,
+                body: JSON.stringify(payload)
+            });
+
+            if (saveRes.ok) {
+                await loadWorkspace(); 
+            } else {
+                alert("Database failed to save the companion bill.");
+                btn.innerHTML = originalHTML;
+                btn.disabled = false;
+            }
+        } catch (e) {
+            alert("Error fetching companion from the API.");
+            btn.innerHTML = originalHTML;
+            btn.disabled = false;
+        }
     }
 
     async function createDraft() {
@@ -649,7 +712,6 @@
 
         const oldItem = workspaceItems.find(i => i.id === promoteItemId);
         
-        // Build payload mimicking a completely new insert to bypass worker update restrictions
         const payload = {
             billNumber: bill || rawBill,
             bill_number: bill || rawBill,
@@ -670,14 +732,12 @@
         };
 
         try {
-            // 1. Force backend to treat it as a new live bill creation
             const saveRes = await fetch(`${workerBaseUrl}/save-bill`, {
                 method: 'POST',
                 headers: authHeaders,
                 body: JSON.stringify(payload)
             });
             
-            // 2. Erase the old draft identity permanently 
             if (saveRes.ok) {
                 await fetch(`${workerBaseUrl}/delete-bill`, {
                     method: 'DELETE',
@@ -694,7 +754,6 @@
         await loadWorkspace();
     }
 
-    // Custom Tasks Logic
     function addCustomTask(id) {
         const input = document.getElementById(`newTask_${id}`);
         const task = input.value.trim();
@@ -765,13 +824,6 @@
         renderGrid();
     }
 
-    window.autoTrack = function(event, billNum) {
-        event.stopPropagation(); // Prevents the card from collapsing when clicking the add button
-        document.getElementById('billNum').value = billNum;
-        fetchAPI();
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-
     function toggleCard(id) {
         if (expandedCards.has(id)) expandedCards.delete(id);
         else expandedCards.add(id);
@@ -809,9 +861,9 @@
             tracking_status: item.tracking_status,
             type: item.type,
             bill_number: item.bill_number,
-            billNumber: item.bill_number, // Ensures worker catches it either way
+            billNumber: item.bill_number, 
             short_desc: item.short_desc,
-            shortDesc: item.short_desc,   // Ensures worker catches it either way
+            shortDesc: item.short_desc,   
             sponsor: item.sponsor,
             companion: item.companion,
             committee: item.committee,
