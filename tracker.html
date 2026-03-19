@@ -41,9 +41,7 @@
                 <div class="flex flex-wrap gap-2 w-full xl:w-auto items-center">
                     <select onchange="setCommittee(this.value)" id="committeeSelect" class="bg-purple-50 border-2 border-purple-100 text-purple-900 font-black uppercase text-[10px] rounded-lg px-2 py-1.5 outline-none focus:border-purple-300 transition shadow-sm cursor-pointer hover:bg-purple-100">
                         <option value="All">All Committees</option>
-                        <option value="Health Care">Health Care</option>
-                        <option value="Local Government">Local Government</option>
-                    </select>
+                        </select>
                     <select onchange="setType(this.value)" id="typeSelect" class="bg-gray-50 text-[10px] font-black uppercase rounded-lg px-2 py-1.5 border-none outline-none text-gray-600 focus:text-blue-900 cursor-pointer hover:bg-gray-100 transition">
                         <option value="All">All Types</option>
                         <option value="draft">Drafts Only</option>
@@ -89,8 +87,6 @@
                 </div>
                 <select id="draftCommittee" class="w-full border-2 p-3 rounded-lg font-bold">
                     <option value="Unknown">Assign Committee...</option>
-                    <option value="Health Care">Health Care</option>
-                    <option value="Local Government">Local Government</option>
                 </select>
                 <textarea id="draftBlurb" placeholder="Initial policy notes..." class="w-full border-2 p-3 rounded-lg h-32 outline-none focus:border-orange-500"></textarea>
                 <div class="flex gap-2">
@@ -161,6 +157,7 @@
     let activeTabs = {};
     let editItemId = null; 
     let promoteItemId = null;
+    let userProfileCommittees = []; // Will hold the committees from Account Settings
 
     let currentCommittee = 'All';
     let currentType = 'All';
@@ -187,7 +184,7 @@
         const daysLeft = Math.ceil(diff / (1000 * 60 * 60 * 24));
         const timerEl = document.getElementById('daysLeft');
         
-        if (!timerEl) return; // Prevent errors if sidebar isn't loaded yet
+        if (!timerEl) return;
 
         if (diff <= 0) {
             timerEl.innerText = "0";
@@ -233,7 +230,6 @@
 
             document.getElementById('userEmailDisplay').innerText = localStorage.getItem('user_email') || 'Unknown';
 
-            // Highlight active link
             const path = window.location.pathname;
             const navItems = document.querySelectorAll('.nav-item');
             navItems.forEach(item => {
@@ -243,16 +239,47 @@
                 }
             });
 
-            // Start the timer now that the element exists
             updateSessionTimer();
         } catch (error) {
             console.error(error);
         }
     }
 
+    // Fetch user profile to populate committee dropdowns
+    async function fetchUserProfile() {
+        try {
+            const res = await fetch(`${workerBaseUrl}/me`, { headers: authHeaders });
+            if (res.ok) {
+                const userData = await res.json();
+                userProfileCommittees = userData.committees || [];
+                
+                // Update Tracker Filter Dropdown
+                const filterSelect = document.getElementById('committeeSelect');
+                filterSelect.innerHTML = '<option value="All">All Committees</option>';
+                
+                userProfileCommittees.forEach(c => {
+                    const opt = document.createElement('option');
+                    opt.value = c;
+                    opt.innerText = c;
+                    filterSelect.appendChild(opt);
+                });
+
+                // Update New Draft Modal Dropdown
+                const draftSelect = document.getElementById('draftCommittee');
+                draftSelect.innerHTML = '<option value="Unknown">Assign Committee...</option>';
+                userProfileCommittees.forEach(c => {
+                    const opt = document.createElement('option');
+                    opt.value = c;
+                    opt.innerText = c;
+                    draftSelect.appendChild(opt);
+                });
+            }
+        } catch (e) { console.error("Could not fetch profile"); }
+    }
+
     window.onload = async () => {
         await loadSidebar();
-        
+        await fetchUserProfile();
         await loadWorkspace();
         handleAutoSearch();
         
@@ -302,13 +329,9 @@
         let draftCount = 0;
 
         let filteredItems = workspaceItems.filter(item => {
-            // Check status filter
             if (currentStatus !== 'All' && item.tracking_status !== currentStatus) return false;
-            
-            // Check committee filter
             if (currentCommittee !== 'All' && item.committee !== currentCommittee) return false;
             
-            // Check type filter
             let isItemDraft = item.type === 'draft' || item.status === 'Draft';
             if (currentType === 'draft' && !isItemDraft) return false;
             if (currentType === 'live' && isItemDraft) return false;
@@ -350,7 +373,6 @@
             let progress = activeItem.task_progress[internalStatus] || {};
             if (isDraft) progress = activeItem.task_progress["Draft"] || {}; 
 
-            // Inline Companion Pill Logic
             let companionUI = '';
             if (group.length > 1) {
                 companionUI = `
@@ -453,14 +475,18 @@
                 </button>
             ` : '';
 
-            // Render safe committee option HTML
+            // Dynamically build the inline committee dropdown using profile data
             const safeCommittee = activeItem.committee || "Unknown";
-            const commOptions = `
-                <option value="Unknown" ${safeCommittee === 'Unknown' ? 'selected' : ''}>Assign Comm...</option>
-                <option value="Health Care" ${safeCommittee === 'Health Care' ? 'selected' : ''}>Health Care</option>
-                <option value="Local Government" ${safeCommittee === 'Local Government' ? 'selected' : ''}>Local Government</option>
-                ${(safeCommittee !== 'Unknown' && safeCommittee !== 'Health Care' && safeCommittee !== 'Local Government') ? `<option value="${safeCommittee}" selected>${safeCommittee}</option>` : ''}
-            `;
+            let commOptions = `<option value="Unknown" ${safeCommittee === 'Unknown' ? 'selected' : ''}>Assign Comm...</option>`;
+            
+            userProfileCommittees.forEach(c => {
+                commOptions += `<option value="${c}" ${safeCommittee === c ? 'selected' : ''}>${c}</option>`;
+            });
+
+            // If the bill's committee isn't in their profile list, make sure it still shows up
+            if (safeCommittee !== 'Unknown' && !userProfileCommittees.includes(safeCommittee)) {
+                commOptions += `<option value="${safeCommittee}" selected>${safeCommittee}</option>`;
+            }
 
             let cardHtml = `
                 <div class="bg-white rounded-xl shadow-md ${borderClass} border border-gray-100 overflow-hidden ${visualModifier}">
@@ -533,7 +559,6 @@
         if (liveCount === 0) liveGrid.innerHTML = '<div class="text-gray-400 font-bold italic text-sm">No tracked bills to display.</div>';
     }
 
-    // One-Click Companion Add Function
     async function quickAddCompanion(event, compBillStr) {
         event.stopPropagation();
         const btn = event.currentTarget;
