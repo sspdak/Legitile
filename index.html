@@ -8,6 +8,10 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         .leg-navy { background-color: #002e5d; }
+        /* Custom scrollbar for the committee list */
+        .custom-scroll::-webkit-scrollbar { width: 4px; }
+        .custom-scroll::-webkit-scrollbar-track { background: transparent; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen font-sans text-gray-900 flex items-center justify-center p-4">
@@ -24,6 +28,31 @@
             <h2 id="formTitle" class="text-xl font-black text-gray-800 uppercase tracking-tight text-center mb-6">Staff Login</h2>
             
             <div class="space-y-4">
+                
+                <div id="regFields" class="space-y-4 hidden">
+                    <div>
+                        <label class="text-[10px] font-black uppercase text-gray-400 tracking-widest mb-1 block">Full Name</label>
+                        <input type="text" id="fullName" placeholder="Jane Doe" 
+                               class="w-full border-2 border-gray-200 p-3 rounded-lg outline-none focus:border-[#002e5d] font-bold text-gray-700 transition placeholder:text-gray-300 placeholder:font-normal">
+                    </div>
+                    
+                    <div>
+                        <label class="text-[10px] font-black uppercase text-gray-400 tracking-widest mb-1 block">Chamber</label>
+                        <select id="chamber" onchange="populateCommittees()" class="w-full border-2 border-gray-200 p-3 rounded-lg outline-none focus:border-[#002e5d] font-bold text-gray-700 transition bg-white cursor-pointer">
+                            <option value="" disabled selected>Select Chamber...</option>
+                            <option value="House">House of Representatives</option>
+                            <option value="Senate">Senate</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="text-[10px] font-black uppercase text-gray-400 tracking-widest mb-1 block">Committee Assignments</label>
+                        <div id="committeeContainer" class="w-full border-2 border-gray-200 p-3 rounded-lg h-32 overflow-y-auto custom-scroll bg-gray-50">
+                            <span class="text-xs font-bold text-gray-400 italic">Please select a chamber first.</span>
+                        </div>
+                    </div>
+                </div>
+
                 <div>
                     <label class="text-[10px] font-black uppercase text-gray-400 tracking-widest mb-1 block">Work Email</label>
                     <input type="email" id="email" placeholder="staff@leg.wa.gov" required 
@@ -53,7 +82,6 @@
     </div>
 
 <script>
-    // Redirect to home if already logged in
     if (localStorage.getItem('jwt_token')) {
         window.location.href = 'home.html';
     }
@@ -61,11 +89,65 @@
     const workerBaseUrl = "https://misty-credit-9e6a.ewing-jacob.workers.dev";
     let isLoginMode = true;
 
+    // Official 2025-2026 WA Legislative Committees
+    const waCommittees = {
+        "House": [
+            "Agriculture & Natural Resources", "Appropriations", "Capital Budget",
+            "Civil Rights & Judiciary", "Community Safety", "Consumer Protection & Business",
+            "Early Learning & Human Services", "Education", "Environment & Energy",
+            "Finance", "Health Care & Wellness", "Housing", "Labor & Workplace Standards",
+            "Local Government", "Postsecondary Education & Workforce", "Rules",
+            "State Government & Tribal Relations", "Technology, Economic Development, & Veterans",
+            "Transportation"
+        ],
+        "Senate": [
+            "Agriculture, Water, Natural Resources & Parks", "Business, Financial Services & Trade",
+            "Early Learning & K-12 Education", "Environment, Energy & Technology",
+            "Health & Long Term Care", "Higher Education & Workforce Development",
+            "Housing & Local Government", "Human Services, Reentry & Rehabilitation",
+            "Labor, Commerce & Tribal Affairs", "Law & Justice", "Rules",
+            "State Government, Tribal Relations & Elections", "Transportation", "Ways & Means"
+        ]
+    };
+
+    function populateCommittees() {
+        const chamber = document.getElementById('chamber').value;
+        const container = document.getElementById('committeeContainer');
+        container.innerHTML = ''; 
+
+        if (!chamber) {
+            container.innerHTML = '<span class="text-xs font-bold text-gray-400 italic">Please select a chamber first.</span>';
+            return;
+        }
+
+        waCommittees[chamber].forEach(committee => {
+            const label = document.createElement('label');
+            label.className = "flex items-start gap-2 text-xs font-bold text-gray-700 cursor-pointer p-1 hover:bg-gray-100 rounded transition";
+            
+            const checkbox = document.createElement('input');
+            checkbox.type = "checkbox";
+            checkbox.value = committee;
+            checkbox.className = "mt-0.5 rounded text-[#002e5d] border-gray-300 outline-none";
+            
+            label.appendChild(checkbox);
+            label.appendChild(document.createTextNode(committee));
+            container.appendChild(label);
+        });
+    }
+
     function toggleMode() {
         isLoginMode = !isLoginMode;
         document.getElementById('formTitle').innerText = isLoginMode ? "Staff Login" : "Staff Registration";
         document.getElementById('submitBtn').innerText = isLoginMode ? "Secure Log In" : "Create Account";
         document.getElementById('toggleText').innerText = isLoginMode ? "Need an account? Register here." : "Already have an account? Log in.";
+        
+        // Toggle visibility of registration fields
+        const regFields = document.getElementById('regFields');
+        if (isLoginMode) {
+            regFields.classList.add('hidden');
+        } else {
+            regFields.classList.remove('hidden');
+        }
         
         const statusDiv = document.getElementById('statusMsg');
         statusDiv.innerText = "";
@@ -83,6 +165,28 @@
             return;
         }
 
+        let payload = { email, password };
+
+        if (!isLoginMode) {
+            const fullName = document.getElementById('fullName').value.trim();
+            const chamber = document.getElementById('chamber').value;
+            
+            // Gather all checked committees into an array
+            const checkedBoxes = document.querySelectorAll('#committeeContainer input[type="checkbox"]:checked');
+            const selectedCommittees = Array.from(checkedBoxes).map(cb => cb.value);
+
+            if (!fullName || !chamber) {
+                statusDiv.className = "text-xs font-bold text-center h-4 mt-2 text-red-500";
+                statusDiv.innerText = "Please provide your name and chamber.";
+                return;
+            }
+
+            // Append registration data to the payload
+            payload.name = fullName;
+            payload.chamber = chamber;
+            payload.committees = selectedCommittees; // Sent as a JSON array
+        }
+
         statusDiv.className = "text-xs font-bold text-center h-4 mt-2 text-gray-500 animate-pulse";
         statusDiv.innerText = isLoginMode ? "Authenticating securely..." : "Creating account...";
 
@@ -92,7 +196,7 @@
             const response = await fetch(`${workerBaseUrl}${endpoint}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, password })
+                body: JSON.stringify(payload)
             });
 
             if (response.ok) {
