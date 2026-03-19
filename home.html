@@ -84,12 +84,30 @@
 
 <script>
     if (!localStorage.getItem('jwt_token')) window.location.href = 'index.html';
-    document.getElementById('userEmailDisplay').innerText = localStorage.getItem('user_email') || 'Staff';
 
     const workerBaseUrl = "https://misty-credit-9e6a.ewing-jacob.workers.dev";
     const authHeaders = { 'Authorization': `Bearer ${localStorage.getItem('jwt_token')}` };
 
     function logout() { localStorage.clear(); window.location.href = 'index.html'; }
+
+    // 1. New function to load the sidebar dynamically
+    async function loadSidebar() {
+        try {
+            const response = await fetch('sidebar.html');
+            if (!response.ok) throw new Error("Sidebar failed to load.");
+            
+            const html = await response.text();
+            document.getElementById('sidebar-container').innerHTML = html;
+
+            // Now that the sidebar exists, we can safely inject the email
+            document.getElementById('userEmailDisplay').innerText = localStorage.getItem('user_email') || 'Staff';
+
+            // Now that the links exist, we can safely highlight them
+            updateNavHighlight();
+        } catch (error) {
+            console.error(error);
+        }
+    }
 
     // Dynamic Navigation Highlighting
     function updateNavHighlight() {
@@ -103,10 +121,17 @@
         });
     }
 
-    // Refresh Dashboard every 5 minutes
-    updateNavHighlight();
-    refreshDashboard();
-    setInterval(refreshDashboard, 300000);
+    // 2. The new window.onload block controlling the sequence
+    window.onload = async () => {
+        // Step A: Load the sidebar first
+        await loadSidebar(); 
+        
+        // Step B: Fetch all the dashboard data
+        refreshDashboard();
+        
+        // Step C: Start the 5-minute timer
+        setInterval(refreshDashboard, 300000);
+    };
 
     function refreshDashboard() {
         calculateSineDie();
