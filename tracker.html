@@ -19,36 +19,7 @@
 </head>
 <body class="bg-gray-100 h-screen font-sans text-gray-900 overflow-hidden flex flex-col md:flex-row">
 
-    <aside class="leg-navy text-white w-full md:w-28 flex-shrink-0 flex flex-col shadow-2xl z-50 md:h-full no-print">
-        <div class="py-6 flex flex-col items-center border-b border-white/10 shrink-0">
-            <div class="text-5xl font-serif italic font-black text-transparent bg-clip-text bg-gradient-to-br from-orange-400 to-white drop-shadow-2xl leading-none">L</div>
-            <div class="text-[8px] uppercase tracking-[0.2em] text-blue-200 font-bold mt-2 opacity-80">LegiTile</div>
-        </div>
-
-        <nav id="mainNav" class="flex-1 px-2 py-6 space-y-3 flex flex-col items-center">
-            <a href="home.html" class="nav-item flex flex-col items-center gap-1 w-full py-2 text-blue-200 hover:bg-white/5 hover:text-white rounded-lg transition font-black text-[9px] uppercase tracking-wider text-center">
-                <span class="text-lg">🏠</span> Dashboard
-            </a>
-            <a href="tracker.html" class="nav-item flex flex-col items-center gap-1 w-full py-2 text-blue-200 hover:bg-white/5 hover:text-white rounded-lg transition font-black text-[9px] uppercase tracking-wider text-center">
-                <span class="text-lg">📑</span> Bill Tracker
-            </a>
-        </nav>
-
-        <div class="shrink-0 pb-4 px-2 flex flex-col items-center">
-            <div id="sessionTimer" class="flex flex-col items-center mb-4">
-                <span class="text-[8px] uppercase tracking-widest text-orange-300/80 font-bold mb-1">Sine Die</span>
-                <div class="flex flex-col items-center leading-none">
-                    <span id="daysLeft" class="text-2xl font-mono font-black text-white">--</span>
-                    <span class="text-[9px] font-bold text-gray-400 uppercase">Days</span>
-                </div>
-            </div>
-
-            <div class="bg-black/20 rounded-lg p-2 flex flex-col items-center text-center w-full">
-                <span id="userEmailDisplay" class="text-[9px] font-bold text-white truncate w-full mb-2"></span>
-                <button onclick="logout()" class="w-full bg-red-500/20 hover:bg-red-500/40 text-red-200 text-[9px] font-black uppercase py-1.5 rounded transition border border-red-500/30">Log Out</button>
-            </div>
-        </div>
-    </aside>
+<div id="sidebar-container" class="flex-shrink-0 w-full md:w-28 md:h-full z-50"></div>
 
     <div class="flex-1 flex flex-col h-full overflow-hidden relative">
         <header class="shrink-0 pt-8 pb-4 px-6 md:px-10 z-40 bg-gray-100 border-b border-gray-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
