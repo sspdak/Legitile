@@ -647,21 +647,51 @@
             }
         }
 
-        const item = workspaceItems.find(i => i.id === promoteItemId);
-        item.bill_number = bill || rawBill;
-        item.type = 'live';
+        const oldItem = workspaceItems.find(i => i.id === promoteItemId);
         
-        if (fetchedDesc) item.short_desc = fetchedDesc;
-        if (fetchedSponsor) item.sponsor = fetchedSponsor;
-        if (fetchedStatus) item.status = fetchedStatus;
-        item.tracking_status = 'Introduced';
-        
-        if (fetchedCompanion && fetchedCompanion !== "None") {
-            item.companion = fetchedCompanion;
+        // Build payload mimicking a completely new insert to bypass worker update restrictions
+        const payload = {
+            billNumber: bill || rawBill,
+            bill_number: bill || rawBill,
+            shortDesc: fetchedDesc || oldItem.short_desc,
+            short_desc: fetchedDesc || oldItem.short_desc,
+            status: fetchedStatus,
+            tracking_status: 'Introduced',
+            sponsor: fetchedSponsor || oldItem.sponsor,
+            companion: fetchedCompanion || oldItem.companion || "",
+            committee: oldItem.committee,
+            type: 'live',
+            live_notes: oldItem.live_notes || "",
+            task_progress: JSON.stringify(oldItem.task_progress || {}),
+            custom_tasks: JSON.stringify(oldItem.custom_tasks || []),
+            hearing_date: oldItem.hearing_date || "",
+            exec_date: oldItem.exec_date || "",
+            amendments: JSON.stringify(oldItem.amendments || [])
+        };
+
+        try {
+            // 1. Force backend to treat it as a new live bill creation
+            const saveRes = await fetch(`${workerBaseUrl}/save-bill`, {
+                method: 'POST',
+                headers: authHeaders,
+                body: JSON.stringify(payload)
+            });
+            
+            // 2. Erase the old draft identity permanently 
+            if (saveRes.ok) {
+                await fetch(`${workerBaseUrl}/delete-bill`, {
+                    method: 'DELETE',
+                    headers: authHeaders,
+                    body: JSON.stringify({ id: oldItem.id })
+                });
+            }
+        } catch (e) {
+            alert("Error promoting bill.");
         }
 
         hideAllModals();
-        await syncToServer(item);
+        document.getElementById('promoteStatus').classList.add('hidden');
+        await loadWorkspace();
     }
 
     // Custom Tasks Logic
@@ -779,7 +809,9 @@
             tracking_status: item.tracking_status,
             type: item.type,
             bill_number: item.bill_number,
+            billNumber: item.bill_number, // Ensures worker catches it either way
             short_desc: item.short_desc,
+            shortDesc: item.short_desc,   // Ensures worker catches it either way
             sponsor: item.sponsor,
             companion: item.companion,
             committee: item.committee,
