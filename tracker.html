@@ -52,7 +52,7 @@
     <div class="flex-1 flex flex-col h-full overflow-hidden relative">
         <header class="shrink-0 pt-8 pb-4 px-6 md:px-10 z-40 bg-gray-100 border-b border-gray-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <h1 class="text-2xl font-black text-gray-800 uppercase tracking-tight">Bill Tracker</h1>
-            </header>
+        </header>
 
         <main class="flex-1 overflow-y-auto p-6 md:p-10 scroll-smooth">
             <div class="bg-white p-6 rounded-xl shadow-sm mb-6 border border-gray-100">
@@ -97,20 +97,6 @@
                         <span id="syncAllIcon">🔄</span> Refresh
                     </button>
                 </div>
-            </div>
-
-            <h2 class="text-xs font-black text-gray-400 uppercase tracking-widest mb-4">My Tracked Bills</h2>
-            <div id="workspaceGrid" class="flex flex-col gap-6 pb-20"></div>
-        </main>
-    </div>
-
-            <div class="bg-white p-6 rounded-xl shadow-sm mb-8 border border-gray-100">
-                <label class="text-[10px] font-black uppercase text-gray-400 tracking-widest mb-2 block">Lookup & Track a Bill</label>
-                <div class="flex gap-3 w-full mb-4">
-                    <input type="text" id="billNum" placeholder="Enter Bill Number (e.g. 1000)" class="flex-1 border-2 border-gray-200 p-3 rounded-lg outline-none focus:border-[#002e5d] font-bold text-gray-700">
-                    <button onclick="fetchAPI()" class="bg-gray-200 hover:bg-gray-300 text-gray-700 text-[12px] font-black uppercase px-6 py-3 rounded-lg shadow-sm transition">Search API</button>
-                </div>
-                <div id="apiResults"></div>
             </div>
 
             <h2 class="text-xs font-black text-gray-400 uppercase tracking-widest mb-4">My Tracked Bills</h2>
@@ -183,6 +169,7 @@
     };
 
     const SINE_DIE_DATE = new Date("2026-03-11T23:59:59");
+    
     function updateSessionTimer() {
         const now = new Date();
         const diff = SINE_DIE_DATE - now;
@@ -265,7 +252,7 @@
             
             workspaceItems = rawBills.map(item => ({
                 ...item,
-                tracking_status: item.tracking_status || "Introduced", // Initializes decoupled internal status
+                tracking_status: item.tracking_status || "Introduced",
                 task_progress: JSON.parse(item.task_progress || '{}'),
                 custom_tasks: JSON.parse(item.custom_tasks || '[]'),
                 amendments: JSON.parse(item.amendments || '[]')
@@ -310,7 +297,6 @@
             let activeId = activeTabs[item.id] || item.id;
             let activeItem = group.find(i => i.id === activeId) || item;
             
-            // Decoupled Statuses
             let officialStatus = activeItem.status || "Unknown";
             let internalStatus = activeItem.tracking_status || "Introduced";
             
@@ -407,7 +393,6 @@
         });
     }
 
-    // --- CREATE DRAFT FUNCTION ---
     async function createDraft() {
         const title = document.getElementById('draftTitle').value || "Untitled Draft";
         const companion = document.getElementById('draftCompanion').value || "";
@@ -607,7 +592,6 @@
     async function saveToWorkspace() {
         if (!currentBillData) return;
         
-        // Ensure new fields are mapped here as well so the backend receives a consistent payload
         const payload = {
             ...currentBillData,
             tracking_status: "Introduced",
