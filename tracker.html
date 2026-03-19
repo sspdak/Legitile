@@ -8,6 +8,9 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         .leg-navy { background-color: #002e5d; }
+        .live-border { border-left: 4px solid #002e5d !important; }
+        .dead-border { border-left: 4px solid #64748b !important; opacity: 0.8; }
+        .draft-border { border-left: 4px solid #f97316 !important; } 
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
@@ -36,7 +39,7 @@
             <div class="bg-white p-4 rounded-xl shadow-sm mb-8 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 border border-gray-100">
                 
                 <div class="flex flex-wrap gap-2 w-full xl:w-auto items-center">
-                    <select onchange="setCommittee(this.value)" id="committeeSelect" class="bg-gray-50 border-2 border-gray-200 text-gray-700 font-black uppercase text-[10px] rounded-lg px-2 py-1.5 outline-none focus:border-gray-400 transition shadow-sm cursor-pointer hover:bg-gray-100">
+                    <select onchange="setCommittee(this.value)" id="committeeSelect" class="bg-gray-50 border-2 border-gray-200 text-gray-700 font-black uppercase text-[10px] rounded-lg px-2 py-1.5 outline-none focus:border-gray-400 transition shadow-sm cursor-pointer">
                         <option value="All">All Committees</option>
                     </select>
                     <select onchange="setType(this.value)" id="typeSelect" class="bg-gray-50 text-[10px] font-black uppercase rounded-lg px-2 py-1.5 border-none outline-none text-gray-600 focus:text-blue-900 cursor-pointer hover:bg-gray-100 transition">
@@ -60,7 +63,7 @@
                     <button onclick="showScreen('existingForm')" class="flex-1 md:flex-none bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-black uppercase px-4 py-2 rounded-lg shadow-sm hover:shadow-md transition flex items-center justify-center gap-2">
                         <span>📑</span> Track Bill
                     </button>
-                    <button onclick="syncAllBills()" id="syncAllBtn" class="flex-1 md:flex-none bg-white hover:bg-gray-50 text-[#002e5d] text-[10px] font-black uppercase px-4 py-2 rounded-lg shadow-sm border border-gray-200 transition flex items-center justify-center gap-2">
+                    <button onclick="syncAllBills()" id="syncAllBtn" class="flex-1 md:flex-none bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-black uppercase px-4 py-2 rounded-lg shadow-sm hover:shadow-md transition flex items-center justify-center gap-2">
                         <span id="syncAllIcon">🔄</span> Refresh
                     </button>
                 </div>
@@ -242,7 +245,25 @@
         });
     }
 
-    function setCommittee(val) { currentCommittee = val; renderGrid(); }
+    function setCommittee(val) { 
+        currentCommittee = val; 
+        
+        // Dynamically update the top filter's color based on selection
+        const selectEl = document.getElementById('committeeSelect');
+        if (val !== 'All' && committeeColors[val]) {
+            const color = committeeColors[val];
+            selectEl.style.backgroundColor = color + '1A'; // 10% opacity hex
+            selectEl.style.color = color;
+            selectEl.style.borderColor = color + '40'; // 25% opacity hex
+        } else {
+            selectEl.style.backgroundColor = '';
+            selectEl.style.color = '';
+            selectEl.style.borderColor = '';
+        }
+        
+        renderGrid(); 
+    }
+    
     function setType(val) { currentType = val; renderGrid(); }
     function setStatusFilter(val) { currentStatus = val; renderGrid(); }
     function setSort(val) { currentSort = val; renderGrid(); }
@@ -399,10 +420,9 @@
             const safeCommittee = activeItem.committee || "Unknown";
             const commColor = committeeColors[safeCommittee] || "#002e5d";
 
-            // Determine border color dynamically based on state
             let borderColor = commColor;
-            if (isDraft) borderColor = '#f97316'; // orange
-            if (isDead) borderColor = '#64748b'; // slate
+            if (isDraft) borderColor = '#f97316'; 
+            if (isDead) borderColor = '#64748b'; 
 
             let companionUI = '';
             if (group.length > 1) {
@@ -515,7 +535,6 @@
                 commOptions += `<option value="${safeCommittee}" selected>${safeCommittee}</option>`;
             }
 
-            // Updated Card Layout using dynamic border color
             let cardHtml = `
                 <div class="bg-white rounded-xl shadow-md border border-gray-100 overflow-hidden ${visualModifier}" style="border-left: 5px solid ${borderColor};">
                     <div class="p-5 flex flex-col md:flex-row gap-4 items-start cursor-pointer hover:bg-gray-50 transition" onclick="toggleCard(${item.id})">
@@ -537,8 +556,8 @@
 
                         <div class="md:border-l md:pl-6 w-48 flex-shrink-0 flex flex-col pt-1">
                             <span class="text-[9px] font-black uppercase text-gray-400 block tracking-widest mb-2 text-center">Committee</span>
-                            <div class="w-full">
-                                <select onchange="updateDB(${activeItem.id}, 'committee', this.value); event.stopPropagation();" onclick="event.stopPropagation()" class="w-full text-[9px] font-black uppercase tracking-widest bg-gray-50 text-gray-800 rounded px-1.5 py-1.5 outline-none cursor-pointer hover:bg-gray-100 transition appearance-none text-center shadow-sm border" style="border-color: ${commColor}40;">
+                            <div class="w-full hover:opacity-80 transition-opacity">
+                                <select onchange="updateDB(${activeItem.id}, 'committee', this.value); event.stopPropagation();" onclick="event.stopPropagation()" class="w-full text-[9px] font-black uppercase tracking-widest rounded px-1.5 py-1.5 outline-none cursor-pointer transition appearance-none text-center shadow-sm border" style="background-color: ${commColor}1A; color: ${commColor}; border-color: ${commColor}40;">
                                     ${commOptions}
                                 </select>
                             </div>
