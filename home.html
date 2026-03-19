@@ -3,252 +3,113 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LegiTile | Workspace</title>
+    <title>LegiTile | Home</title>
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgcng9IjIwIiBmaWxsPSIjMDAyZTVkIi8+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCUiIHkxPSIwJSIgeDI9IjEwMCUiIHkyPSIxMDAlIj48c3RvcCBvZmZzZXQ9IjAlIiBzdG9wLWNvbG9yPSIjZmI5MjNjIi8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjZmZmZmZmIi8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHRleHQgeD0iNTAiIHk9Ijc1IiBmb250LWZhbWlseT0ic2VyaWYiIGZvbnQtc3R5bGU9Iml0YWxpYyIgZm9udC13ZWlnaHQ9IjkwMCIgZm9udC1zaXplPSI3NSIgZmlsbD0idXJsKCNnKSIgdGV4dC1hbmNob3I9Im1pZGRsZSI+TDwvdGV4dD48L3N2Zz4=">
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         .leg-navy { background-color: #002e5d; }
-        .live-border { border-left: 8px solid #002e5d; }
-        .dead-border { border-left: 8px solid #64748b; opacity: 0.8; }
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-        .details-hidden { display: none; }
     </style>
 </head>
 <body class="bg-gray-100 h-screen font-sans text-gray-900 overflow-hidden flex flex-col md:flex-row">
 
-    <aside class="leg-navy text-white w-full md:w-28 flex-shrink-0 flex flex-col shadow-2xl z-50 md:h-full no-print">
-        <div class="py-6 flex flex-col items-center border-b border-white/10 shrink-0">
-            <div class="text-5xl font-serif italic font-black text-transparent bg-clip-text bg-gradient-to-br from-orange-400 to-white drop-shadow-2xl leading-none">L</div>
-            <div class="text-[8px] uppercase tracking-[0.2em] text-blue-200 font-bold mt-2 opacity-80">LegiTile</div>
+    <aside class="leg-navy text-white w-full md:w-48 flex-shrink-0 flex flex-col shadow-2xl z-50 md:h-full">
+        <div class="py-8 flex flex-col items-center border-b border-white/10 shrink-0">
+            <div class="text-6xl font-serif italic font-black text-transparent bg-clip-text bg-gradient-to-br from-orange-400 to-white drop-shadow-2xl leading-none">L</div>
+            <div class="text-[10px] uppercase tracking-[0.2em] text-blue-200 font-bold mt-2 opacity-80">LegiTile</div>
         </div>
 
-        <nav id="mainNav" class="flex-1 px-2 py-6 space-y-3 flex flex-col items-center">
-            <a href="home.html" class="nav-item flex flex-col items-center gap-1 w-full py-2 text-blue-200 hover:bg-white/5 hover:text-white rounded-lg transition font-black text-[9px] uppercase tracking-wider text-center">
-                <span class="text-lg">🏠</span> Dashboard
+        <nav id="mainNav" class="flex-1 px-4 py-6 space-y-2">
+            <a href="home.html" class="nav-item flex items-center gap-3 px-4 py-3 text-blue-200 hover:bg-white/5 hover:text-white rounded-lg transition font-black text-xs uppercase tracking-wider">
+                <span>🏠</span> Dashboard
             </a>
-            <a href="tracker.html" class="nav-item flex flex-col items-center gap-1 w-full py-2 text-blue-200 hover:bg-white/5 hover:text-white rounded-lg transition font-black text-[9px] uppercase tracking-wider text-center">
-                <span class="text-lg">📑</span> Bill Tracker
+            <a href="tracker.html" class="nav-item flex items-center gap-3 px-4 py-3 text-blue-200 hover:bg-white/5 hover:text-white rounded-lg transition font-black text-xs uppercase tracking-wider">
+                <span>📑</span> Bill Tracker
             </a>
         </nav>
 
-        <div class="shrink-0 pb-4 px-2 flex flex-col items-center">
-            <div id="sessionTimer" class="flex flex-col items-center mb-4">
-                <span class="text-[8px] uppercase tracking-widest text-orange-300/80 font-bold mb-1">Sine Die</span>
-                <div class="flex flex-col items-center leading-none">
-                    <span id="daysLeft" class="text-2xl font-mono font-black text-white">--</span>
-                    <span class="text-[9px] font-bold text-gray-400 uppercase">Days</span>
-                </div>
-            </div>
-
-            <div class="bg-black/20 rounded-lg p-2 flex flex-col items-center text-center w-full">
-                <span id="userEmailDisplay" class="text-[9px] font-bold text-white truncate w-full mb-2"></span>
-                <button onclick="logout()" class="w-full bg-red-500/20 hover:bg-red-500/40 text-red-200 text-[9px] font-black uppercase py-1.5 rounded transition border border-red-500/30">Log Out</button>
+        <div class="shrink-0 pb-6 px-4">
+            <div class="bg-black/20 rounded-lg p-3 flex flex-col items-center text-center">
+                <span id="userEmailDisplay" class="text-xs font-bold text-white truncate w-full mb-3"></span>
+                <button onclick="logout()" class="w-full bg-red-500/20 hover:bg-red-500/40 text-red-200 text-[10px] font-black uppercase py-2 rounded transition border border-red-500/30">Log Out</button>
             </div>
         </div>
     </aside>
 
     <div class="flex-1 flex flex-col h-full overflow-hidden relative">
-        <header class="shrink-0 pt-8 pb-4 px-6 md:px-10 z-40 bg-gray-100 border-b border-gray-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-            <h1 class="text-2xl font-black text-gray-800 uppercase tracking-tight">Bill Tracker</h1>
-            
-            <div class="flex flex-wrap gap-2 w-full md:w-auto">
-                <button onclick="showScreen('draftForm')" class="flex-1 md:flex-none bg-orange-500 hover:bg-orange-600 text-white text-[10px] font-black uppercase px-4 py-2 rounded-lg shadow-sm hover:shadow-md transition flex items-center justify-center gap-2">
-                    <span>📝</span> New Draft
-                </button>
-                <button onclick="showScreen('existingForm')" class="flex-1 md:flex-none bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-black uppercase px-4 py-2 rounded-lg shadow-sm hover:shadow-md transition flex items-center justify-center gap-2">
-                    <span>📑</span> Track Bill
-                </button>
-                <button onclick="syncAllBills()" id="syncAllBtn" class="flex-1 md:flex-none bg-white hover:bg-gray-50 text-[#002e5d] text-[10px] font-black uppercase px-4 py-2 rounded-lg shadow-sm border border-gray-200 transition flex items-center justify-center gap-2">
-                    <span id="syncAllIcon">🔄</span> Refresh
-                </button>
-            </div>
+        <header class="shrink-0 pt-8 pb-4 px-6 md:px-10 z-40 bg-gray-100 border-b border-gray-200">
+            <h1 class="text-2xl font-black text-gray-800 uppercase tracking-tight">Session Overview</h1>
+            <h1 class="text-2xl font-black text-gray-800 uppercase tracking-tight">Dashboard</h1>
         </header>
 
         <main class="flex-1 overflow-y-auto p-6 md:p-10 scroll-smooth">
-            <div class="bg-white p-4 rounded-xl shadow-sm mb-6 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 border border-gray-100">
-                <div class="flex flex-wrap gap-2 w-full xl:w-auto items-center">
-                    <select onchange="setCommittee(this.value)" id="committeeSelect" class="bg-white border-2 border-gray-100 text-blue-900 font-black uppercase text-[10px] rounded-lg px-2 py-1.5 outline-none focus:border-blue-900 transition shadow-sm cursor-pointer">
-                        <option value="All">All Committees</option>
-                        <option value="Health Care">Health Care</option>
-                        <option value="Local Government">Local Government</option>
-                    </select>
-                    <select onchange="setType(this.value)" id="typeSelect" class="bg-gray-50 text-[10px] font-black uppercase rounded-lg px-2 py-1.5 border-none outline-none text-gray-600 focus:text-blue-900 cursor-pointer hover:bg-gray-100 transition">
-                        <option value="All">All Types</option>
-                        <option value="draft">Drafts Only</option>
-                        <option value="live">Live Bills</option>
-                    </select>
-                    <select onchange="setStatusFilter(this.value)" id="statusFilter" class="bg-gray-50 text-[10px] font-black uppercase rounded-lg px-2 py-1.5 border-none outline-none text-gray-600 focus:text-blue-900 cursor-pointer hover:bg-gray-100 transition">
-                        <option value="All">All Steps</option>
-                    </select>
-                    <select onchange="setSort(this.value)" class="bg-gray-50 text-[10px] font-black uppercase rounded-lg px-2 py-1.5 border-none outline-none text-gray-600 focus:text-blue-900 cursor-pointer hover:bg-gray-100 transition">
-                        <option value="priority">Sort: Priority</option>
-                        <option value="alpha">Sort: Bill #</option>
-                    </select>
-                </div>
-                <div class="flex bg-gray-100 p-1 rounded-lg ml-auto">
-                    <button onclick="setView('grid')" id="viewGrid" class="p-1.5 rounded-md shadow-sm bg-white text-blue-900" title="Grid View">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>
-                    </button>
-                    <button onclick="setView('list')" id="viewList" class="p-1.5 rounded-md text-gray-500 hover:text-blue-900 transition" title="List View">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" /></svg>
-                    </button>
-                </div>
-            </div>
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full">
 
-            <div class="bg-white p-6 rounded-xl shadow-sm mb-8 border border-gray-100">
-                <label class="text-[10px] font-black uppercase text-gray-400 tracking-widest mb-2 block">Lookup & Track a Bill</label>
-                <div class="flex gap-3 w-full mb-4">
-                    <input type="text" id="billNum" placeholder="Enter Bill Number (e.g. 1000)" class="flex-1 border-2 border-gray-200 p-3 rounded-lg outline-none focus:border-[#002e5d] font-bold text-gray-700">
-                    <button onclick="fetchAPI()" class="bg-gray-200 hover:bg-gray-300 text-gray-700 text-[12px] font-black uppercase px-6 py-3 rounded-lg shadow-sm transition">Search API</button>
-                </div>
-                <div id="apiResults"></div>
-            </div>
+                <div class="lg:col-span-1 flex flex-col gap-6">
 
-            <h2 class="text-xs font-black text-gray-400 uppercase tracking-widest mb-4">My Tracked Bills</h2>
-            <div id="workspaceGrid" class="flex flex-col gap-6 pb-20"></div>
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 flex flex-col flex-1 max-h-[500px]">
+                        <div class="flex justify-between items-center mb-3">
+                            <span class="text-[10px] font-black uppercase tracking-widest text-gray-400">Upcoming Meetings</span>
+                            <span class="text-[9px] font-bold text-blue-500 animate-pulse">30-DAY WINDOW</span>
+                        </div>
+                        <div class="space-y-3 overflow-y-auto pr-2" id="meetingList">
+                            <span class="text-xs font-bold text-gray-400 italic">Scanning biennium records...</span>
+                        </div>
+                    </div>
+
+                    <div class="bg-[#002e5d] rounded-xl shadow-md border border-[#001f3f] p-6 flex flex-col justify-center items-center text-center relative overflow-hidden shrink-0">
+                        <div class="absolute -top-10 -right-10 w-32 h-32 bg-white opacity-5 rounded-full blur-2xl"></div>
+                        <span class="text-[10px] font-black uppercase tracking-[0.2em] text-orange-400 mb-2 z-10">Countdown to Sine Die</span>
+                        <div class="text-5xl font-black text-white leading-none tracking-tighter z-10" id="countdownDays">--</div>
+                        <span class="text-xs font-bold text-blue-200 mt-1 z-10">Days Remaining</span>
+                    </div>
+
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 flex flex-col justify-center shrink-0">
+                        <span class="text-[10px] font-black uppercase text-gray-400 mb-4 block">Biennium Bill Volume</span>
+                        <div class="flex justify-around items-center">
+                            <div class="text-center">
+                                <div class="text-3xl font-black text-gray-800" id="houseCount">--</div>
+                                <span class="text-[10px] font-bold uppercase text-gray-500">House</span>
+                            </div>
+                            <div class="h-10 w-px bg-gray-200"></div>
+                            <div class="text-center">
+                                <div class="text-3xl font-black text-gray-800" id="senateCount">--</div>
+                                <span class="text-[10px] font-bold uppercase text-gray-500">Senate</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="lg:col-span-2 flex flex-col gap-6">
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col flex-1 overflow-hidden h-full">
+                        <div class="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50 shrink-0">
+                            <span class="text-[10px] font-black uppercase tracking-widest text-gray-400">Tracked Bills Radar</span>
+                            <a href="tracker.html" class="text-[10px] font-black uppercase text-[#002e5d] hover:text-blue-700 bg-blue-50 px-3 py-1.5 rounded transition border border-blue-100">Go to Workspace ➔</a>
+                        </div>
+                        <div class="p-6 overflow-y-auto flex-1">
+                            <div class="flex flex-col gap-3" id="recentUpdatesGrid">
+                                <div class="text-sm font-bold text-gray-400 italic">Loading radar items...</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
         </main>
-    </div>
-
-    <div id="draftForm" style="display: none;" class="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4 backdrop-blur-sm">
-        <div class="bg-white p-8 rounded-xl shadow-2xl max-w-2xl w-full border-t-8 border-orange-500">
-            <h2 class="text-2xl font-bold mb-4 text-orange-600 uppercase">New Draft</h2>
-            <div class="space-y-4">
-                <div class="flex gap-4">
-                    <input type="text" id="draftTitle" placeholder="Concept Name" class="w-2/3 border-2 p-3 rounded-lg outline-none focus:border-orange-500">
-                    <input type="text" id="draftCompanion" placeholder="Comp. (Optional)" class="w-1/3 border-2 p-3 rounded-lg outline-none focus:border-orange-500">
-                </div>
-                <select id="draftCommittee" class="w-full border-2 p-3 rounded-lg font-bold">
-                    <option value="Health Care">Health Care</option>
-                    <option value="Local Government">Local Government</option>
-                </select>
-                <textarea id="draftBlurb" placeholder="Initial policy notes..." class="w-full border-2 p-3 rounded-lg h-32 outline-none focus:border-orange-500"></textarea>
-                <div class="flex gap-2">
-                    <button onclick="createDraft()" class="bg-orange-500 text-white font-bold px-6 py-3 rounded-lg flex-1 uppercase hover:bg-orange-600 transition">Create Workspace</button>
-                    <button onclick="hideAllModals()" class="bg-gray-200 py-3 px-4 rounded-lg font-bold uppercase text-gray-600 hover:bg-gray-300 transition">Cancel</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div id="existingForm" style="display: none;" class="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4 backdrop-blur-sm">
-        <div class="bg-white p-8 rounded-xl shadow-2xl max-w-2xl w-full border-t-8 border-[#002e5d]">
-            <h2 class="text-2xl font-bold mb-4 text-[#002e5d] uppercase">Track Bill</h2>
-            <div class="space-y-4">
-                <div class="flex gap-4">
-                    <input type="text" id="existingNum" placeholder="Bill # (e.g., 1234)" class="w-full border-2 p-3 rounded-lg">
-                </div>
-                <div class="flex gap-2">
-                    <button onclick="document.getElementById('billNum').value = document.getElementById('existingNum').value; fetchAPI(); hideAllModals();" class="bg-[#002e5d] text-white font-bold px-6 py-3 rounded-lg flex-1 uppercase hover:bg-[#001f3f] transition">Fetch from WSL API</button>
-                    <button onclick="hideAllModals()" class="bg-gray-200 py-3 px-4 rounded-lg font-bold uppercase text-gray-600 hover:bg-gray-300 transition">Cancel</button>
-                </div>
-            </div>
-        </div>
     </div>
 
 <script>
     if (!localStorage.getItem('jwt_token')) window.location.href = 'index.html';
-    document.getElementById('userEmailDisplay').innerText = localStorage.getItem('user_email') || 'Unknown';
+    document.getElementById('userEmailDisplay').innerText = localStorage.getItem('user_email') || 'Staff';
 
     const workerBaseUrl = "https://misty-credit-9e6a.ewing-jacob.workers.dev";
-    const authHeaders = { 'Authorization': `Bearer ${localStorage.getItem('jwt_token')}`, 'Content-Type': 'application/json' };
-    
-    let currentBillData = null; 
-    let workspaceItems = [];
-    let expandedCards = new Set();
-    let activeTabs = {};
-
-    let currentCommittee = 'All';
-    let currentType = 'All';
-    let currentStatus = 'All';
-    let currentSort = 'priority';
-    let currentView = 'grid';
-
-    const LIVE_STATUS_OPTIONS = ["Introduced", "Public Hearing", "Executive Action", "Fiscal", "Rules", "Floor", "House", "Concurrence", "Passed", "Dead"];
-    const STATUS_TASKS = {
-        "Introduced": ["Review bill", "Add summary to tracker", "Prep talking points"],
-        "Public Hearing": ["Submit Bill Report", "Create Bill Presentation", "Submit Public Testimony"],
-        "Executive Action": ["Briefing Notes", "Review Proposed Sub", "Update Bill Report"],
-        "Fiscal": ["Review Fiscal Note", "Check In with Fiscal Staff"],
-        "Rules": ["Review Bill Report", "Prep Floor Note"],
-        "Floor": ["Submit Floor Note", "Review Floor Amendments"],
-        "House": [], "Dead": [], "Default": ["Review Bill", "Monitor Testimony"]
-    };
-
-    const SINE_DIE_DATE = new Date("2026-03-11T23:59:59");
-    function updateSessionTimer() {
-        const now = new Date();
-        const diff = SINE_DIE_DATE - now;
-        const daysLeft = Math.ceil(diff / (1000 * 60 * 60 * 24));
-        const timerEl = document.getElementById('daysLeft');
-        
-        if (diff <= 0) {
-            timerEl.innerText = "0";
-            document.querySelector('#sessionTimer span').innerText = "Session Ended";
-        } else {
-            timerEl.innerText = daysLeft;
-            if (daysLeft < 10) timerEl.classList.add('text-red-400', 'animate-pulse');
-        }
-    }
-    setInterval(updateSessionTimer, 60000); 
-    updateSessionTimer();
-
-    function showScreen(id) {
-        hideAllModals();
-        const form = document.getElementById(id);
-        form.querySelectorAll('input, textarea, select').forEach(f => {
-            if (f.tagName === 'SELECT') f.selectedIndex = 0; else f.value = '';
-        });
-        form.style.display = 'flex';
-    }
-
-    function hideAllModals() {
-        ['draftForm', 'existingForm'].forEach(id => {
-            const el = document.getElementById(id);
-            if (el) el.style.setProperty('display', 'none', 'important');
-        });
-    }
-
-    function setCommittee(val) { currentCommittee = val; renderGrid(); }
-    function setType(val) { currentType = val; renderGrid(); }
-    function setStatusFilter(val) { currentStatus = val; renderGrid(); }
-    function setSort(val) { currentSort = val; renderGrid(); }
-    
-    function setView(view) {
-        currentView = view;
-        const btnGrid = document.getElementById('viewGrid');
-        const btnList = document.getElementById('viewList');
-        if(view === 'grid') {
-            btnGrid.classList.add('bg-white', 'shadow-sm', 'text-blue-900');
-            btnGrid.classList.remove('text-gray-500');
-            btnList.classList.remove('bg-white', 'shadow-sm', 'text-blue-900');
-            btnList.classList.add('text-gray-500');
-        } else {
-            btnList.classList.add('bg-white', 'shadow-sm', 'text-blue-900');
-            btnList.classList.remove('text-gray-500');
-            btnGrid.classList.remove('bg-white', 'shadow-sm', 'text-blue-900');
-            btnGrid.classList.add('text-gray-500');
-        }
-        renderGrid();
-    }
+    const authHeaders = { 'Authorization': `Bearer ${localStorage.getItem('jwt_token')}` };
 
     function logout() { localStorage.clear(); window.location.href = 'index.html'; }
 
-    window.onload = async () => {
-        updateNavHighlight();
-        await loadWorkspace();
-        handleAutoSearch();
-        
-        const filterSelect = document.getElementById('statusFilter');
-        LIVE_STATUS_OPTIONS.forEach(opt => {
-            const option = document.createElement('option');
-            option.value = opt;
-            option.innerText = opt;
-            filterSelect.appendChild(option);
-        });
-    };
-
+    // Dynamic Navigation Highlighting
     function updateNavHighlight() {
         const path = window.location.pathname;
         const navItems = document.querySelectorAll('.nav-item');
@@ -260,387 +121,134 @@
         });
     }
 
-    function handleAutoSearch() {
-        const urlParams = new URLSearchParams(window.location.search);
-        const autosearch = urlParams.get('autosearch');
-        if (autosearch) {
-            document.getElementById('billNum').value = autosearch;
-            fetchAPI();
-        }
+    // Refresh Dashboard every 5 minutes
+    updateNavHighlight();
+    refreshDashboard();
+    setInterval(refreshDashboard, 300000);
+
+    function refreshDashboard() {
+        calculateSineDie();
+        fetchStats();
+        fetchRadar();
+        fetchMeetings();
     }
 
-    async function loadWorkspace() {
+    function calculateSineDie() {
+        const sineDieDate = new Date("2026-03-12T23:59:59").getTime();
+        const now = new Date().getTime();
+        const diffDays = Math.ceil((sineDieDate - now) / (1000 * 60 * 60 * 24)); 
+        const display = document.getElementById('countdownDays');
+        display.innerText = diffDays < 0 ? "0" : diffDays;
+    }
+
+    async function fetchStats() {
+        try {
+            const res = await fetch(`${workerBaseUrl}/session-stats`, { headers: authHeaders });
+            const data = await res.json();
+            document.getElementById('houseCount').innerText = data.house.toLocaleString();
+            document.getElementById('senateCount').innerText = data.senate.toLocaleString();
+        } catch (e) {}
+    }
+
+    async function fetchRadar() {
         try {
             const res = await fetch(`${workerBaseUrl}/my-workspace`, { headers: authHeaders });
-            if (res.status === 401) return logout();
-            const rawBills = await res.json();
-            
-            workspaceItems = rawBills.map(item => ({
-                ...item,
-                tracking_status: item.tracking_status || "Introduced", // Initializes decoupled internal status
-                task_progress: JSON.parse(item.task_progress || '{}'),
-                custom_tasks: JSON.parse(item.custom_tasks || '[]'),
-                amendments: JSON.parse(item.amendments || '[]')
-            }));
+            const bills = await res.json();
+            const grid = document.getElementById('recentUpdatesGrid');
+            grid.innerHTML = '';
 
-            renderGrid();
-        } catch (e) { console.error(e); }
-    }
-
-    function renderGrid() {
-        const grid = document.getElementById('workspaceGrid');
-        grid.innerHTML = '';
-        let processedIds = new Set();
-
-        let filteredItems = workspaceItems.filter(item => {
-            if (currentStatus !== 'All' && item.tracking_status !== currentStatus) return false;
-            return true;
-        });
-
-        if (currentSort === 'alpha') {
-            filteredItems.sort((a, b) => (a.bill_number || "").localeCompare(b.bill_number || ""));
-        }
-
-        if (filteredItems.length === 0) {
-            grid.innerHTML = '<div class="text-gray-400 font-bold italic text-sm">No items match your current filters.</div>';
-            return;
-        }
-
-        filteredItems.forEach(item => {
-            if (processedIds.has(item.id)) return;
-
-            let compBillStr = item.companion ? item.companion.split(',')[0].trim() : "";
-            let compItem = compBillStr ? workspaceItems.find(i => i.bill_number === compBillStr || i.companion.includes(item.bill_number)) : null;
-
-            let group = [item];
-            if (compItem && compItem.id !== item.id) {
-                group.push(compItem);
-                processedIds.add(compItem.id);
-            }
-            processedIds.add(item.id);
-
-            let activeId = activeTabs[item.id] || item.id;
-            let activeItem = group.find(i => i.id === activeId) || item;
-            
-            // Decoupled Statuses
-            let officialStatus = activeItem.status || "Unknown";
-            let internalStatus = activeItem.tracking_status || "Introduced";
-            
-            let isDead = officialStatus === 'Dead';
-            let tasks = STATUS_TASKS[internalStatus] || STATUS_TASKS["Default"];
-            let progress = activeItem.task_progress[internalStatus] || {};
-
-            let tabsHtml = '';
-            if (group.length > 1) {
-                tabsHtml = `
-                <div class="flex border-b border-gray-200 bg-gray-100 rounded-t-xl overflow-hidden">
-                    ${group.map(g => `
-                        <button onclick="switchTab(event, ${item.id}, ${g.id})" class="px-6 py-3 text-xs font-black uppercase transition-all ${activeItem.id === g.id ? 'bg-white border-t-4 border-[#002e5d] text-[#002e5d] shadow-sm' : 'text-gray-500 hover:bg-gray-200 border-t-4 border-transparent'}">${g.bill_number}</button>
-                    `).join('')}
-                </div>`;
-            } else if (compBillStr && compBillStr !== "None") {
-                 tabsHtml = `
-                 <div class="flex border-b border-gray-200 bg-gray-100 rounded-t-xl overflow-hidden">
-                    <button class="px-6 py-3 text-xs font-black uppercase bg-white border-t-4 border-[#002e5d] text-[#002e5d] shadow-sm">${activeItem.bill_number}</button>
-                    <button onclick="autoTrack('${compBillStr}')" class="px-6 py-3 text-xs font-black uppercase text-gray-400 hover:text-[#002e5d] hover:bg-gray-200 border-t-4 border-transparent flex items-center gap-2">
-                        <span class="text-[14px] leading-none">+</span> Track Companion (${compBillStr})
-                    </button>
-                </div>`;
+            if (bills.length === 0) {
+                grid.innerHTML = '<div class="text-gray-400 text-xs italic">Workspace is empty.</div>';
+                return;
             }
 
-            grid.innerHTML += `
-                <div class="bg-white rounded-xl shadow-md ${isDead ? 'dead-border' : 'live-border'} border border-gray-100 overflow-hidden ${isDead ? 'grayscale-[0.5]' : ''}">
-                    ${tabsHtml}
-                    <div class="p-5 flex flex-col md:flex-row gap-4 items-start md:items-center cursor-pointer hover:bg-gray-50 transition" onclick="toggleCard(${item.id})">
-                        <div class="w-48 flex-shrink-0">
-                            <div class="flex items-center gap-2">
-                                <span class="text-xl font-black text-gray-800 leading-tight block">${activeItem.bill_number}</span>
-                                <button onclick="syncBill(event, ${activeItem.id}, '${activeItem.bill_number}')" class="text-gray-400 hover:text-[#002e5d] transition" title="Sync Status">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
-                                </button>
-                            </div>
+            bills.forEach(item => {
+                const isDead = item.status === 'Dead';
+                grid.innerHTML += `
+                    <div class="border ${isDead ? 'border-gray-200 bg-gray-50 grayscale' : 'border-blue-100 bg-white hover:border-[#002e5d]'} rounded-lg p-4 shadow-sm hover:shadow-md transition cursor-pointer flex flex-col sm:flex-row sm:items-center gap-4" onclick="window.location.href='tracker.html'">
+                        <div class="w-24 shrink-0">
+                            <span class="text-lg font-black text-[#002e5d] block leading-tight">${item.bill_number}</span>
+                            <span class="text-[9px] font-black uppercase px-2 py-0.5 rounded ${isDead ? 'bg-gray-200 text-gray-600' : 'bg-orange-100 text-orange-800'} inline-block mt-1">${item.status}</span>
                         </div>
-                        <div class="md:border-l md:pl-6 flex-1">
-                            <span class="text-[9px] font-black uppercase text-gray-400 block tracking-widest">Summary</span>
-                            <span class="text-sm text-gray-700 font-bold line-clamp-2">${activeItem.short_desc}</span>
-                        </div>
-                        <div class="md:border-l md:pl-6 w-48 flex-shrink-0">
-                            <span class="text-[9px] font-black uppercase text-gray-400 block tracking-widest mb-1">Status & Sponsor</span>
-                            <div class="text-[10px] font-black uppercase text-[#002e5d]">${officialStatus}</div>
-                            <div class="text-[10px] font-bold text-gray-500 truncate mt-1">${activeItem.sponsor}</div>
-                        </div>
-                    </div>
-                    
-                    <div id="details_${activeItem.id}" class="px-6 pb-6 pt-2 border-t border-gray-50 ${expandedCards.has(item.id) ? '' : 'details-hidden'}">
-                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-4">
-                            
-                            <div class="space-y-4">
-                                <div class="flex items-center justify-between">
-                                    <h3 class="text-[10px] font-black uppercase tracking-widest text-gray-400">Status & Tasks</h3>
-                                    <select onchange="updateDB(${activeItem.id}, 'tracking_status', this.value)" class="text-[10px] font-black uppercase bg-gray-100 px-2 py-1 rounded outline-none cursor-pointer border border-gray-200">
-                                        ${LIVE_STATUS_OPTIONS.map(opt => `<option value="${opt}" ${internalStatus === opt ? 'selected' : ''}>${opt}</option>`).join('')}
-                                    </select>
-                                </div>
-                                
-                                <div class="space-y-1 bg-yellow-50 p-3 rounded border border-yellow-100">
-                                    ${tasks.length === 0 ? '<span class="text-xs font-bold text-gray-400">No default tasks for this stage.</span>' : ''}
-                                    ${tasks.map(tName => {
-                                        const done = progress[tName];
-                                        return `
-                                        <div class="flex items-center justify-between py-1">
-                                            <label class="flex items-center gap-3 text-sm cursor-pointer w-full">
-                                                <input type="checkbox" onchange="toggleTask(${activeItem.id}, '${tName}', '${internalStatus}')" ${done ? 'checked' : ''} class="h-4 w-4 rounded text-blue-900 border-gray-300">
-                                                <span class="${done ? 'text-gray-400 line-through' : 'font-bold text-gray-700'}">${tName}</span>
-                                            </label>
-                                        </div>`;
-                                    }).join('')}
-                                </div>
-                            </div>
-
-                            <div class="space-y-4 flex flex-col h-full">
-                                <div class="bg-gray-50 p-4 rounded-lg border border-gray-200 flex-1 flex flex-col">
-                                    <div class="flex justify-between items-center mb-2">
-                                        <label class="text-[10px] font-black text-gray-400 uppercase">Workspace Notes</label>
-                                        <button onclick="insertTimestamp(${activeItem.id})" class="text-[9px] font-bold text-blue-600 bg-blue-100 px-2 py-1 rounded hover:bg-blue-200 uppercase">Timestamp</button>
-                                    </div>
-                                    <textarea id="notes_${activeItem.id}" onchange="updateDB(${activeItem.id}, 'live_notes', this.value)" class="w-full bg-transparent text-sm italic flex-1 focus:outline-none resize-none" placeholder="Draft talking points or staff notes...">${activeItem.live_notes || ""}</textarea>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="flex justify-between items-center mt-6 pt-4 border-t border-gray-200">
-                            <span class="text-[9px] font-black uppercase tracking-widest text-gray-400">Workspace Controls</span>
-                            <button onclick="deleteBill(${activeItem.id})" class="text-[10px] font-black uppercase text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 px-4 py-2 rounded transition border border-red-100">
-                                Remove from Workspace
-                            </button>
-                        </div>
-                    </div>
-                </div>`;
-        });
-    }
-
-    // --- CREATE DRAFT FUNCTION ---
-    async function createDraft() {
-        const title = document.getElementById('draftTitle').value || "Untitled Draft";
-        const companion = document.getElementById('draftCompanion').value || "";
-        const committee = document.getElementById('draftCommittee').value;
-        const blurb = document.getElementById('draftBlurb').value || "";
-
-        const payload = {
-            billNumber: title,
-            shortDesc: blurb,
-            status: "Draft", 
-            tracking_status: "Introduced",
-            sponsor: "Self",
-            companion: companion,
-            committee: committee,
-            type: "draft"
-        };
-
-        try {
-            const res = await fetch(`${workerBaseUrl}/save-bill`, {
-                method: 'POST',
-                headers: authHeaders,
-                body: JSON.stringify(payload)
+                        <div class="text-sm font-bold text-gray-600 line-clamp-2 flex-1">${item.short_desc}</div>
+                    </div>`;
             });
-            
-            if (res.ok) {
-                hideAllModals();
-                await loadWorkspace(); 
-            } else {
-                alert("Failed to save draft. Please check your Worker script configuration.");
-            }
-        } catch (e) { 
-            alert("Draft save failed. Ensure API is reachable."); 
-        }
+        } catch (e) {}
     }
 
-    async function syncBill(event, id, billNumber) {
-        event.stopPropagation();
-        const btn = event.currentTarget;
-        btn.classList.add('animate-spin');
-        
-        try {
-            const res = await fetch(`${workerBaseUrl}/sync-bill`, {
-                method: 'POST',
-                headers: authHeaders,
-                body: JSON.stringify({ id, billNumber })
-            });
-            if (res.ok) await loadWorkspace();
-        } catch (e) { console.error("Sync failed"); }
-        btn.classList.remove('animate-spin');
-    }
-
-    async function syncAllBills() {
-        const btn = document.getElementById('syncAllBtn');
-        const icon = document.getElementById('syncAllIcon');
-        const originalText = btn.innerHTML;
-        
-        btn.disabled = true;
-        btn.classList.add('opacity-50');
-        icon.classList.add('animate-spin');
-        
-        for (const item of workspaceItems) {
-            btn.innerHTML = `<span>🔄</span> Syncing ${item.bill_number}...`;
-            try {
-                await fetch(`${workerBaseUrl}/sync-bill`, {
-                    method: 'POST',
-                    headers: authHeaders,
-                    body: JSON.stringify({ id: item.id, billNumber: item.bill_number })
-                });
-            } catch (e) { console.error("Batch sync failed for " + item.bill_number); }
-        }
-        
-        await loadWorkspace();
-        btn.disabled = false;
-        btn.classList.remove('opacity-50');
-        btn.innerHTML = originalText;
-        icon.classList.remove('animate-spin');
-    }
-
-    function switchTab(event, groupId, targetId) {
-        event.stopPropagation();
-        activeTabs[groupId] = targetId;
-        expandedCards.add(groupId); 
-        renderGrid();
-    }
-
-    window.autoTrack = function(billNum) {
-        document.getElementById('billNum').value = billNum;
-        fetchAPI();
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-
-    function toggleCard(id) {
-        if (expandedCards.has(id)) expandedCards.delete(id);
-        else expandedCards.add(id);
-        renderGrid();
-    }
-
-    function insertTimestamp(id) {
-        const textarea = document.getElementById(`notes_${id}`);
+    async function fetchMeetings() {
+        const list = document.getElementById('meetingList');
         const now = new Date();
-        const timeStr = `\n[${now.getMonth()+1}/${now.getDate()} ${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}]: `;
-        textarea.value = textarea.value + timeStr;
-        textarea.focus();
-        updateDB(id, 'live_notes', textarea.value);
-    }
+        const fortyFiveDaysFromNow = new Date();
+        fortyFiveDaysFromNow.setDate(now.getDate() + 45);
 
-    function toggleTask(id, tName, status) {
-        const item = workspaceItems.find(i => i.id === id);
-        if (!item.task_progress[status]) item.task_progress[status] = {};
-        if (item.task_progress[status][tName]) delete item.task_progress[status][tName];
-        else item.task_progress[status][tName] = true;
-        syncToServer(item);
-    }
-
-    function updateDB(id, field, value) {
-        const item = workspaceItems.find(i => i.id === id);
-        item[field] = value;
-        syncToServer(item);
-    }
-
-    async function syncToServer(item) {
-        renderGrid(); 
-        const payload = {
-            id: item.id,
-            status: item.status, 
-            tracking_status: item.tracking_status,
-            live_notes: item.live_notes || "",
-            task_progress: JSON.stringify(item.task_progress),
-            custom_tasks: JSON.stringify(item.custom_tasks),
-            hearing_date: item.hearing_date || "",
-            exec_date: item.exec_date || "",
-            amendments: JSON.stringify(item.amendments)
-        };
         try {
-            await fetch(`${workerBaseUrl}/update-bill`, {
-                method: 'POST',
-                headers: authHeaders,
-                body: JSON.stringify(payload)
-            });
-        } catch (e) { console.error("Database sync failed"); }
-    }
-
-    async function deleteBill(id) {
-        if (!confirm("Are you sure?")) return;
-        try {
-            const res = await fetch(`${workerBaseUrl}/delete-bill`, {
-                method: 'DELETE',
-                headers: authHeaders,
-                body: JSON.stringify({ id })
-            });
-            if (res.ok) loadWorkspace();
-        } catch (e) { alert("Delete failed"); }
-    }
-
-    async function fetchAPI() {
-        const rawBill = document.getElementById('billNum').value;
-        const resDiv = document.getElementById('apiResults');
-        if (!rawBill) return;
-        
-        const fourDigitMatches = rawBill.match(/\d{4}/g);
-        let bill = fourDigitMatches ? (fourDigitMatches.filter(n => n !== "2025" && n !== "2026")[0] || fourDigitMatches[0]) : rawBill.replace(/\D/g, '');
-
-        if (!bill) return resDiv.innerHTML = `<span class="text-orange-500 font-bold text-sm">Invalid bill number.</span>`;
-        
-        currentBillData = null;
-        resDiv.innerHTML = `<span class="text-blue-500 font-bold text-sm">Querying WSL...</span>`;
-        
-        try {
-            const res = await fetch(`${workerBaseUrl}/fetch-bill?bill=${bill}`, { headers: authHeaders });
+            const res = await fetch(`${workerBaseUrl}/upcoming-meetings`, { headers: authHeaders });
             const xmlText = await res.text();
             const xmlDoc = new DOMParser().parseFromString(xmlText, "text/xml");
-            const getTagText = (tag) => xmlDoc.getElementsByTagNameNS("*", tag)[0]?.textContent.trim() || xmlDoc.getElementsByTagName(tag)[0]?.textContent.trim() || null;
 
-            const billNumber = getTagText("BillNumber") || bill;
-            const shortDesc = getTagText("ShortDescription") || "No summary provided.";
-            const currentStatus = getTagText("HistoryLine") || "Unknown Status";
-            const sponsor = getTagText("Name") || "None Listed";
+            // BULLETPROOF: Use querySelectorAll to ignore namespaces
+            const cm = Array.from(xmlDoc.querySelectorAll('CommitteeMeeting'));
+            const fa = Array.from(xmlDoc.querySelectorAll('FloorAction'));
+            const allItems = [...cm, ...fa];
 
-            let companions = [];
-            for (let c of xmlDoc.getElementsByTagNameNS("*", "Companion")) companions.push(c.textContent.trim());
-
-            currentBillData = { billNumber, shortDesc, status: currentStatus, sponsor, companion: companions.join(", ") };
-
-            resDiv.innerHTML = `
-                <div class="mt-4 p-4 bg-gray-50 border border-gray-200 rounded flex justify-between items-center">
-                    <div>
-                        <div class="text-sm font-black text-[#002e5d]">${billNumber}</div>
-                        <div class="text-xs text-gray-600 font-bold truncate max-w-md">${shortDesc}</div>
-                    </div>
-                    <button onclick='saveToWorkspace()' class="bg-green-600 hover:bg-green-700 text-white text-[10px] font-black uppercase px-4 py-2 rounded shadow-sm transition">
-                        Add to Workspace
-                    </button>
-                </div>`;
-        } catch (e) { resDiv.innerHTML = `<span class="text-red-500 font-bold text-sm">API offline.</span>`; }
-    }
-
-    async function saveToWorkspace() {
-        if (!currentBillData) return;
-        
-        // Ensure new fields are mapped here as well so the backend receives a consistent payload
-        const payload = {
-            ...currentBillData,
-            tracking_status: "Introduced",
-            committee: "Unknown",
-            type: "live"
-        };
-
-        try {
-            const res = await fetch(`${workerBaseUrl}/save-bill`, {
-                method: 'POST',
-                headers: authHeaders,
-                body: JSON.stringify(payload)
-            });
-            if (res.ok) {
-                document.getElementById('apiResults').innerHTML = `<span class="text-green-600 font-bold text-sm">Added!</span>`;
-                document.getElementById('billNum').value = ''; 
-                loadWorkspace(); 
+            if (allItems.length === 0) {
+                list.innerHTML = '<div class="text-xs font-bold text-gray-400 italic">No meetings scheduled.</div>';
+                return;
             }
-        } catch (e) { alert("Save failed."); }
+
+            const seen = new Set();
+            const filteredItems = allItems.map(node => {
+                const get = (t) => node.querySelector(t)?.textContent.trim() || "";
+                return {
+                    agency: get("Agency"),
+                    name: get("Name") || get("LongName"),
+                    date: new Date(get("Date")),
+                    room: get("Room") || "Chamber Floor",
+                    key: `${get("Agency")}-${get("Name")}-${get("Date")}`
+                };
+            }).filter(item => {
+                const isUpcoming = item.date >= now && item.date <= fortyFiveDaysFromNow;
+                if (!isUpcoming || seen.has(item.key)) return false;
+                seen.add(item.key);
+                return true;
+            }).sort((a, b) => a.date - b.date);
+
+            list.innerHTML = '';
+            let lastDateLabel = "";
+
+            filteredItems.forEach(item => {
+                const dateLabel = item.date.toLocaleDateString([], { month: 'long', day: 'numeric' }).toUpperCase();
+                if (dateLabel !== lastDateLabel) {
+                    list.innerHTML += `<div class="text-[9px] font-black text-gray-400 tracking-widest mt-4 mb-2 border-b border-gray-100 pb-1">${dateLabel}</div>`;
+                    lastDateLabel = dateLabel;
+                }
+
+                const timeStr = item.date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                let color = "bg-gray-400";
+                const ag = item.agency.toLowerCase();
+                const nm = item.name.toLowerCase();
+
+                if (ag.includes("senate")) color = "bg-red-500";
+                else if (ag.includes("house")) color = "bg-green-500";
+                else if (ag.includes("joint") || nm.includes("jlarc")) color = "bg-blue-600";
+
+                let displayName = item.name;
+                if (displayName.includes("Convened")) displayName = "Floor Session";
+
+                list.innerHTML += `
+                    <div class="flex items-center gap-3 py-2">
+                        <div class="w-2 h-2 rounded-full ${color} shrink-0"></div>
+                        <div class="flex-1 min-w-0">
+                            <div class="text-[11px] font-black text-[#002e5d] truncate uppercase">${item.agency} ${displayName}</div>
+                            <div class="text-[9px] font-bold text-gray-500 truncate mt-0.5">${timeStr} • ${item.room}</div>
+                        </div>
+                    </div>`;
+            });
+        } catch (e) {
+            list.innerHTML = '<div class="text-xs font-bold text-red-400">Failed to sync schedule.</div>';
+        }
     }
 </script>
-
 </body>
 </html>
