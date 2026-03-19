@@ -170,7 +170,6 @@
     let currentType = 'All';
     let currentStatus = 'All';
     let currentSort = 'priority';
-    let currentView = 'grid';
 
     const LIVE_STATUS_OPTIONS = ["Introduced", "Public Hearing", "Executive Action", "Fiscal", "Rules", "Floor", "House", "Concurrence", "Passed", "Dead"];
     const STATUS_TASKS = {
@@ -221,24 +220,6 @@
     function setType(val) { currentType = val; renderGrid(); }
     function setStatusFilter(val) { currentStatus = val; renderGrid(); }
     function setSort(val) { currentSort = val; renderGrid(); }
-    
-    function setView(view) {
-        currentView = view;
-        const btnGrid = document.getElementById('viewGrid');
-        const btnList = document.getElementById('viewList');
-        if(view === 'grid') {
-            btnGrid.classList.add('bg-white', 'shadow-sm', 'text-blue-900');
-            btnGrid.classList.remove('text-gray-500');
-            btnList.classList.remove('bg-white', 'shadow-sm', 'text-blue-900');
-            btnList.classList.add('text-gray-500');
-        } else {
-            btnList.classList.add('bg-white', 'shadow-sm', 'text-blue-900');
-            btnList.classList.remove('text-gray-500');
-            btnGrid.classList.remove('bg-white', 'shadow-sm', 'text-blue-900');
-            btnGrid.classList.add('text-gray-500');
-        }
-        renderGrid();
-    }
 
     function logout() { localStorage.clear(); window.location.href = 'index.html'; }
 
