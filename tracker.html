@@ -388,8 +388,16 @@
         filteredItems.forEach(item => {
             if (processedIds.has(item.id)) return;
 
+            // SAFELY FIND COMPANIONS USING ONLY THE NUMBERS
             let compBillStr = item.companion ? item.companion.split(',')[0].trim() : "";
-            let compItem = compBillStr ? workspaceItems.find(i => i.bill_number === compBillStr || i.companion.includes(item.bill_number)) : null;
+            let compJustNum = compBillStr.replace(/\D/g, '');
+            let myJustNum = item.bill_number ? item.bill_number.replace(/\D/g, '') : '';
+
+            let compItem = compJustNum ? workspaceItems.find(i => 
+                i.id !== item.id && 
+                ((i.bill_number && i.bill_number.replace(/\D/g, '') === compJustNum) || 
+                 (i.companion && i.companion.includes(myJustNum)))
+            ) : null;
 
             let group = [item];
             if (compItem && compItem.id !== item.id) { group.push(compItem); processedIds.add(compItem.id); }
@@ -719,7 +727,11 @@
             const res = await fetch(`${workerBaseUrl}/fetch-bill?bill=${bill}`, { headers: authHeaders });
             const xmlText = await res.text();
             const xmlDoc = new DOMParser().parseFromString(xmlText, "text/xml");
-            const getTagText = (tag) => xmlDoc.getElementsByTagNameNS("*", tag)[0]?.textContent.trim() || xmlDoc.getElementsByTagName(tag)[0]?.textContent.trim() || null;
+            
+            const getTagText = (tag) => {
+                let el = xmlDoc.getElementsByTagNameNS("*", tag)[0] || xmlDoc.getElementsByTagName(tag)[0];
+                return el ? el.textContent.trim() : null;
+            };
 
             const billNumber = getTagText("BillNumber") || bill;
             const shortDesc = getTagText("ShortDescription") || "No summary provided.";
@@ -741,9 +753,18 @@
             };
 
             const saveRes = await fetch(`${workerBaseUrl}/save-bill`, { method: 'POST', headers: authHeaders, body: JSON.stringify(payload) });
-            if (saveRes.ok) await loadWorkspace(); 
-            else { alert("Database failed to save the companion bill."); btn.innerHTML = originalHTML; btn.disabled = false; }
-        } catch (e) { alert("Error fetching companion from the API."); btn.innerHTML = originalHTML; btn.disabled = false; }
+            if (saveRes.ok) {
+                await loadWorkspace(); 
+            } else {
+                alert("Database failed to save the companion bill."); 
+                btn.innerHTML = originalHTML; 
+                btn.disabled = false; 
+            }
+        } catch (e) { 
+            alert("Error fetching companion from the API."); 
+            btn.innerHTML = originalHTML; 
+            btn.disabled = false; 
+        }
     }
 
     async function createDraft() {
@@ -812,7 +833,11 @@
                 const res = await fetch(`${workerBaseUrl}/fetch-bill?bill=${bill}`, { headers: authHeaders });
                 const xmlText = await res.text();
                 const xmlDoc = new DOMParser().parseFromString(xmlText, "text/xml");
-                const getTagText = (tag) => xmlDoc.getElementsByTagNameNS("*", tag)[0]?.textContent.trim() || xmlDoc.getElementsByTagName(tag)[0]?.textContent.trim() || null;
+                
+                const getTagText = (tag) => {
+                    let el = xmlDoc.getElementsByTagNameNS("*", tag)[0] || xmlDoc.getElementsByTagName(tag)[0];
+                    return el ? el.textContent.trim() : null;
+                };
                 
                 fetchedDesc = getTagText("ShortDescription") || "";
                 fetchedSponsor = getTagText("Name") || "";
@@ -938,7 +963,11 @@
             const res = await fetch(`${workerBaseUrl}/fetch-bill?bill=${bill}`, { headers: authHeaders });
             const xmlText = await res.text();
             const xmlDoc = new DOMParser().parseFromString(xmlText, "text/xml");
-            const getTagText = (tag) => xmlDoc.getElementsByTagNameNS("*", tag)[0]?.textContent.trim() || xmlDoc.getElementsByTagName(tag)[0]?.textContent.trim() || null;
+            
+            const getTagText = (tag) => {
+                let el = xmlDoc.getElementsByTagNameNS("*", tag)[0] || xmlDoc.getElementsByTagName(tag)[0];
+                return el ? el.textContent.trim() : null;
+            };
 
             const billNumber = getTagText("BillNumber") || bill;
             const shortDesc = getTagText("ShortDescription") || "No summary provided.";
