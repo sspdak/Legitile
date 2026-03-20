@@ -485,30 +485,31 @@
         filteredItems.forEach(item => {
             if (processedIds.has(item.id)) return;
 
+            // Safe extraction helper to pull an array of numbers from the companion string
+            const extractNumbers = (str) => {
+                if (!str) return [];
+                return String(str).split(',').map(s => s.replace(/\D/g, '')).filter(Boolean);
+            };
+
             let myJustNum = item.bill_number ? String(item.bill_number).replace(/\D/g, '') : '';
-            let myCompNum = item.companion ? String(item.companion).split(',')[0].replace(/\D/g, '') : '';
+            let myCompNums = extractNumbers(item.companion);
 
-            // Find companion item strictly by matching parsed digit strings
-            let compItem = workspaceItems.find(i => {
-                if (i.id === item.id) return false;
+            // Filter sweeps entirely through workspaceItems to group any bidirectional matches
+            let group = workspaceItems.filter(i => {
                 let iJustNum = i.bill_number ? String(i.bill_number).replace(/\D/g, '') : '';
-                let iCompNum = i.companion ? String(i.companion).split(',')[0].replace(/\D/g, '') : '';
+                let iCompNums = extractNumbers(i.companion);
+                
+                let match1 = iJustNum !== '' && myCompNums.includes(iJustNum);
+                let match2 = myJustNum !== '' && iCompNums.includes(myJustNum);
+                let match3 = myCompNums.length > 0 && myCompNums.some(num => iCompNums.includes(num));
 
-                let match1 = (myCompNum !== '' && iJustNum !== '' && myCompNum === iJustNum);
-                let match2 = (iCompNum !== '' && myJustNum !== '' && iCompNum === myJustNum);
-                let match3 = (myCompNum !== '' && iCompNum !== '' && myCompNum === iCompNum);
-
-                return match1 || match2 || match3;
+                return i.id === item.id || match1 || match2 || match3;
             });
 
-            let group = [item];
-            if (compItem) {
-                group.push(compItem);
-                processedIds.add(compItem.id);
-            }
-            processedIds.add(item.id);
+            group.forEach(g => processedIds.add(g.id));
 
-            let baseId = item.id;
+            // Lock the group to the lowest DB ID so the UI state doesn't wipe when sorting arrays shift
+            let baseId = Math.min(...group.map(g => g.id));
             let activeId = activeTabs[baseId] || baseId;
             let activeItem = group.find(i => i.id === activeId) || group[0];
             
