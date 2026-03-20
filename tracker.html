@@ -39,6 +39,10 @@
             <div class="bg-white p-4 rounded-xl shadow-sm mb-8 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 border border-gray-100">
                 
                 <div class="flex flex-wrap gap-2 w-full xl:w-auto items-center">
+                    <select onchange="setBiennium(this.value)" id="bienniumSelect" class="bg-gray-50 border border-gray-200 text-gray-800 font-black uppercase text-[10px] rounded-lg px-2 py-1.5 outline-none focus:border-blue-500 transition shadow-sm cursor-pointer">
+                        <option value="2025-26" selected>2025-26 Session</option>
+                        <option value="2023-24">2023-24 Archive</option>
+                    </select>
                     <select onchange="setCommittee(this.value)" id="committeeSelect" class="bg-gray-50 border-2 border-gray-200 text-gray-700 font-black uppercase text-[10px] rounded-lg px-2 py-1.5 outline-none focus:border-gray-400 transition shadow-sm cursor-pointer">
                         <option value="All">All Committees</option>
                     </select>
@@ -57,10 +61,10 @@
                 </div>
 
                 <div class="flex flex-wrap gap-2 w-full xl:w-auto items-center ml-auto">
-                    <button onclick="showScreen('draftForm')" class="flex-1 md:flex-none bg-orange-500 hover:bg-orange-600 text-white text-[10px] font-black uppercase px-4 py-2 rounded-lg shadow-sm hover:shadow-md transition flex items-center justify-center gap-2">
+                    <button id="newDraftBtn" onclick="showScreen('draftForm')" class="flex-1 md:flex-none bg-orange-500 hover:bg-orange-600 text-white text-[10px] font-black uppercase px-4 py-2 rounded-lg shadow-sm hover:shadow-md transition flex items-center justify-center gap-2">
                         <span>📝</span> New Draft
                     </button>
-                    <button onclick="showScreen('existingForm')" class="flex-1 md:flex-none bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-black uppercase px-4 py-2 rounded-lg shadow-sm hover:shadow-md transition flex items-center justify-center gap-2">
+                    <button id="trackBillBtn" onclick="showScreen('existingForm')" class="flex-1 md:flex-none bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-black uppercase px-4 py-2 rounded-lg shadow-sm hover:shadow-md transition flex items-center justify-center gap-2">
                         <span>📑</span> Track Bill
                     </button>
                     <button onclick="syncAllBills()" id="syncAllBtn" class="flex-1 md:flex-none bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-black uppercase px-4 py-2 rounded-lg shadow-sm hover:shadow-md transition flex items-center justify-center gap-2">
@@ -73,7 +77,10 @@
             <div id="draftsGrid" class="flex flex-col gap-6 mb-8"></div>
 
             <h2 class="text-xs font-black text-gray-400 uppercase tracking-widest mb-4">My Tracked Bills</h2>
-            <div id="workspaceGrid" class="flex flex-col gap-6 pb-20"></div>
+            <div id="workspaceGrid" class="flex flex-col gap-6 mb-12"></div>
+
+            <h2 class="text-xs font-black text-gray-400 uppercase tracking-widest mb-4">Dead Bills</h2>
+            <div id="deadGrid" class="flex flex-col gap-6 pb-20 opacity-75"></div>
         </main>
     </div>
 
@@ -178,12 +185,12 @@
     let promoteItemId = null;
     let userProfileCommittees = []; 
 
+    let currentBiennium = '2025-26';
     let currentCommittee = 'All';
     let currentType = 'All';
     let currentStatus = 'All';
     let currentSort = 'priority';
 
-    // Undo System State
     let undoTimeout;
     let pendingUndoAction = null;
 
@@ -235,6 +242,14 @@
             const el = document.getElementById(id);
             if (el) el.style.setProperty('display', 'none', 'important');
         });
+    }
+
+    function setBiennium(val) {
+        currentBiennium = val;
+        let isArchive = val !== '2025-26';
+        document.getElementById('newDraftBtn').style.display = isArchive ? 'none' : 'flex';
+        document.getElementById('trackBillBtn').style.display = isArchive ? 'none' : 'flex';
+        loadWorkspace();
     }
 
     function setCommittee(val) { 
@@ -325,7 +340,7 @@
 
     async function loadWorkspace() {
         try {
-            const res = await fetch(`${workerBaseUrl}/my-workspace`, { headers: authHeaders });
+            const res = await fetch(`${workerBaseUrl}/my-workspace?biennium=${currentBiennium}`, { headers: authHeaders });
             if (res.status === 401) return logout();
             const rawBills = await res.json();
             
@@ -352,9 +367,12 @@
     function renderGrid() {
         const liveGrid = document.getElementById('workspaceGrid');
         const draftGrid = document.getElementById('draftsGrid');
-        liveGrid.innerHTML = ''; draftGrid.innerHTML = '';
+        const deadGrid = document.getElementById('deadGrid');
+        
+        liveGrid.innerHTML = ''; draftGrid.innerHTML = ''; deadGrid.innerHTML = '';
         let processedIds = new Set();
-        let liveCount = 0; let draftCount = 0;
+        let liveCount = 0; let draftCount = 0; let deadCount = 0;
+        let isArchive = currentBiennium !== '2025-26';
 
         let filteredItems = workspaceItems.filter(item => {
             if (currentStatus !== 'All' && item.tracking_status !== currentStatus) return false;
@@ -383,7 +401,7 @@
             let officialStatus = activeItem.status || "Unknown";
             let internalStatus = activeItem.tracking_status || "Introduced";
             
-            let isDead = officialStatus === 'Dead';
+            let isDead = internalStatus === 'Dead' || officialStatus === 'Dead';
             let isDraft = activeItem.type === 'draft' || activeItem.status === 'Draft';
 
             let progress = activeItem.task_progress[internalStatus] || {};
@@ -400,8 +418,10 @@
             let companionUI = '';
             if (group.length > 1) {
                 companionUI = `<div class="flex bg-gray-100 rounded-lg p-0.5 mt-1 border border-gray-200 w-fit">${group.map(g => `<button onclick="switchTab(event, ${item.id}, ${g.id})" class="px-3 py-1 text-[10px] font-black uppercase rounded-md transition-all ${activeItem.id === g.id ? 'bg-white text-[#002e5d] shadow-sm' : 'text-gray-500 hover:text-gray-700'}">${g.bill_number}</button>`).join('')}</div>`;
-            } else if (compBillStr && compBillStr !== "None") {
+            } else if (compBillStr && compBillStr !== "None" && !isArchive) {
                 companionUI = `<button onclick="quickAddCompanion(event, '${compBillStr}')" class="mt-1 px-3 py-1 text-[9px] font-black uppercase rounded-lg border border-dashed border-gray-300 text-gray-500 hover:border-[#002e5d] hover:text-[#002e5d] transition flex items-center gap-1 bg-gray-50 hover:bg-blue-50 w-fit"><span class="text-lg leading-none mt-[-2px]">+</span> Companion: ${compBillStr}</button>`;
+            } else if (compBillStr && compBillStr !== "None") {
+                companionUI = `<div class="mt-1 px-3 py-1 text-[9px] font-black uppercase rounded-lg border border-gray-200 text-gray-500 bg-gray-50 w-fit">Companion: ${compBillStr}</div>`;
             }
 
             let stageForTasks = isDraft ? "Draft" : internalStatus;
@@ -411,35 +431,34 @@
                 ? '<span class="text-xs font-bold text-gray-400">No tasks for this stage.</span>' 
                 : '';
 
-            // Template Tasks
             allTasksHtml += resolvedTasks.map(tName => {
                 const done = progress[tName];
                 const safeName = tName.replace(/"/g, '&quot;').replace(/'/g, "\\'");
                 return `
                 <div class="flex items-center justify-between py-1">
                     <label class="flex items-center gap-3 text-sm cursor-pointer w-full">
-                        <input type="checkbox" onchange="toggleTask(${activeItem.id}, '${safeName}', '${stageForTasks}')" ${done ? 'checked' : ''} class="h-4 w-4 rounded border-gray-300 outline-none cursor-pointer" style="accent-color: ${commColor};">
+                        <input type="checkbox" onchange="toggleTask(${activeItem.id}, '${safeName}', '${stageForTasks}')" ${done ? 'checked' : ''} ${isArchive ? 'disabled' : ''} class="h-4 w-4 rounded border-gray-300 outline-none cursor-pointer" style="accent-color: ${commColor};">
                         <span class="${done ? 'text-gray-400 line-through' : 'font-bold text-gray-700'}">${tName}</span>
                     </label>
                 </div>`;
             }).join('');
 
-            // Custom Tasks Merged In
             allTasksHtml += (activeItem.custom_tasks || []).map(tName => {
                 let customProg = activeItem.task_progress["Custom"] || {};
                 const done = customProg[tName];
                 const safeName = tName.replace(/"/g, '&quot;').replace(/'/g, "\\'");
+                let deleteBtn = isArchive ? '' : `<button onclick="deleteCustomTask(${activeItem.id}, '${safeName}')" class="text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition px-2 focus:opacity-100" title="Delete Task">×</button>`;
                 return `
                 <div class="flex items-center justify-between py-1 group">
                     <label class="flex items-center gap-3 text-sm cursor-pointer w-full">
-                        <input type="checkbox" onchange="toggleCustomTask(${activeItem.id}, '${safeName}')" ${done ? 'checked' : ''} class="h-4 w-4 rounded border-gray-300 outline-none cursor-pointer" style="accent-color: ${commColor};">
+                        <input type="checkbox" onchange="toggleCustomTask(${activeItem.id}, '${safeName}')" ${done ? 'checked' : ''} ${isArchive ? 'disabled' : ''} class="h-4 w-4 rounded border-gray-300 outline-none cursor-pointer" style="accent-color: ${commColor};">
                         <span class="${done ? 'text-gray-400 line-through' : 'font-bold text-gray-700'}">${tName}</span>
                     </label>
-                    <button onclick="deleteCustomTask(${activeItem.id}, '${safeName}')" class="text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition px-2 focus:opacity-100" title="Delete Task">×</button>
+                    ${deleteBtn}
                 </div>`;
             }).join('');
 
-            let addTaskHtml = `
+            let addTaskHtml = isArchive ? '' : `
                 <div class="mt-3 flex gap-2 pt-3 border-t" style="border-color: ${commColor}33;">
                     <input type="text" id="newTask_${activeItem.id}" placeholder="Add task..." class="text-xs font-bold text-gray-600 p-2 border border-white/50 rounded flex-1 outline-none focus:border-gray-400" onkeypress="if(event.key === 'Enter') addCustomTask(${activeItem.id})">
                     <select id="saveRule_${activeItem.id}" class="text-[9px] font-black uppercase tracking-widest bg-white/50 border border-white/50 text-gray-500 rounded outline-none cursor-pointer hover:bg-white max-w-[120px] px-1">
@@ -451,10 +470,12 @@
                 </div>
             `;
 
+            let dropdownHtml = isArchive || isDraft ? '' : `<select onchange="updateDB(${activeItem.id}, 'tracking_status', this.value)" class="text-[10px] font-black uppercase bg-gray-100 px-2 py-1 rounded outline-none cursor-pointer border border-gray-200">${LIVE_STATUS_OPTIONS.map(opt => `<option value="${opt}" ${internalStatus === opt ? 'selected' : ''}>${opt}</option>`).join('')}</select>`;
+
             let statusSectionHtml = `
                 <div class="flex items-center justify-between mb-2">
                     <h3 class="text-[10px] font-black uppercase tracking-widest text-gray-400">Tasks</h3>
-                    ${!isDraft ? `<select onchange="updateDB(${activeItem.id}, 'tracking_status', this.value)" class="text-[10px] font-black uppercase bg-gray-100 px-2 py-1 rounded outline-none cursor-pointer border border-gray-200">${LIVE_STATUS_OPTIONS.map(opt => `<option value="${opt}" ${internalStatus === opt ? 'selected' : ''}>${opt}</option>`).join('')}</select>` : ''}
+                    ${dropdownHtml}
                 </div>
                 <div class="space-y-1 p-3 rounded-lg border" style="background-color: ${commColor}0D; border-color: ${commColor}40;">
                     ${allTasksHtml}
@@ -462,18 +483,37 @@
                 </div>
             `;
 
-            let promoteBtn = isDraft ? `<button onclick="openPromoteModal(${activeItem.id})" class="text-[10px] font-black uppercase text-green-600 hover:text-green-800 bg-green-50 hover:bg-green-100 px-4 py-2 rounded transition border border-green-200">Promote to Bill</button>` : '';
+            let promoteBtn = (isDraft && !isArchive) ? `<button onclick="openPromoteModal(${activeItem.id})" class="text-[10px] font-black uppercase text-green-600 hover:text-green-800 bg-green-50 hover:bg-green-100 px-4 py-2 rounded transition border border-green-200">Promote to Bill</button>` : '';
+
+            let deadToggleBtn = '';
+            if (!isArchive && !isDraft) {
+                deadToggleBtn = isDead
+                    ? `<button onclick="updateDB(${activeItem.id}, 'tracking_status', 'Introduced'); event.stopPropagation();" class="text-[10px] font-black uppercase text-purple-600 hover:text-purple-800 bg-purple-50 hover:bg-purple-100 px-4 py-2 rounded transition border border-purple-200">Revive Bill</button>`
+                    : `<button onclick="updateDB(${activeItem.id}, 'tracking_status', 'Dead'); event.stopPropagation();" class="text-[10px] font-black uppercase text-gray-500 hover:text-gray-800 bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded transition border border-gray-200">Mark Dead</button>`;
+            }
+
+            let controlsHtml = isArchive ? '' : `
+                <div class="flex justify-between items-center mt-6 pt-4 border-t border-gray-200">
+                    <span class="text-[9px] font-black uppercase tracking-widest text-gray-400">Workspace Controls</span>
+                    <div class="flex flex-wrap gap-2">${promoteBtn} ${deadToggleBtn} <button onclick="openEdit(${activeItem.id})" class="text-[10px] font-black uppercase text-gray-600 hover:text-gray-800 bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded transition border border-gray-200">Edit Core Info</button><button onclick="deleteBill(${activeItem.id})" class="text-[10px] font-black uppercase text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 px-4 py-2 rounded transition border border-red-100">Remove</button></div>
+                </div>
+            `;
 
             let commOptions = `<option value="Unknown" ${safeCommittee === 'Unknown' ? 'selected' : ''}>Assign Comm...</option>`;
             userProfileCommittees.forEach(c => { commOptions += `<option value="${c}" ${safeCommittee === c ? 'selected' : ''}>${c}</option>`; });
             if (safeCommittee !== 'Unknown' && !userProfileCommittees.includes(safeCommittee)) { commOptions += `<option value="${safeCommittee}" selected>${safeCommittee}</option>`; }
+            
+            let commDropdownHtml = isArchive 
+                ? `<div class="w-full text-[9px] font-black uppercase tracking-widest rounded px-1.5 py-1.5 text-center border" style="background-color: ${commColor}1A; color: ${commColor}; border-color: ${commColor}40;">${safeCommittee}</div>` 
+                : `<select onchange="updateDB(${activeItem.id}, 'committee', this.value); event.stopPropagation();" onclick="event.stopPropagation()" class="w-full text-[9px] font-black uppercase tracking-widest rounded px-1.5 py-1.5 outline-none cursor-pointer transition appearance-none text-center shadow-sm border" style="background-color: ${commColor}1A; color: ${commColor}; border-color: ${commColor}40;">${commOptions}</select>`;
 
             let justNumber = activeItem.bill_number ? activeItem.bill_number.replace(/\D/g, '') : '';
-            let billLink = isDraft ? '#' : `https://app.leg.wa.gov/billsummary/?BillNumber=${justNumber}&Year=2025&Initiative=false`;
+            let dynamicYear = currentBiennium.split('-')[0];
+            let billLink = isDraft ? '#' : `https://app.leg.wa.gov/billsummary/?BillNumber=${justNumber}&Year=${dynamicYear}&Initiative=false`;
             
             let billTitleHtml = isDraft 
                 ? `<span class="text-xl font-black text-gray-800 leading-tight block">${activeItem.bill_number}</span>`
-                : `<a href="${billLink}" target="_blank" onclick="event.stopPropagation()" class="text-xl font-black text-[#002e5d] hover:text-blue-700 leading-tight block" title="View official bill page">${activeItem.bill_number}</a>`;
+                : `<a href="${billLink}" target="_blank" onclick="event.stopPropagation()" class="text-xl font-black text-[#002e5d] hover:text-blue-700 leading-tight block no-underline" title="View official bill page">${activeItem.bill_number}</a>`;
 
             let cardHtml = `
                 <div class="bg-white rounded-xl shadow-md border border-gray-100 overflow-hidden ${visualModifier}" style="border-left: 5px solid ${borderColor};">
@@ -486,22 +526,29 @@
                             <div class="mt-3 flex flex-wrap items-center gap-2"><div class="bg-gray-100 border border-gray-200 text-gray-600 text-[9px] font-black uppercase px-2 py-1 rounded" title="${officialStatus}">${officialStatus}</div><div class="text-[10px] font-bold text-gray-500 border-l border-gray-300 pl-2 ml-1" title="${activeItem.sponsor}">Sponsor: ${activeItem.sponsor}</div></div>
                         </div>
                         <div class="md:border-l md:pl-6 w-48 flex-shrink-0 flex flex-col pt-1"><span class="text-[9px] font-black uppercase text-gray-400 block tracking-widest mb-2 text-center">Committee</span>
-                            <div class="w-full hover:opacity-80 transition-opacity"><select onchange="updateDB(${activeItem.id}, 'committee', this.value); event.stopPropagation();" onclick="event.stopPropagation()" class="w-full text-[9px] font-black uppercase tracking-widest rounded px-1.5 py-1.5 outline-none cursor-pointer transition appearance-none text-center shadow-sm border" style="background-color: ${commColor}1A; color: ${commColor}; border-color: ${commColor}40;">${commOptions}</select></div>
+                            <div class="w-full ${isArchive ? '' : 'hover:opacity-80 transition-opacity'}">${commDropdownHtml}</div>
                         </div>
                     </div>
                     <div id="details_${activeItem.id}" class="px-6 pb-6 pt-2 border-t border-gray-50 ${expandedCards.has(item.id) ? '' : 'details-hidden'}">
                         <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-4"><div class="space-y-4">${statusSectionHtml}</div>
-                            <div class="space-y-4 flex flex-col h-full"><div class="bg-gray-50 p-4 rounded-lg border border-gray-200 flex-1 flex flex-col"><div class="flex justify-between items-center mb-2"><label class="text-[10px] font-black text-gray-400 uppercase">Workspace Notes</label><button onclick="insertTimestamp(${activeItem.id})" class="text-[9px] font-bold text-blue-600 bg-blue-100 px-2 py-1 rounded hover:bg-blue-200 uppercase">Timestamp</button></div><textarea id="notes_${activeItem.id}" onchange="updateDB(${activeItem.id}, 'live_notes', this.value)" class="w-full bg-transparent text-sm italic flex-1 focus:outline-none resize-none" placeholder="Draft talking points or staff notes...">${activeItem.live_notes || ""}</textarea></div></div>
+                            <div class="space-y-4 flex flex-col h-full"><div class="bg-gray-50 p-4 rounded-lg border border-gray-200 flex-1 flex flex-col"><div class="flex justify-between items-center mb-2"><label class="text-[10px] font-black text-gray-400 uppercase">Workspace Notes</label>${isArchive ? '' : `<button onclick="insertTimestamp(${activeItem.id})" class="text-[9px] font-bold text-blue-600 bg-blue-100 px-2 py-1 rounded hover:bg-blue-200 uppercase">Timestamp</button>`}</div><textarea id="notes_${activeItem.id}" onchange="updateDB(${activeItem.id}, 'live_notes', this.value)" class="w-full bg-transparent text-sm italic flex-1 focus:outline-none resize-none" placeholder="Draft talking points or staff notes..." ${isArchive ? 'disabled' : ''}>${activeItem.live_notes || ""}</textarea></div></div>
                         </div>
-                        <div class="flex justify-between items-center mt-6 pt-4 border-t border-gray-200"><span class="text-[9px] font-black uppercase tracking-widest text-gray-400">Workspace Controls</span><div class="flex flex-wrap gap-2">${promoteBtn}<button onclick="openEdit(${activeItem.id})" class="text-[10px] font-black uppercase text-gray-600 hover:text-gray-800 bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded transition border border-gray-200">Edit Core Info</button><button onclick="deleteBill(${activeItem.id})" class="text-[10px] font-black uppercase text-red-500 hover:text-red-700 bg-red-50 hover:bg-red-100 px-4 py-2 rounded transition border border-red-100">Remove</button></div></div>
+                        ${controlsHtml}
                     </div>
                 </div>`;
 
-            if (isDraft) { draftGrid.innerHTML += cardHtml; draftCount++; } else { liveGrid.innerHTML += cardHtml; liveCount++; }
+            if (isDraft) { 
+                draftGrid.innerHTML += cardHtml; draftCount++; 
+            } else if (isDead) { 
+                deadGrid.innerHTML += cardHtml; deadCount++; 
+            } else { 
+                liveGrid.innerHTML += cardHtml; liveCount++; 
+            }
         });
 
         if (draftCount === 0) draftGrid.innerHTML = '<div class="text-gray-400 font-bold italic text-sm">No drafts to display.</div>';
         if (liveCount === 0) liveGrid.innerHTML = '<div class="text-gray-400 font-bold italic text-sm">No tracked bills to display.</div>';
+        if (deadCount === 0) deadGrid.innerHTML = '<div class="text-gray-400 font-bold italic text-sm">No dead bills.</div>';
     }
 
     function triggerUndoToast(message, onUndo, onConfirm) {
@@ -689,7 +736,8 @@
 
             const payload = {
                 billNumber: billNumber, shortDesc: shortDesc, status: currentStatus, sponsor: sponsor,
-                companion: companions.join(", "), tracking_status: "Introduced", committee: defaultCommittee, type: "live"
+                companion: companions.join(", "), tracking_status: "Introduced", committee: defaultCommittee, type: "live",
+                biennium: currentBiennium
             };
 
             const saveRes = await fetch(`${workerBaseUrl}/save-bill`, { method: 'POST', headers: authHeaders, body: JSON.stringify(payload) });
@@ -706,7 +754,8 @@
 
         const payload = {
             billNumber: title, shortDesc: blurb, status: "Draft", tracking_status: "Introduced",
-            sponsor: "Self", companion: companion, committee: committee || "Unknown", type: "draft"
+            sponsor: "Self", companion: companion, committee: committee || "Unknown", type: "draft",
+            biennium: currentBiennium
         };
 
         try {
@@ -782,7 +831,8 @@
             sponsor: fetchedSponsor || oldItem.sponsor, companion: fetchedCompanion || oldItem.companion || "",
             committee: oldItem.committee || "Unknown", type: 'live', live_notes: oldItem.live_notes || "",
             task_progress: JSON.stringify(oldItem.task_progress || {}), custom_tasks: JSON.stringify(oldItem.custom_tasks || []),
-            hearing_date: oldItem.hearing_date || "", exec_date: oldItem.exec_date || "", amendments: JSON.stringify(oldItem.amendments || [])
+            hearing_date: oldItem.hearing_date || "", exec_date: oldItem.exec_date || "", amendments: JSON.stringify(oldItem.amendments || []),
+            biennium: currentBiennium
         };
 
         try {
@@ -930,7 +980,8 @@
             ...currentBillData,
             tracking_status: "Introduced",
             committee: defaultCommittee,
-            type: "live"
+            type: "live",
+            biennium: currentBiennium
         };
 
         try {
