@@ -469,11 +469,11 @@
             if (safeCommittee !== 'Unknown' && !userProfileCommittees.includes(safeCommittee)) { commOptions += `<option value="${safeCommittee}" selected>${safeCommittee}</option>`; }
 
             let justNumber = activeItem.bill_number ? activeItem.bill_number.replace(/\D/g, '') : '';
-            let billLink = isDraft ? '#' : `https://app.leg.wa.gov/billinfo/default.aspx?BillNumber=${justNumber}&year=2025`;
+            let billLink = isDraft ? '#' : `https://app.leg.wa.gov/billsummary/?BillNumber=${justNumber}&Year=2025&Initiative=false`;
             
             let billTitleHtml = isDraft 
                 ? `<span class="text-xl font-black text-gray-800 leading-tight block">${activeItem.bill_number}</span>`
-                : `<a href="${billLink}" target="_blank" onclick="event.stopPropagation()" class="text-xl font-black text-[#002e5d] hover:text-blue-700 underline leading-tight block" title="View official bill page">${activeItem.bill_number}</a>`;
+                : `<a href="${billLink}" target="_blank" onclick="event.stopPropagation()" class="text-xl font-black text-[#002e5d] hover:text-blue-700 leading-tight block" title="View official bill page">${activeItem.bill_number}</a>`;
 
             let cardHtml = `
                 <div class="bg-white rounded-xl shadow-md border border-gray-100 overflow-hidden ${visualModifier}" style="border-left: 5px solid ${borderColor};">
@@ -504,7 +504,6 @@
         if (liveCount === 0) liveGrid.innerHTML = '<div class="text-gray-400 font-bold italic text-sm">No tracked bills to display.</div>';
     }
 
-    // --- Toast & Undo Logic ---
     function triggerUndoToast(message, onUndo, onConfirm) {
         const toast = document.getElementById('undoToast');
         document.getElementById('undoMsg').innerText = message;
@@ -537,29 +536,23 @@
     function deleteCustomTask(id, tName) {
         const item = workspaceItems.find(i => i.id === id);
         
-        // Backup state
         const backupTasks = [...item.custom_tasks];
         const backupProgress = JSON.parse(JSON.stringify(item.task_progress));
 
-        // Apply deletion optimistically to the UI immediately
         item.custom_tasks = item.custom_tasks.filter(t => t !== tName);
         if (item.task_progress["Custom"] && item.task_progress["Custom"][tName]) delete item.task_progress["Custom"][tName];
         renderGrid(); 
 
-        // Trigger the Undo Toast
         triggerUndoToast(`Task "${tName}" removed.`, 
-            () => { // Undo action
+            () => { 
                 item.custom_tasks = backupTasks;
                 item.task_progress = backupProgress;
                 renderGrid();
             },
-            () => { // Confirm action
-                syncToServer(item);
-            }
+            () => { syncToServer(item); }
         );
     }
 
-    // --- Trash & Soft Delete Logic ---
     async function deleteBill(id) {
         if (!confirm("Move this bill to the Recycle Bin?")) return;
         try {
@@ -602,8 +595,8 @@
     async function restoreBill(id) {
         try {
             await fetch(`${workerBaseUrl}/restore-bill`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ id }) });
-            openTrash(); // Refresh the modal
-            loadWorkspace(); // Refresh the main grid behind it
+            openTrash(); 
+            loadWorkspace(); 
         } catch (e) { alert("Failed to restore bill."); }
     }
 
@@ -615,7 +608,6 @@
         } catch (e) { alert("Failed to empty trash."); }
     }
 
-    // --- Remaining App Logic ---
     async function addCustomTask(id) {
         const input = document.getElementById(`newTask_${id}`);
         const ruleSelect = document.getElementById(`saveRule_${id}`);
@@ -626,14 +618,12 @@
         const item = workspaceItems.find(i => i.id === id);
         
         if (rule === 'none') {
-            // Just save it to this specific bill
             if (!item.custom_tasks) item.custom_tasks = [];
             if (!item.custom_tasks.includes(task)) {
                 item.custom_tasks.push(task);
                 await syncToServer(item);
             }
         } else {
-            // Save it globally or to a committee template
             const targetCommittee = rule === 'committee' ? (item.committee || 'Unknown') : 'All';
             const currentStage = (item.type === 'draft' || item.status === 'Draft') ? 'Draft' : (item.tracking_status || 'Introduced');
             
@@ -645,29 +635,166 @@
                         method: 'POST', headers: authHeaders,
                         body: JSON.stringify({ committee: targetCommittee, stage: currentStage, tasks: existingTasks })
                     });
-                    // Refresh our memory so the UI knows about the new template rule
                     await fetchUserProfileAndTemplates(); 
                 } catch (e) { console.error("Failed to save template rule."); }
             }
 
-            // If the task was previously added to 'custom_tasks', remove it so it's not listed twice
             if (item.custom_tasks && item.custom_tasks.includes(task)) {
                 item.custom_tasks = item.custom_tasks.filter(t => t !== task);
-                await syncToServer(item); // This triggers renderGrid
+                await syncToServer(item); 
             } else {
-                renderGrid(); // Force a fresh render so it pops up in the main list immediately
+                renderGrid(); 
             }
         }
         
         input.value = ''; ruleSelect.selectedIndex = 0;
     }
 
-    async function quickAddCompanion(event, compBillStr) { /* ... keep existing ... */ }
-    async function createDraft() { /* ... keep existing ... */ }
-    function openEdit(id) { /* ... keep existing ... */ }
-    async function saveEdit() { /* ... keep existing ... */ }
-    function openPromoteModal(id) { /* ... keep existing ... */ }
-    async function confirmPromote() { /* ... keep existing ... */ }
+    async function quickAddCompanion(event, compBillStr) {
+        event.stopPropagation();
+        const btn = event.currentTarget;
+        const originalHTML = btn.innerHTML;
+        
+        btn.innerHTML = `<span class="animate-spin text-lg leading-none mt-[-2px]">↻</span> Adding...`;
+        btn.disabled = true;
+
+        const fourDigitMatches = compBillStr.match(/\d{4}/g);
+        let bill = fourDigitMatches ? (fourDigitMatches.filter(n => n !== "2025" && n !== "2026")[0] || fourDigitMatches[0]) : compBillStr.replace(/\D/g, '');
+
+        if (!bill) {
+            alert("Could not extract a valid companion bill number.");
+            btn.innerHTML = originalHTML;
+            btn.disabled = false;
+            return;
+        }
+
+        try {
+            const res = await fetch(`${workerBaseUrl}/fetch-bill?bill=${bill}`, { headers: authHeaders });
+            const xmlText = await res.text();
+            const xmlDoc = new DOMParser().parseFromString(xmlText, "text/xml");
+            const getTagText = (tag) => xmlDoc.getElementsByTagNameNS("*", tag)[0]?.textContent.trim() || xmlDoc.getElementsByTagName(tag)[0]?.textContent.trim() || null;
+
+            const billNumber = getTagText("BillNumber") || bill;
+            const shortDesc = getTagText("ShortDescription") || "No summary provided.";
+            const currentStatus = getTagText("HistoryLine") || "Unknown Status";
+            const sponsor = getTagText("Name") || "None Listed";
+
+            let companions = [];
+            for (let c of xmlDoc.getElementsByTagNameNS("*", "Companion")) companions.push(c.textContent.trim());
+
+            let defaultCommittee = "Unknown";
+            if (userProfileCommittees && userProfileCommittees.length === 1) {
+                defaultCommittee = userProfileCommittees[0];
+            }
+
+            const payload = {
+                billNumber: billNumber, shortDesc: shortDesc, status: currentStatus, sponsor: sponsor,
+                companion: companions.join(", "), tracking_status: "Introduced", committee: defaultCommittee, type: "live"
+            };
+
+            const saveRes = await fetch(`${workerBaseUrl}/save-bill`, { method: 'POST', headers: authHeaders, body: JSON.stringify(payload) });
+            if (saveRes.ok) await loadWorkspace(); 
+            else { alert("Database failed to save the companion bill."); btn.innerHTML = originalHTML; btn.disabled = false; }
+        } catch (e) { alert("Error fetching companion from the API."); btn.innerHTML = originalHTML; btn.disabled = false; }
+    }
+
+    async function createDraft() {
+        const title = document.getElementById('draftTitle').value || "Untitled Draft";
+        const companion = document.getElementById('draftCompanion').value || "";
+        const committee = document.getElementById('draftCommittee').value;
+        const blurb = document.getElementById('draftBlurb').value || "";
+
+        const payload = {
+            billNumber: title, shortDesc: blurb, status: "Draft", tracking_status: "Introduced",
+            sponsor: "Self", companion: companion, committee: committee || "Unknown", type: "draft"
+        };
+
+        try {
+            const res = await fetch(`${workerBaseUrl}/save-bill`, { method: 'POST', headers: authHeaders, body: JSON.stringify(payload) });
+            if (res.ok) { hideAllModals(); await loadWorkspace(); } 
+            else alert("Failed to save draft.");
+        } catch (e) { alert("Draft save failed. Ensure API is reachable."); }
+    }
+
+    function openEdit(id) {
+        editItemId = id;
+        const item = workspaceItems.find(i => i.id === id);
+        document.getElementById('editBillNum').value = item.bill_number || "";
+        document.getElementById('editShortDesc').value = item.short_desc || "";
+        document.getElementById('editSponsor').value = item.sponsor || "";
+        document.getElementById('editCompanion').value = item.companion || "";
+        showScreen('editForm');
+    }
+
+    async function saveEdit() {
+        if (!editItemId) return;
+        const item = workspaceItems.find(i => i.id === editItemId);
+        item.bill_number = document.getElementById('editBillNum').value;
+        item.short_desc = document.getElementById('editShortDesc').value;
+        item.sponsor = document.getElementById('editSponsor').value;
+        item.companion = document.getElementById('editCompanion').value;
+        hideAllModals();
+        await syncToServer(item);
+    }
+
+    function openPromoteModal(id) {
+        promoteItemId = id;
+        document.getElementById('promoteBillNum').value = '';
+        document.getElementById('promoteStatus').classList.add('hidden');
+        showScreen('promoteForm');
+    }
+
+    async function confirmPromote() {
+        if (!promoteItemId) return;
+        const rawBill = document.getElementById('promoteBillNum').value.trim();
+        if (!rawBill) return alert("Please enter a bill number.");
+
+        const statusDiv = document.getElementById('promoteStatus');
+        statusDiv.classList.remove('hidden');
+        statusDiv.innerText = "Checking WSL API for data...";
+
+        const fourDigitMatches = rawBill.match(/\d{4}/g);
+        let bill = fourDigitMatches ? (fourDigitMatches.filter(n => n !== "2025" && n !== "2026")[0] || fourDigitMatches[0]) : rawBill.replace(/\D/g, '');
+
+        let fetchedCompanion = "", fetchedDesc = "", fetchedSponsor = "", fetchedStatus = "Introduced";
+
+        if (bill) {
+            try {
+                const res = await fetch(`${workerBaseUrl}/fetch-bill?bill=${bill}`, { headers: authHeaders });
+                const xmlText = await res.text();
+                const xmlDoc = new DOMParser().parseFromString(xmlText, "text/xml");
+                const getTagText = (tag) => xmlDoc.getElementsByTagNameNS("*", tag)[0]?.textContent.trim() || xmlDoc.getElementsByTagName(tag)[0]?.textContent.trim() || null;
+                
+                fetchedDesc = getTagText("ShortDescription") || "";
+                fetchedSponsor = getTagText("Name") || "";
+                fetchedStatus = getTagText("HistoryLine") || "Introduced";
+
+                let companions = [];
+                for (let c of xmlDoc.getElementsByTagNameNS("*", "Companion")) companions.push(c.textContent.trim());
+                fetchedCompanion = companions.join(", ");
+            } catch (e) { console.error("Failed to fetch bill data."); }
+        }
+
+        const oldItem = workspaceItems.find(i => i.id === promoteItemId);
+        const payload = {
+            billNumber: bill || rawBill, bill_number: bill || rawBill, shortDesc: fetchedDesc || oldItem.short_desc,
+            short_desc: fetchedDesc || oldItem.short_desc, status: fetchedStatus, tracking_status: 'Introduced',
+            sponsor: fetchedSponsor || oldItem.sponsor, companion: fetchedCompanion || oldItem.companion || "",
+            committee: oldItem.committee || "Unknown", type: 'live', live_notes: oldItem.live_notes || "",
+            task_progress: JSON.stringify(oldItem.task_progress || {}), custom_tasks: JSON.stringify(oldItem.custom_tasks || []),
+            hearing_date: oldItem.hearing_date || "", exec_date: oldItem.exec_date || "", amendments: JSON.stringify(oldItem.amendments || [])
+        };
+
+        try {
+            const saveRes = await fetch(`${workerBaseUrl}/save-bill`, { method: 'POST', headers: authHeaders, body: JSON.stringify(payload) });
+            if (saveRes.ok) await fetch(`${workerBaseUrl}/delete-bill`, { method: 'DELETE', headers: authHeaders, body: JSON.stringify({ id: oldItem.id }) });
+        } catch (e) { alert("Error promoting bill."); }
+
+        hideAllModals();
+        statusDiv.classList.add('hidden');
+        await loadWorkspace();
+    }
+
     function toggleCustomTask(id, tName) {
         const item = workspaceItems.find(i => i.id === id);
         if (!item.task_progress["Custom"]) item.task_progress["Custom"] = {};
@@ -675,10 +802,47 @@
         else item.task_progress["Custom"][tName] = true;
         syncToServer(item);
     }
-    async function syncAllBills() { /* ... keep existing ... */ }
-    function switchTab(event, groupId, targetId) { /* ... keep existing ... */ }
-    function toggleCard(id) { /* ... keep existing ... */ }
-    function insertTimestamp(id) { /* ... keep existing ... */ }
+
+    async function syncAllBills() {
+        const btn = document.getElementById('syncAllBtn');
+        const icon = document.getElementById('syncAllIcon');
+        const originalText = btn.innerHTML;
+        
+        btn.disabled = true;
+        btn.classList.add('opacity-50');
+        icon.classList.add('animate-spin');
+        btn.innerHTML = `<span>🔄</span> Syncing...`;
+        
+        await loadWorkspace(); 
+        
+        btn.disabled = false;
+        btn.classList.remove('opacity-50');
+        btn.innerHTML = originalText;
+        icon.classList.remove('animate-spin');
+    }
+
+    function switchTab(event, groupId, targetId) {
+        event.stopPropagation();
+        activeTabs[groupId] = targetId;
+        expandedCards.add(groupId); 
+        renderGrid();
+    }
+
+    function toggleCard(id) {
+        if (expandedCards.has(id)) expandedCards.delete(id);
+        else expandedCards.add(id);
+        renderGrid();
+    }
+
+    function insertTimestamp(id) {
+        const textarea = document.getElementById(`notes_${id}`);
+        const now = new Date();
+        const timeStr = `\n[${now.getMonth()+1}/${now.getDate()} ${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}]: `;
+        textarea.value = textarea.value + timeStr;
+        textarea.focus();
+        updateDB(id, 'live_notes', textarea.value);
+    }
+
     function toggleTask(id, tName, status) {
         const item = workspaceItems.find(i => i.id === id);
         if (!item.task_progress[status]) item.task_progress[status] = {};
@@ -686,7 +850,12 @@
         else item.task_progress[status][tName] = true;
         syncToServer(item);
     }
-    function updateDB(id, field, value) { /* ... keep existing ... */ }
+
+    function updateDB(id, field, value) {
+        const item = workspaceItems.find(i => i.id === id);
+        item[field] = value;
+        syncToServer(item);
+    }
     
     async function syncToServer(item) {
         renderGrid(); 
@@ -702,8 +871,77 @@
         catch (e) { console.error("Database sync failed"); }
     }
     
-    async function fetchAPI() { /* ... keep existing ... */ }
-    async function saveToWorkspace() { /* ... keep existing ... */ }
+    async function fetchAPI() {
+        const rawBill = document.getElementById('billNum').value;
+        const resDiv = document.getElementById('apiResults');
+        if (!rawBill) return;
+        
+        const fourDigitMatches = rawBill.match(/\d{4}/g);
+        let bill = fourDigitMatches ? (fourDigitMatches.filter(n => n !== "2025" && n !== "2026")[0] || fourDigitMatches[0]) : rawBill.replace(/\D/g, '');
+
+        if (!bill) return resDiv.innerHTML = `<span class="text-orange-500 font-bold text-sm">Invalid bill number.</span>`;
+        
+        currentBillData = null;
+        resDiv.innerHTML = `<span class="text-blue-500 font-bold text-sm">Querying WSL...</span>`;
+        
+        try {
+            const res = await fetch(`${workerBaseUrl}/fetch-bill?bill=${bill}`, { headers: authHeaders });
+            const xmlText = await res.text();
+            const xmlDoc = new DOMParser().parseFromString(xmlText, "text/xml");
+            const getTagText = (tag) => xmlDoc.getElementsByTagNameNS("*", tag)[0]?.textContent.trim() || xmlDoc.getElementsByTagName(tag)[0]?.textContent.trim() || null;
+
+            const billNumber = getTagText("BillNumber") || bill;
+            const shortDesc = getTagText("ShortDescription") || "No summary provided.";
+            const currentStatus = getTagText("HistoryLine") || "Unknown Status";
+            const sponsor = getTagText("Name") || "None Listed";
+
+            let companions = [];
+            for (let c of xmlDoc.getElementsByTagNameNS("*", "Companion")) companions.push(c.textContent.trim());
+
+            let defaultCommittee = "Unknown";
+            if (userProfileCommittees && userProfileCommittees.length === 1) {
+                defaultCommittee = userProfileCommittees[0];
+            }
+
+            currentBillData = { billNumber, shortDesc, status: currentStatus, sponsor, companion: companions.join(", ") };
+
+            resDiv.innerHTML = `
+                <div class="mt-4 p-4 bg-gray-50 border border-gray-200 rounded flex justify-between items-center">
+                    <div>
+                        <div class="text-sm font-black text-[#002e5d]">${billNumber}</div>
+                        <div class="text-xs text-gray-600 font-bold truncate max-w-md">${shortDesc}</div>
+                    </div>
+                    <button onclick='saveToWorkspace()' class="bg-green-600 hover:bg-green-700 text-white text-[10px] font-black uppercase px-4 py-2 rounded shadow-sm transition">
+                        Add to Workspace
+                    </button>
+                </div>`;
+        } catch (e) { resDiv.innerHTML = `<span class="text-red-500 font-bold text-sm">API offline.</span>`; }
+    }
+
+    async function saveToWorkspace() {
+        if (!currentBillData) return;
+        
+        let defaultCommittee = "Unknown";
+        if (userProfileCommittees && userProfileCommittees.length === 1) {
+            defaultCommittee = userProfileCommittees[0];
+        }
+
+        const payload = {
+            ...currentBillData,
+            tracking_status: "Introduced",
+            committee: defaultCommittee,
+            type: "live"
+        };
+
+        try {
+            const res = await fetch(`${workerBaseUrl}/save-bill`, { method: 'POST', headers: authHeaders, body: JSON.stringify(payload) });
+            if (res.ok) {
+                document.getElementById('apiResults').innerHTML = `<span class="text-green-600 font-bold text-sm">Added!</span>`;
+                document.getElementById('billNum').value = ''; 
+                loadWorkspace(); 
+            }
+        } catch (e) { alert("Save failed."); }
+    }
 </script>
 
 </body>
