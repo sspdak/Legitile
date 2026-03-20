@@ -207,6 +207,11 @@
         "House": [], "Default": ["Review Bill", "Monitor Testimony"]
     };
 
+    function safeJSONParse(str, fallback) {
+        if (!str) return fallback;
+        try { return JSON.parse(str); } catch(e) { return fallback; }
+    }
+
     function showScreen(id) {
         hideAllModals();
         const form = document.getElementById(id);
@@ -322,19 +327,22 @@
 
     async function loadWorkspace() {
         try {
-            const res = await fetch(`${workerBaseUrl}/my-workspace?biennium=${currentBiennium}`, { headers: authHeaders });
+            const res = await fetch(`${workerBaseUrl}/my-workspace?biennium=${currentBiennium}&t=${Date.now()}`, { 
+                headers: authHeaders, 
+                cache: "no-store" 
+            });
             if (res.status === 401) return logout();
             const rawBills = await res.json();
             
             workspaceItems = rawBills.map(item => ({
                 ...item,
                 tracking_status: item.tracking_status || "Introduced",
-                task_progress: JSON.parse(item.task_progress || '{}'),
-                custom_tasks: JSON.parse(item.custom_tasks || '[]'),
-                amendments: JSON.parse(item.amendments || '[]')
+                task_progress: safeJSONParse(item.task_progress, {}),
+                custom_tasks: safeJSONParse(item.custom_tasks, []),
+                amendments: safeJSONParse(item.amendments, [])
             }));
             renderGrid();
-        } catch (e) { console.error(e); }
+        } catch (e) { console.error("Error loading workspace data.", e); }
     }
 
     function getTasksForStage(committee, stage) {
@@ -378,22 +386,24 @@
         filteredItems.forEach(item => {
             if (processedIds.has(item.id)) return;
 
-            let compBillStr = item.companion ? item.companion.split(',')[0].trim() : "";
-            let compJustNum = compBillStr.replace(/\D/g, '');
             let myJustNum = item.bill_number ? item.bill_number.replace(/\D/g, '') : '';
+            let myCompStr = item.companion ? item.companion.split(',')[0].replace(/\D/g, '') : '';
 
-            let compItem = compJustNum ? workspaceItems.find(i => 
-                i.id !== item.id && 
-                ((i.bill_number && i.bill_number.replace(/\D/g, '') === compJustNum) || 
-                 (i.companion && i.companion.includes(myJustNum)))
-            ) : null;
+            let group = workspaceItems.filter(i => {
+                let iJustNum = i.bill_number ? i.bill_number.replace(/\D/g, '') : '';
+                let iCompStr = i.companion ? i.companion.split(',')[0].replace(/\D/g, '') : '';
+                
+                let match1 = myCompStr && iJustNum && myCompStr === iJustNum;
+                let match2 = iCompStr && myJustNum && iCompStr === myJustNum;
+                let match3 = myCompStr && iCompStr && myCompStr === iCompStr;
 
-            let group = [item];
-            if (compItem && compItem.id !== item.id) { group.push(compItem); processedIds.add(compItem.id); }
-            processedIds.add(item.id);
+                return i.id === item.id || match1 || match2 || match3;
+            });
+
+            group.forEach(g => processedIds.add(g.id));
 
             let activeId = activeTabs[item.id] || item.id;
-            let activeItem = group.find(i => i.id === activeId) || item;
+            let activeItem = group.find(i => i.id === activeId) || group[0];
             
             let officialStatus = activeItem.status || "Unknown";
             let internalStatus = activeItem.tracking_status || "Introduced";
@@ -412,13 +422,16 @@
             if (isDraft) borderColor = '#f97316'; 
             if (isDead) borderColor = '#64748b'; 
 
+            let groupIdsStr = group.map(g => g.id).join(',');
             let companionUI = '';
+            
+            let compBillStrRaw = activeItem.companion ? activeItem.companion.split(',')[0].trim() : "";
             if (group.length > 1) {
-                companionUI = `<div class="flex bg-gray-100 rounded-lg p-0.5 mt-1 border border-gray-200 w-fit">${group.map(g => `<button onclick="switchTab(event, ${item.id}, ${g.id})" class="px-3 py-1 text-[10px] font-black uppercase rounded-md transition-all ${activeItem.id === g.id ? 'bg-white text-[#002e5d] shadow-sm' : 'text-gray-500 hover:text-gray-700'}">${g.bill_number}</button>`).join('')}</div>`;
-            } else if (compBillStr && compBillStr !== "None" && !isArchive) {
-                companionUI = `<button onclick="quickAddCompanion(event, '${compBillStr}')" class="mt-1 px-3 py-1 text-[9px] font-black uppercase rounded-lg border border-dashed border-gray-300 text-gray-500 hover:border-[#002e5d] hover:text-[#002e5d] transition flex items-center gap-1 bg-gray-50 hover:bg-blue-50 w-fit"><span class="text-lg leading-none mt-[-2px]">+</span> Companion: ${compBillStr}</button>`;
-            } else if (compBillStr && compBillStr !== "None") {
-                companionUI = `<div class="mt-1 px-3 py-1 text-[9px] font-black uppercase rounded-lg border border-gray-200 text-gray-500 bg-gray-50 w-fit">Companion: ${compBillStr}</div>`;
+                companionUI = `<div class="flex bg-gray-100 rounded-lg p-0.5 mt-1 border border-gray-200 w-fit">${group.map(g => `<button onclick="switchTab(event, '${groupIdsStr}', ${g.id})" class="px-3 py-1 text-[10px] font-black uppercase rounded-md transition-all ${activeItem.id === g.id ? 'bg-white text-[#002e5d] shadow-sm' : 'text-gray-500 hover:text-gray-700'}">${g.bill_number}</button>`).join('')}</div>`;
+            } else if (compBillStrRaw && compBillStrRaw !== "None" && !isArchive) {
+                companionUI = `<button onclick="quickAddCompanion(event, '${compBillStrRaw}')" class="mt-1 px-3 py-1 text-[9px] font-black uppercase rounded-lg border border-dashed border-gray-300 text-gray-500 hover:border-[#002e5d] hover:text-[#002e5d] transition flex items-center gap-1 bg-gray-50 hover:bg-blue-50 w-fit"><span class="text-lg leading-none mt-[-2px]">+</span> Companion: ${compBillStrRaw}</button>`;
+            } else if (compBillStrRaw && compBillStrRaw !== "None") {
+                companionUI = `<div class="mt-1 px-3 py-1 text-[9px] font-black uppercase rounded-lg border border-gray-200 text-gray-500 bg-gray-50 w-fit">Companion: ${compBillStrRaw}</div>`;
             }
 
             let stageForTasks = isDraft ? "Draft" : internalStatus;
@@ -740,17 +753,22 @@
             const xmlDoc = new DOMParser().parseFromString(xmlText, "text/xml");
             
             const getTagText = (tag) => {
-                let el = xmlDoc.getElementsByTagNameNS("*", tag)[0] || xmlDoc.getElementsByTagName(tag)[0];
-                return el ? el.textContent.trim() : null;
+                let els = xmlDoc.getElementsByTagNameNS("*", tag);
+                if (!els || els.length === 0) els = xmlDoc.getElementsByTagName(tag);
+                return els.length > 0 ? els[0].textContent.trim() : null;
+            };
+
+            const getTagTexts = (tag) => {
+                let els = xmlDoc.getElementsByTagNameNS("*", tag);
+                if (!els || els.length === 0) els = xmlDoc.getElementsByTagName(tag);
+                return Array.from(els).map(e => e.textContent.trim());
             };
 
             const billNumber = getTagText("BillNumber") || bill;
             const shortDesc = getTagText("ShortDescription") || "No summary provided.";
             const currentStatus = getTagText("HistoryLine") || "Unknown Status";
             const sponsor = getTagText("Name") || "None Listed";
-
-            let companions = [];
-            for (let c of xmlDoc.getElementsByTagNameNS("*", "Companion")) companions.push(c.textContent.trim());
+            const companions = getTagTexts("Companion");
 
             let defaultCommittee = "Unknown";
             if (userProfileCommittees && userProfileCommittees.length === 1) {
@@ -825,17 +843,22 @@
                 const xmlDoc = new DOMParser().parseFromString(xmlText, "text/xml");
                 
                 const getTagText = (tag) => {
-                    let el = xmlDoc.getElementsByTagNameNS("*", tag)[0] || xmlDoc.getElementsByTagName(tag)[0];
-                    return el ? el.textContent.trim() : null;
+                    let els = xmlDoc.getElementsByTagNameNS("*", tag);
+                    if (!els || els.length === 0) els = xmlDoc.getElementsByTagName(tag);
+                    return els.length > 0 ? els[0].textContent.trim() : null;
+                };
+
+                const getTagTexts = (tag) => {
+                    let els = xmlDoc.getElementsByTagNameNS("*", tag);
+                    if (!els || els.length === 0) els = xmlDoc.getElementsByTagName(tag);
+                    return Array.from(els).map(e => e.textContent.trim());
                 };
                 
                 fetchedDesc = getTagText("ShortDescription") || "";
                 fetchedSponsor = getTagText("Name") || "";
                 fetchedStatus = getTagText("HistoryLine") || "Introduced";
+                fetchedCompanion = getTagTexts("Companion").join(", ");
 
-                let companions = [];
-                for (let c of xmlDoc.getElementsByTagNameNS("*", "Companion")) companions.push(c.textContent.trim());
-                fetchedCompanion = companions.join(", ");
             } catch (e) { console.error("Failed to fetch bill data."); }
         }
 
@@ -886,10 +909,11 @@
         icon.classList.remove('animate-spin');
     }
 
-    function switchTab(event, groupId, targetId) {
+    function switchTab(event, groupIdsStr, targetId) {
         event.stopPropagation();
-        activeTabs[groupId] = targetId;
-        expandedCards.add(groupId); 
+        let ids = groupIdsStr.split(',');
+        ids.forEach(id => activeTabs[id] = targetId);
+        expandedCards.add(targetId); 
         renderGrid();
     }
 
@@ -955,17 +979,22 @@
             const xmlDoc = new DOMParser().parseFromString(xmlText, "text/xml");
             
             const getTagText = (tag) => {
-                let el = xmlDoc.getElementsByTagNameNS("*", tag)[0] || xmlDoc.getElementsByTagName(tag)[0];
-                return el ? el.textContent.trim() : null;
+                let els = xmlDoc.getElementsByTagNameNS("*", tag);
+                if (!els || els.length === 0) els = xmlDoc.getElementsByTagName(tag);
+                return els.length > 0 ? els[0].textContent.trim() : null;
+            };
+
+            const getTagTexts = (tag) => {
+                let els = xmlDoc.getElementsByTagNameNS("*", tag);
+                if (!els || els.length === 0) els = xmlDoc.getElementsByTagName(tag);
+                return Array.from(els).map(e => e.textContent.trim());
             };
 
             const billNumber = getTagText("BillNumber") || bill;
             const shortDesc = getTagText("ShortDescription") || "No summary provided.";
             const currentStatus = getTagText("HistoryLine") || "Unknown Status";
             const sponsor = getTagText("Name") || "None Listed";
-
-            let companions = [];
-            for (let c of xmlDoc.getElementsByTagNameNS("*", "Companion")) companions.push(c.textContent.trim());
+            const companions = getTagTexts("Companion");
 
             let defaultCommittee = "Unknown";
             if (userProfileCommittees && userProfileCommittees.length === 1) {
