@@ -39,10 +39,12 @@
             <div class="bg-white p-4 rounded-xl shadow-sm mb-8 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 border border-gray-100">
                 
                 <div class="flex flex-wrap gap-2 w-full xl:w-auto items-center">
-                    <select onchange="setBiennium(this.value)" id="bienniumSelect" class="bg-gray-50 border border-gray-200 text-gray-800 font-black uppercase text-[10px] rounded-lg px-2 py-1.5 outline-none focus:border-blue-500 transition shadow-sm cursor-pointer">
-                        <option value="2025-26" selected>2025-26 Session</option>
-                        <option value="2023-24">2023-24 Archive</option>
-                    </select>
+                    <div class="flex items-center gap-1">
+                        <select onchange="setBiennium(this.value)" id="bienniumSelect" class="bg-gray-50 border border-gray-200 text-gray-800 font-black uppercase text-[10px] rounded-lg px-2 py-1.5 outline-none focus:border-blue-500 transition shadow-sm cursor-pointer">
+                            <option value="2025-26" selected>2025-26 Session</option>
+                        </select>
+                        <button onclick="openSessionModal()" class="text-gray-400 hover:text-gray-600 transition bg-gray-50 border border-gray-200 rounded px-2 py-1 shadow-sm" title="Manage Sessions">⚙️</button>
+                    </div>
                     <select onchange="setCommittee(this.value)" id="committeeSelect" class="bg-gray-50 border-2 border-gray-200 text-gray-700 font-black uppercase text-[10px] rounded-lg px-2 py-1.5 outline-none focus:border-gray-400 transition shadow-sm cursor-pointer">
                         <option value="All">All Committees</option>
                     </select>
@@ -88,6 +90,24 @@
     <div id="undoToast" class="fixed bottom-6 right-6 bg-gray-900 text-white px-6 py-4 rounded-xl shadow-2xl flex items-center gap-6 transform translate-y-24 opacity-0 transition-all duration-300 z-[200]">
         <span id="undoMsg" class="text-sm font-bold">Item removed</span>
         <button id="undoBtn" class="text-orange-400 hover:text-orange-300 font-black uppercase text-xs tracking-wider border border-orange-400/30 px-3 py-1.5 rounded transition">Undo</button>
+    </div>
+
+    <div id="sessionForm" style="display: none;" class="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-white p-8 rounded-xl shadow-2xl max-w-md w-full border-t-8 border-indigo-500">
+            <h2 class="text-2xl font-bold mb-4 text-indigo-600 uppercase">Manage Sessions</h2>
+            
+            <div class="flex gap-2 mb-6">
+                <input type="text" id="newSessionInput" placeholder="New Session (e.g. 2027-28)" class="w-full border-2 p-3 rounded-lg outline-none focus:border-indigo-500 font-bold">
+                <button onclick="createNewSession()" class="bg-indigo-600 text-white font-bold px-4 rounded-lg uppercase hover:bg-indigo-700 transition">Add</button>
+            </div>
+
+            <h3 class="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2">My Sessions</h3>
+            <div id="sessionList" class="flex flex-col gap-2 mb-6 max-h-48 overflow-y-auto pr-2">
+                <span class="text-xs italic text-gray-400">Loading...</span>
+            </div>
+
+            <button onclick="hideAllModals()" class="bg-gray-200 py-3 px-4 rounded-lg font-bold uppercase text-gray-600 hover:bg-gray-300 transition w-full">Close</button>
+        </div>
     </div>
 
     <div id="trashForm" style="display: none;" class="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4 backdrop-blur-sm">
@@ -167,6 +187,7 @@
     let promoteItemId = null;
     let userProfileCommittees = []; 
 
+    let availableBienniums = [];
     let currentBiennium = '2025-26';
     let currentCommittee = 'All';
     let currentType = 'All';
@@ -216,7 +237,7 @@
         hideAllModals();
         const form = document.getElementById(id);
         form.querySelectorAll('input, textarea, select').forEach(f => {
-            if (f.tagName === 'SELECT' && f.id !== 'draftCommittee') f.selectedIndex = 0; else if (f.tagName !== 'SELECT') f.value = '';
+            if (f.tagName === 'SELECT' && f.id !== 'draftCommittee' && f.id !== 'bienniumSelect') f.selectedIndex = 0; else if (f.tagName !== 'SELECT') f.value = '';
         });
         if (id === 'draftForm' && userProfileCommittees.length === 1) {
             document.getElementById('draftCommittee').value = userProfileCommittees[0];
@@ -225,18 +246,91 @@
     }
 
     function hideAllModals() {
-        ['draftForm', 'existingForm', 'promoteForm', 'trashForm'].forEach(id => {
+        ['draftForm', 'existingForm', 'promoteForm', 'trashForm', 'sessionForm'].forEach(id => {
             const el = document.getElementById(id);
             if (el) el.style.setProperty('display', 'none', 'important');
         });
     }
 
-    function setBiennium(val) {
-        currentBiennium = val;
-        let isArchive = val !== '2025-26';
+    // Biennium Management Functions
+    async function fetchBienniums() {
+        try {
+            const res = await fetch(`${workerBaseUrl}/bienniums`, { headers: authHeaders });
+            availableBienniums = await res.json();
+            
+            const select = document.getElementById('bienniumSelect');
+            select.innerHTML = availableBienniums.map(b => 
+                `<option value="${b.name}">${b.name} ${b.is_active === 1 ? 'Session' : '(Archived)'}</option>`
+            ).join('');
+
+            if (!availableBienniums.find(b => b.name === currentBiennium)) {
+                let active = availableBienniums.find(b => b.is_active === 1);
+                currentBiennium = active ? active.name : availableBienniums[0].name;
+            }
+            select.value = currentBiennium;
+            updateUIMode();
+        } catch (e) { console.error("Failed to load sessions."); }
+    }
+
+    function updateUIMode() {
+        let bData = availableBienniums.find(b => b.name === currentBiennium);
+        let isArchive = bData ? bData.is_active === 0 : false;
+        
         document.getElementById('newDraftBtn').style.display = isArchive ? 'none' : 'flex';
         document.getElementById('trackBillBtn').style.display = isArchive ? 'none' : 'flex';
+    }
+
+    function setBiennium(val) {
+        currentBiennium = val;
+        updateUIMode();
         loadWorkspace();
+    }
+
+    function openSessionModal() {
+        showScreen('sessionForm');
+        renderSessionList();
+    }
+
+    function renderSessionList() {
+        const list = document.getElementById('sessionList');
+        list.innerHTML = availableBienniums.map(b => `
+            <div class="flex items-center justify-between p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                <span class="font-bold text-sm ${b.is_active ? 'text-gray-800' : 'text-gray-400'}">${b.name}</span>
+                <button onclick="toggleSessionArchive('${b.name}', ${b.is_active ? 0 : 1})" class="text-[10px] font-black uppercase px-3 py-1.5 rounded transition ${b.is_active ? 'bg-orange-100 text-orange-700 hover:bg-orange-200' : 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'}">
+                    ${b.is_active ? 'Archive' : 'Unarchive'}
+                </button>
+            </div>
+        `).join('');
+    }
+
+    async function createNewSession() {
+        const input = document.getElementById('newSessionInput');
+        const name = input.value.trim();
+        if (!name) return;
+
+        try {
+            const res = await fetch(`${workerBaseUrl}/bienniums`, {
+                method: 'POST', headers: authHeaders, body: JSON.stringify({ name })
+            });
+            if (res.ok) {
+                input.value = '';
+                await fetchBienniums();
+                renderSessionList();
+            } else {
+                alert("Session might already exist.");
+            }
+        } catch (e) { alert("Failed to create session."); }
+    }
+
+    async function toggleSessionArchive(name, newStatus) {
+        try {
+            await fetch(`${workerBaseUrl}/archive-biennium`, {
+                method: 'POST', headers: authHeaders, body: JSON.stringify({ name, is_active: newStatus })
+            });
+            await fetchBienniums();
+            renderSessionList();
+            loadWorkspace(); 
+        } catch (e) { alert("Failed to update status."); }
     }
 
     function setCommittee(val) { 
@@ -307,6 +401,7 @@
     window.onload = async () => {
         await loadSidebar();
         await fetchUserProfileAndTemplates();
+        await fetchBienniums(); // Load sessions before workspace
         await loadWorkspace();
         handleAutoSearch();
         
@@ -362,7 +457,9 @@
         liveGrid.innerHTML = ''; draftGrid.innerHTML = ''; deadGrid.innerHTML = '';
         let processedIds = new Set();
         let liveCount = 0; let draftCount = 0; let deadCount = 0;
-        let isArchive = currentBiennium !== '2025-26';
+        
+        let bData = availableBienniums.find(b => b.name === currentBiennium);
+        let isArchive = bData ? bData.is_active === 0 : false;
 
         let filteredItems = workspaceItems.filter(item => {
             if (currentStatus !== 'All' && item.tracking_status !== currentStatus) return false;
@@ -748,7 +845,7 @@
         }
 
         try {
-            const res = await fetch(`${workerBaseUrl}/fetch-bill?bill=${bill}`, { headers: authHeaders });
+            const res = await fetch(`${workerBaseUrl}/fetch-bill?bill=${bill}&biennium=${currentBiennium}`, { headers: authHeaders });
             const xmlText = await res.text();
             const xmlDoc = new DOMParser().parseFromString(xmlText, "text/xml");
             
@@ -838,7 +935,7 @@
 
         if (bill) {
             try {
-                const res = await fetch(`${workerBaseUrl}/fetch-bill?bill=${bill}`, { headers: authHeaders });
+                const res = await fetch(`${workerBaseUrl}/fetch-bill?bill=${bill}&biennium=${currentBiennium}`, { headers: authHeaders });
                 const xmlText = await res.text();
                 const xmlDoc = new DOMParser().parseFromString(xmlText, "text/xml");
                 
@@ -974,7 +1071,7 @@
         resDiv.innerHTML = `<span class="text-blue-500 font-bold text-sm">Querying WSL...</span>`;
         
         try {
-            const res = await fetch(`${workerBaseUrl}/fetch-bill?bill=${bill}`, { headers: authHeaders });
+            const res = await fetch(`${workerBaseUrl}/fetch-bill?bill=${bill}&biennium=${currentBiennium}`, { headers: authHeaders });
             const xmlText = await res.text();
             const xmlDoc = new DOMParser().parseFromString(xmlText, "text/xml");
             
