@@ -407,37 +407,32 @@
             let stageForTasks = isDraft ? "Draft" : internalStatus;
             let resolvedTasks = getTasksForStage(safeCommittee, stageForTasks);
 
-            let coreTasksHtml = resolvedTasks.length === 0 ? '<span class="text-xs font-bold text-gray-400">No tasks for this stage.</span>' : resolvedTasks.map(tName => {
+            let allTasksHtml = resolvedTasks.length === 0 && (!activeItem.custom_tasks || activeItem.custom_tasks.length === 0) 
+                ? '<span class="text-xs font-bold text-gray-400">No tasks for this stage.</span>' 
+                : '';
+
+            // Template Tasks
+            allTasksHtml += resolvedTasks.map(tName => {
                 const done = progress[tName];
                 const safeName = tName.replace(/"/g, '&quot;').replace(/'/g, "\\'");
-                const accentColor = isDraft ? 'text-orange-500' : 'text-[#002e5d]';
                 return `
                 <div class="flex items-center justify-between py-1">
                     <label class="flex items-center gap-3 text-sm cursor-pointer w-full">
-                        <input type="checkbox" onchange="toggleTask(${activeItem.id}, '${safeName}', '${stageForTasks}')" ${done ? 'checked' : ''} class="h-4 w-4 rounded ${accentColor} border-gray-300 outline-none">
+                        <input type="checkbox" onchange="toggleTask(${activeItem.id}, '${safeName}', '${stageForTasks}')" ${done ? 'checked' : ''} class="h-4 w-4 rounded border-gray-300 outline-none cursor-pointer" style="accent-color: ${commColor};">
                         <span class="${done ? 'text-gray-400 line-through' : 'font-bold text-gray-700'}">${tName}</span>
                     </label>
                 </div>`;
             }).join('');
 
-            let statusSectionHtml = `
-                <div class="flex items-center justify-between mb-2">
-                    <h3 class="text-[10px] font-black uppercase tracking-widest text-gray-400">${isDraft ? 'Draft Steps' : 'Status & Tasks'}</h3>
-                    ${!isDraft ? `<select onchange="updateDB(${activeItem.id}, 'tracking_status', this.value)" class="text-[10px] font-black uppercase bg-gray-100 px-2 py-1 rounded outline-none cursor-pointer border border-gray-200">${LIVE_STATUS_OPTIONS.map(opt => `<option value="${opt}" ${internalStatus === opt ? 'selected' : ''}>${opt}</option>`).join('')}</select>` : ''}
-                </div>
-                <div class="space-y-1 ${isDraft ? 'bg-orange-50 border-orange-100' : 'bg-blue-50/50 border-blue-100/50'} p-3 rounded border">
-                    ${coreTasksHtml}
-                </div>
-            `;
-
-            let customTasksHtml = (activeItem.custom_tasks || []).map(tName => {
+            // Custom Tasks Merged In
+            allTasksHtml += (activeItem.custom_tasks || []).map(tName => {
                 let customProg = activeItem.task_progress["Custom"] || {};
                 const done = customProg[tName];
                 const safeName = tName.replace(/"/g, '&quot;').replace(/'/g, "\\'");
                 return `
                 <div class="flex items-center justify-between py-1 group">
                     <label class="flex items-center gap-3 text-sm cursor-pointer w-full">
-                        <input type="checkbox" onchange="toggleCustomTask(${activeItem.id}, '${safeName}')" ${done ? 'checked' : ''} class="h-4 w-4 rounded text-purple-600 border-gray-300 outline-none">
+                        <input type="checkbox" onchange="toggleCustomTask(${activeItem.id}, '${safeName}')" ${done ? 'checked' : ''} class="h-4 w-4 rounded border-gray-300 outline-none cursor-pointer" style="accent-color: ${commColor};">
                         <span class="${done ? 'text-gray-400 line-through' : 'font-bold text-gray-700'}">${tName}</span>
                     </label>
                     <button onclick="deleteCustomTask(${activeItem.id}, '${safeName}')" class="text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition px-2 focus:opacity-100" title="Delete Task">×</button>
@@ -445,21 +440,24 @@
             }).join('');
 
             let addTaskHtml = `
-                <div class="mt-2 flex gap-2">
-                    <input type="text" id="newTask_${activeItem.id}" placeholder="Add custom to-do..." class="text-xs font-bold text-gray-600 p-2 border border-gray-200 rounded flex-1 outline-none focus:border-gray-400" onkeypress="if(event.key === 'Enter') addCustomTask(${activeItem.id})">
-                    <select id="saveRule_${activeItem.id}" class="text-[9px] font-black uppercase tracking-widest bg-gray-50 border border-gray-200 text-gray-500 rounded outline-none cursor-pointer hover:bg-gray-100 max-w-[120px] px-1">
+                <div class="mt-3 flex gap-2 pt-3 border-t" style="border-color: ${commColor}33;">
+                    <input type="text" id="newTask_${activeItem.id}" placeholder="Add task..." class="text-xs font-bold text-gray-600 p-2 border border-white/50 rounded flex-1 outline-none focus:border-gray-400" onkeypress="if(event.key === 'Enter') addCustomTask(${activeItem.id})">
+                    <select id="saveRule_${activeItem.id}" class="text-[9px] font-black uppercase tracking-widest bg-white/50 border border-white/50 text-gray-500 rounded outline-none cursor-pointer hover:bg-white max-w-[120px] px-1">
                         <option value="none">Just this bill</option>
                         <option value="committee">Save for ${safeCommittee}</option>
                         <option value="all">Save for All</option>
                     </select>
-                    <button onclick="addCustomTask(${activeItem.id})" class="bg-gray-100 hover:bg-gray-200 border border-gray-200 text-gray-600 px-3 py-1 rounded text-lg font-bold transition outline-none focus:border-gray-400">+</button>
+                    <button onclick="addCustomTask(${activeItem.id})" class="bg-white/50 hover:bg-white border border-white/50 text-gray-600 px-3 py-1 rounded text-lg font-bold transition outline-none focus:border-gray-400">+</button>
                 </div>
             `;
 
-            statusSectionHtml += `
-                <div class="mt-4 pt-4 border-t border-gray-100">
-                    <h3 class="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-2">Custom To-Dos</h3>
-                    <div class="space-y-1">${customTasksHtml}</div>
+            let statusSectionHtml = `
+                <div class="flex items-center justify-between mb-2">
+                    <h3 class="text-[10px] font-black uppercase tracking-widest text-gray-400">Tasks</h3>
+                    ${!isDraft ? `<select onchange="updateDB(${activeItem.id}, 'tracking_status', this.value)" class="text-[10px] font-black uppercase bg-gray-100 px-2 py-1 rounded outline-none cursor-pointer border border-gray-200">${LIVE_STATUS_OPTIONS.map(opt => `<option value="${opt}" ${internalStatus === opt ? 'selected' : ''}>${opt}</option>`).join('')}</select>` : ''}
+                </div>
+                <div class="space-y-1 p-3 rounded-lg border" style="background-color: ${commColor}0D; border-color: ${commColor}40;">
+                    ${allTasksHtml}
                     ${addTaskHtml}
                 </div>
             `;
@@ -670,12 +668,24 @@
     async function saveEdit() { /* ... keep existing ... */ }
     function openPromoteModal(id) { /* ... keep existing ... */ }
     async function confirmPromote() { /* ... keep existing ... */ }
-    function toggleCustomTask(id, tName) { /* ... keep existing ... */ }
+    function toggleCustomTask(id, tName) {
+        const item = workspaceItems.find(i => i.id === id);
+        if (!item.task_progress["Custom"]) item.task_progress["Custom"] = {};
+        if (item.task_progress["Custom"][tName]) delete item.task_progress["Custom"][tName];
+        else item.task_progress["Custom"][tName] = true;
+        syncToServer(item);
+    }
     async function syncAllBills() { /* ... keep existing ... */ }
     function switchTab(event, groupId, targetId) { /* ... keep existing ... */ }
     function toggleCard(id) { /* ... keep existing ... */ }
     function insertTimestamp(id) { /* ... keep existing ... */ }
-    function toggleTask(id, tName, status) { /* ... keep existing ... */ }
+    function toggleTask(id, tName, status) {
+        const item = workspaceItems.find(i => i.id === id);
+        if (!item.task_progress[status]) item.task_progress[status] = {};
+        if (item.task_progress[status][tName]) delete item.task_progress[status][tName];
+        else item.task_progress[status][tName] = true;
+        syncToServer(item);
+    }
     function updateDB(id, field, value) { /* ... keep existing ... */ }
     
     async function syncToServer(item) {
