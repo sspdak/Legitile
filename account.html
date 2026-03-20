@@ -23,19 +23,21 @@
         </header>
 
         <main class="flex-1 overflow-y-auto p-6 md:p-10 scroll-smooth custom-scroll">
-            <div class="max-w-2xl bg-white p-8 rounded-xl shadow-sm border border-gray-100 mb-8">
+            <div class="max-w-2xl bg-white p-8 rounded-xl shadow-sm border border-gray-100">
                 
                 <h2 class="text-xs font-black text-gray-400 uppercase tracking-widest mb-6 border-b border-gray-100 pb-2">Profile Information</h2>
                 
                 <div class="space-y-6">
                     <div>
                         <label class="text-[10px] font-black uppercase text-gray-400 tracking-widest mb-1 block">Work Email (Login ID)</label>
-                        <input type="email" id="profileEmail" readonly disabled class="w-full border-2 border-gray-100 bg-gray-50 p-3 rounded-lg outline-none font-bold text-gray-500 cursor-not-allowed">
+                        <input type="email" id="profileEmail" readonly disabled 
+                               class="w-full border-2 border-gray-100 bg-gray-50 p-3 rounded-lg outline-none font-bold text-gray-500 cursor-not-allowed">
                     </div>
 
                     <div>
                         <label class="text-[10px] font-black uppercase text-gray-400 tracking-widest mb-1 block">Full Name</label>
-                        <input type="text" id="profileName" placeholder="Your Name" class="w-full border-2 border-gray-200 p-3 rounded-lg outline-none focus:border-[#002e5d] font-bold text-gray-700 transition">
+                        <input type="text" id="profileName" placeholder="Your Name" 
+                               class="w-full border-2 border-gray-200 p-3 rounded-lg outline-none focus:border-[#002e5d] font-bold text-gray-700 transition">
                     </div>
 
                     <div>
@@ -64,37 +66,6 @@
                         </button>
                     </div>
                 </div>
-            </div>
-
-            <div class="max-w-2xl bg-white p-8 rounded-xl shadow-sm border border-gray-100">
-                <h2 class="text-xs font-black text-gray-400 uppercase tracking-widest mb-6 border-b border-gray-100 pb-2">Workflow Templates</h2>
-                
-                <div class="flex flex-col md:flex-row gap-4 mb-6">
-                    <div class="flex-1">
-                        <label class="text-[10px] font-black uppercase text-gray-400 tracking-widest mb-1 block">Select Target</label>
-                        <select id="templateCommitteeSelect" onchange="loadTemplateUI()" class="w-full border-2 border-gray-200 p-3 rounded-lg outline-none focus:border-[#002e5d] font-bold text-gray-700 bg-white cursor-pointer">
-                            <option value="All">All Committees (Global)</option>
-                        </select>
-                    </div>
-                    <div class="flex-1">
-                        <label class="text-[10px] font-black uppercase text-gray-400 tracking-widest mb-1 block">Legislative Stage</label>
-                        <select id="templateStageSelect" onchange="loadTemplateUI()" class="w-full border-2 border-gray-200 p-3 rounded-lg outline-none focus:border-[#002e5d] font-bold text-gray-700 bg-white cursor-pointer">
-                            </select>
-                    </div>
-                </div>
-
-                <div class="bg-gray-50 border border-gray-200 rounded-lg p-6">
-                    <label class="text-[10px] font-black uppercase text-gray-400 tracking-widest mb-3 block">Default Tasks</label>
-                    <div id="templateTasksContainer" class="space-y-2 mb-4">
-                        <span class="text-xs font-bold text-gray-400 italic">Select a stage to view tasks.</span>
-                    </div>
-
-                    <div class="flex gap-2 pt-4 border-t border-gray-200 mt-4">
-                        <input type="text" id="newTemplateTask" placeholder="Add a new default task..." class="text-sm font-bold text-gray-700 p-3 border-2 border-gray-200 rounded flex-1 outline-none focus:border-[#002e5d]" onkeypress="if(event.key === 'Enter') addTemplateTask()">
-                        <button onclick="addTemplateTask()" class="bg-[#002e5d] hover:bg-blue-900 text-white font-black px-6 py-2 rounded-lg transition uppercase text-[10px] tracking-wider">Add Rule</button>
-                    </div>
-                    <div id="templateStatusMsg" class="text-xs font-bold h-4 mt-2"></div>
-                </div>
 
             </div>
         </main>
@@ -104,7 +75,10 @@
     if (!localStorage.getItem('jwt_token')) window.location.href = 'index.html';
 
     const workerBaseUrl = "https://misty-credit-9e6a.ewing-jacob.workers.dev";
-    const authHeaders = { 'Authorization': `Bearer ${localStorage.getItem('jwt_token')}`, 'Content-Type': 'application/json' };
+    const authHeaders = { 
+        'Authorization': `Bearer ${localStorage.getItem('jwt_token')}`, 
+        'Content-Type': 'application/json' 
+    };
 
     const waCommittees = {
         "House": [
@@ -125,55 +99,39 @@
         ]
     };
 
-    const TEMPLATE_STAGES = ["Draft", "Introduced", "Public Hearing", "Executive Action", "Fiscal", "Rules", "Floor", "House", "Concurrence", "Passed", "Dead"];
-    
-    const DEFAULT_TASKS = {
-        "Draft": ["Draft Approved", "Draft to CRO", "CRO Version Received", "Bill & Pink Sheet Sent"],
-        "Introduced": ["Review bill", "Add summary to tracker", "Prep talking points"],
-        "Public Hearing": ["Submit Bill Report", "Create Bill Presentation", "Submit Public Testimony"],
-        "Executive Action": ["Briefing Notes", "Review Proposed Sub", "Update Bill Report"],
-        "Fiscal": ["Review Fiscal Note", "Check In with Fiscal Staff"],
-        "Rules": ["Review Bill Report", "Prep Floor Note"],
-        "Floor": ["Submit Floor Note", "Review Floor Amendments"],
-        "House": [], "Dead": [], "Default": ["Review Bill", "Monitor Testimony"]
-    };
-
     let currentUserCommittees = [];
-    let userTemplates = [];
-    let activeTemplateTasks = [];
 
+    // Navigation and Init Logic
     async function loadSidebar() {
         try {
             const response = await fetch('sidebar.html');
             if (!response.ok) throw new Error("Sidebar failed to load.");
+            
             const html = await response.text();
             document.getElementById('sidebar-container').innerHTML = html;
+
             const userEmail = localStorage.getItem('user_email');
             document.getElementById('userEmailDisplay').innerText = userEmail || 'Unknown';
             document.getElementById('profileEmail').value = userEmail; 
 
+            // Highlight active link
             const path = window.location.pathname;
-            document.querySelectorAll('.nav-item').forEach(item => {
+            const navItems = document.querySelectorAll('.nav-item');
+            navItems.forEach(item => {
                 if (path.includes(item.getAttribute('href'))) {
                     item.classList.add('bg-white/10', 'text-white');
                     item.classList.remove('text-blue-200');
                 }
             });
-        } catch (error) { console.error(error); }
+        } catch (error) {
+            console.error(error);
+        }
     }
 
+    // Load Sidebar first, then fetch profile
     window.onload = async () => {
         await loadSidebar();
-        
-        const stageSelect = document.getElementById('templateStageSelect');
-        TEMPLATE_STAGES.forEach(stage => {
-            const opt = document.createElement('option');
-            opt.value = stage; opt.innerText = stage;
-            stageSelect.appendChild(opt);
-        });
-
         await loadProfile();
-        await loadTemplates();
     };
 
     async function loadProfile() {
@@ -185,13 +143,16 @@
                 const userData = await res.json();
                 document.getElementById('profileName').value = userData.name || "";
                 
-                if (userData.chamber) document.getElementById('profileChamber').value = userData.chamber;
+                if (userData.chamber) {
+                    document.getElementById('profileChamber').value = userData.chamber;
+                }
                 
                 currentUserCommittees = userData.committees || [];
                 populateCommittees(currentUserCommittees);
-                updateTemplateCommitteeDropdown();
             }
-        } catch (e) { console.error("Failed to load profile data."); }
+        } catch (e) {
+            console.error("Failed to load profile data.");
+        }
     }
 
     function populateCommittees(savedCommittees = []) {
@@ -203,9 +164,15 @@
 
         waCommittees[chamber].forEach(committee => {
             const isChecked = savedCommittees.includes(committee) ? "checked" : "";
+            
             const label = document.createElement('label');
             label.className = "flex items-start gap-3 text-sm font-bold text-gray-700 cursor-pointer p-2 hover:bg-gray-100 rounded-lg transition border border-transparent hover:border-gray-200";
-            label.innerHTML = `<input type="checkbox" value="${committee}" ${isChecked} class="mt-1 w-4 h-4 rounded text-[#002e5d] border-gray-300 outline-none"><span>${committee}</span>`;
+            
+            label.innerHTML = `
+                <input type="checkbox" value="${committee}" ${isChecked} class="mt-1 w-4 h-4 rounded text-[#002e5d] border-gray-300 outline-none">
+                <span>${committee}</span>
+            `;
+            
             container.appendChild(label);
         });
     }
@@ -214,23 +181,35 @@
         const btn = document.getElementById('saveBtn');
         const statusDiv = document.getElementById('statusMsg');
         const originalText = btn.innerText;
-        btn.disabled = true; btn.innerText = "Saving...";
-        statusDiv.className = "text-xs font-bold h-4 text-gray-500"; statusDiv.innerText = "";
+        
+        btn.disabled = true;
+        btn.innerText = "Saving...";
+        statusDiv.className = "text-xs font-bold h-4 text-gray-500";
+        statusDiv.innerText = "";
 
         const name = document.getElementById('profileName').value.trim();
         const chamber = document.getElementById('profileChamber').value;
+        
         const checkedBoxes = document.querySelectorAll('#committeeContainer input[type="checkbox"]:checked');
         const selectedCommittees = Array.from(checkedBoxes).map(cb => cb.value);
 
-        const payload = { name, chamber, committees: selectedCommittees };
+        const payload = {
+            name: name,
+            chamber: chamber,
+            committees: selectedCommittees
+        };
 
         try {
-            const res = await fetch(`${workerBaseUrl}/update-profile`, { method: 'POST', headers: authHeaders, body: JSON.stringify(payload) });
+            const res = await fetch(`${workerBaseUrl}/update-profile`, {
+                method: 'POST',
+                headers: authHeaders,
+                body: JSON.stringify(payload)
+            });
+
             if (res.ok) {
                 statusDiv.className = "text-xs font-bold h-4 text-green-600";
                 statusDiv.innerText = "Profile updated successfully.";
                 currentUserCommittees = selectedCommittees; 
-                updateTemplateCommitteeDropdown();
             } else {
                 statusDiv.className = "text-xs font-bold h-4 text-red-500";
                 statusDiv.innerText = "Failed to update profile.";
@@ -240,129 +219,16 @@
             statusDiv.innerText = "Network error. Please try again.";
         }
 
-        btn.disabled = false; btn.innerText = originalText;
+        btn.disabled = false;
+        btn.innerText = originalText;
+        
         setTimeout(() => { statusDiv.innerText = ""; }, 4000);
     }
 
-    // --- TEMPLATE LOGIC ---
-    
-    function updateTemplateCommitteeDropdown() {
-        const select = document.getElementById('templateCommitteeSelect');
-        const currentSelection = select.value;
-        select.innerHTML = '<option value="All">All Committees (Global)</option>';
-        
-        currentUserCommittees.forEach(c => {
-            const opt = document.createElement('option');
-            opt.value = c; opt.innerText = c;
-            select.appendChild(opt);
-        });
-
-        // Try to maintain selection if still valid
-        if (currentUserCommittees.includes(currentSelection) || currentSelection === 'All') {
-            select.value = currentSelection;
-        }
+    function logout() { 
+        localStorage.clear(); 
+        window.location.href = 'index.html'; 
     }
-
-    async function loadTemplates() {
-        try {
-            const res = await fetch(`${workerBaseUrl}/templates`, { headers: authHeaders });
-            if (res.ok) {
-                userTemplates = await res.json();
-                loadTemplateUI();
-            }
-        } catch(e) { console.error("Could not fetch templates."); }
-    }
-
-    function loadTemplateUI() {
-        const committee = document.getElementById('templateCommitteeSelect').value;
-        const stage = document.getElementById('templateStageSelect').value;
-        const container = document.getElementById('templateTasksContainer');
-
-        let template = userTemplates.find(t => t.committee === committee && t.stage === stage);
-        
-        if (template && template.tasks) {
-            try { activeTemplateTasks = JSON.parse(template.tasks); } catch(e) { activeTemplateTasks = []; }
-        } else {
-            // Load fallbacks if no custom rule exists
-            activeTemplateTasks = [...(DEFAULT_TASKS[stage] || [])];
-        }
-
-        renderTemplateTasks();
-    }
-
-    function renderTemplateTasks() {
-        const container = document.getElementById('templateTasksContainer');
-        container.innerHTML = '';
-
-        if (activeTemplateTasks.length === 0) {
-            container.innerHTML = '<span class="text-xs font-bold text-gray-400 italic">No tasks assigned to this stage.</span>';
-            return;
-        }
-
-        activeTemplateTasks.forEach((task, index) => {
-            container.innerHTML += `
-                <div class="flex items-center justify-between bg-white p-3 rounded border border-gray-200 shadow-sm group">
-                    <span class="text-sm font-bold text-gray-700">${task}</span>
-                    <button onclick="removeTemplateTask(${index})" class="text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition px-2 focus:opacity-100" title="Remove Default">×</button>
-                </div>
-            `;
-        });
-    }
-
-    async function addTemplateTask() {
-        const input = document.getElementById('newTemplateTask');
-        const task = input.value.trim();
-        if (!task) return;
-
-        if (!activeTemplateTasks.includes(task)) {
-            activeTemplateTasks.push(task);
-            await saveCurrentTemplate();
-        }
-        input.value = '';
-    }
-
-    async function removeTemplateTask(index) {
-        activeTemplateTasks.splice(index, 1);
-        await saveCurrentTemplate();
-    }
-
-    async function saveCurrentTemplate() {
-        const committee = document.getElementById('templateCommitteeSelect').value;
-        const stage = document.getElementById('templateStageSelect').value;
-        const statusDiv = document.getElementById('templateStatusMsg');
-        
-        statusDiv.className = "text-xs font-bold h-4 text-gray-500";
-        statusDiv.innerText = "Syncing rules...";
-
-        try {
-            const res = await fetch(`${workerBaseUrl}/save-template`, {
-                method: 'POST',
-                headers: authHeaders,
-                body: JSON.stringify({ committee, stage, tasks: activeTemplateTasks })
-            });
-
-            if (res.ok) {
-                // Update local memory so it doesn't revert if switching dropdowns quickly
-                let existingIndex = userTemplates.findIndex(t => t.committee === committee && t.stage === stage);
-                if (existingIndex >= 0) {
-                    userTemplates[existingIndex].tasks = JSON.stringify(activeTemplateTasks);
-                } else {
-                    userTemplates.push({ committee, stage, tasks: JSON.stringify(activeTemplateTasks) });
-                }
-                
-                statusDiv.className = "text-xs font-bold h-4 text-green-600";
-                statusDiv.innerText = "Rules saved.";
-                renderTemplateTasks();
-            }
-        } catch (e) {
-            statusDiv.className = "text-xs font-bold h-4 text-red-500";
-            statusDiv.innerText = "Failed to sync rule.";
-        }
-
-        setTimeout(() => { statusDiv.innerText = ""; }, 3000);
-    }
-
-    function logout() { localStorage.clear(); window.location.href = 'index.html'; }
 </script>
 
 </body>
