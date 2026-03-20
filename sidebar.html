@@ -1,25 +1,41 @@
-<aside class="leg-navy text-white w-full md:w-28 flex-shrink-0 flex flex-col shadow-2xl z-50 md:h-full no-print">
-    <div class="py-6 flex flex-col items-center border-b border-white/10 shrink-0">
-        <div class="text-5xl font-serif italic font-black text-transparent bg-clip-text bg-gradient-to-br from-orange-400 to-white drop-shadow-2xl leading-none">L</div>
-        <div class="text-[8px] uppercase tracking-[0.2em] text-blue-200 font-bold mt-2 opacity-80">LegiTile</div>
+<aside class="leg-navy text-white w-full md:w-28 flex-shrink-0 flex flex-col shadow-2xl z-50 md:h-full no-print relative">
+    
+    <div class="md:hidden flex items-center justify-between px-6 py-4 border-b border-white/10 w-full">
+        <div class="flex items-center gap-3">
+            <div class="text-3xl font-serif italic font-black text-transparent bg-clip-text bg-gradient-to-br from-orange-400 to-white leading-none">L</div>
+            <div class="text-xs uppercase tracking-[0.2em] text-blue-200 font-bold mt-1">LegiTile</div>
+        </div>
+        <button onclick="document.getElementById('mobileMenu').classList.toggle('hidden')" class="text-white hover:text-blue-200 transition focus:outline-none">
+            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+            </svg>
+        </button>
     </div>
 
-    <nav id="mainNav" class="flex-1 px-2 py-6 space-y-3 flex flex-col items-center">
-        <a href="home.html" class="nav-item flex flex-col items-center gap-1 w-full py-2 text-blue-200 hover:bg-white/5 hover:text-white rounded-lg transition font-black text-[9px] uppercase tracking-wider text-center">
-            <span class="text-lg">🏠</span> Dashboard
-        </a>
-        <a href="tracker.html" class="nav-item flex flex-col items-center gap-1 w-full py-2 text-blue-200 hover:bg-white/5 hover:text-white rounded-lg transition font-black text-[9px] uppercase tracking-wider text-center">
-            <span class="text-lg">📑</span> Bill Tracker
-        </a>
-        <a href="account.html" class="nav-item flex flex-col items-center gap-1 w-full py-2 text-blue-200 hover:bg-white/5 hover:text-white rounded-lg transition font-black text-[9px] uppercase tracking-wider text-center">
-            <span class="text-lg">⚙️</span> Settings
-        </a>
-    </nav>
+    <div id="mobileMenu" class="hidden md:flex flex-col flex-1 absolute md:static top-full left-0 w-full md:w-auto leg-navy h-[calc(100vh-65px)] md:h-auto overflow-y-auto md:overflow-visible shadow-2xl md:shadow-none z-50">
+        
+        <div class="hidden md:flex py-6 flex-col items-center border-b border-white/10 shrink-0">
+            <div class="text-5xl font-serif italic font-black text-transparent bg-clip-text bg-gradient-to-br from-orange-400 to-white drop-shadow-2xl leading-none">L</div>
+            <div class="text-[8px] uppercase tracking-[0.2em] text-blue-200 font-bold mt-2 opacity-80">LegiTile</div>
+        </div>
 
-    <div class="shrink-0 pb-4 px-2 flex flex-col items-center">
-        <div class="bg-black/20 rounded-lg p-2 flex flex-col items-center text-center w-full">
-            <span id="userEmailDisplay" class="text-[9px] font-bold text-white truncate w-full mb-2"></span>
-            <button onclick="logout()" class="w-full bg-red-500/20 hover:bg-red-500/40 text-red-200 text-[9px] font-black uppercase py-1.5 rounded transition border border-red-500/30">Log Out</button>
+        <nav id="mainNav" class="flex-1 px-6 md:px-2 py-8 md:py-6 space-y-4 md:space-y-3 flex flex-col md:items-center">
+            <a href="home.html" class="nav-item flex flex-row md:flex-col items-center gap-4 md:gap-1 w-full py-4 md:py-2 text-blue-200 hover:bg-white/5 hover:text-white rounded-lg transition font-black text-sm md:text-[9px] uppercase tracking-wider md:text-center px-4 md:px-0">
+                <span class="text-2xl md:text-lg">🏠</span> <span>Dashboard</span>
+            </a>
+            <a href="tracker.html" class="nav-item flex flex-row md:flex-col items-center gap-4 md:gap-1 w-full py-4 md:py-2 text-blue-200 hover:bg-white/5 hover:text-white rounded-lg transition font-black text-sm md:text-[9px] uppercase tracking-wider md:text-center px-4 md:px-0">
+                <span class="text-2xl md:text-lg">📑</span> <span>Bill Tracker</span>
+            </a>
+            <a href="account.html" class="nav-item flex flex-row md:flex-col items-center gap-4 md:gap-1 w-full py-4 md:py-2 text-blue-200 hover:bg-white/5 hover:text-white rounded-lg transition font-black text-sm md:text-[9px] uppercase tracking-wider md:text-center px-4 md:px-0">
+                <span class="text-2xl md:text-lg">⚙️</span> <span>Settings</span>
+            </a>
+        </nav>
+
+        <div class="shrink-0 pb-10 md:pb-4 px-6 md:px-2 flex flex-col items-center border-t border-white/10 md:border-transparent pt-6 md:pt-0">
+            <div class="bg-black/20 rounded-lg p-4 md:p-2 flex flex-col items-center text-center w-full">
+                <span id="userEmailDisplay" class="text-xs md:text-[9px] font-bold text-white truncate w-full mb-3 md:mb-2"></span>
+                <button onclick="logout()" class="w-full bg-red-500/20 hover:bg-red-500/40 text-red-200 text-xs md:text-[9px] font-black uppercase py-3 md:py-1.5 rounded transition border border-red-500/30">Log Out</button>
+            </div>
         </div>
     </div>
 </aside>
