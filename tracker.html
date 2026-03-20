@@ -21,9 +21,14 @@
     <div class="flex-1 flex flex-col h-full overflow-hidden relative">
         <header class="shrink-0 pt-8 pb-4 px-6 md:px-10 z-40 bg-gray-100 border-b border-gray-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <h1 class="text-2xl font-black text-gray-800 uppercase tracking-tight">Bill Tracker</h1>
-            <button onclick="openTrash()" class="bg-gray-200 hover:bg-gray-300 text-gray-600 px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition flex items-center gap-2 shadow-sm">
-                🗑️ Recycle Bin
-            </button>
+            <div class="flex gap-2">
+                <button onclick="openSessionModal()" class="bg-gray-200 hover:bg-gray-300 text-gray-600 px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition flex items-center gap-2 shadow-sm">
+                    ⚙️ Sessions
+                </button>
+                <button onclick="openTrash()" class="bg-gray-200 hover:bg-gray-300 text-gray-600 px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition flex items-center gap-2 shadow-sm">
+                    🗑️ Recycle Bin
+                </button>
+            </div>
         </header>
 
         <main class="flex-1 overflow-y-auto p-6 md:p-10 scroll-smooth">
@@ -39,12 +44,9 @@
             <div class="bg-white p-4 rounded-xl shadow-sm mb-8 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 border border-gray-100">
                 
                 <div class="flex flex-wrap gap-2 w-full xl:w-auto items-center">
-                    <div class="flex items-center gap-1">
-                        <select onchange="setBiennium(this.value)" id="bienniumSelect" class="bg-gray-50 border border-gray-200 text-gray-800 font-black uppercase text-[10px] rounded-lg px-2 py-1.5 outline-none focus:border-blue-500 transition shadow-sm cursor-pointer">
-                            <option value="2025-26" selected>2025-26 Session</option>
-                        </select>
-                        <button onclick="openSessionModal()" class="text-gray-400 hover:text-gray-600 transition bg-gray-50 border border-gray-200 rounded px-2 py-1 shadow-sm" title="Manage Sessions">⚙️</button>
-                    </div>
+                    <select onchange="setBiennium(this.value)" id="bienniumSelect" class="bg-gray-50 border border-gray-200 text-gray-800 font-black uppercase text-[10px] rounded-lg px-2 py-1.5 outline-none focus:border-blue-500 transition shadow-sm cursor-pointer">
+                        <option value="2025-26" selected>2025-26 Session</option>
+                    </select>
                     <select onchange="setCommittee(this.value)" id="committeeSelect" class="bg-gray-50 border-2 border-gray-200 text-gray-700 font-black uppercase text-[10px] rounded-lg px-2 py-1.5 outline-none focus:border-gray-400 transition shadow-sm cursor-pointer">
                         <option value="All">All Committees</option>
                     </select>
@@ -483,23 +485,31 @@
         filteredItems.forEach(item => {
             if (processedIds.has(item.id)) return;
 
-            let myJustNum = item.bill_number ? item.bill_number.replace(/\D/g, '') : '';
-            let myCompStr = item.companion ? item.companion.split(',')[0].replace(/\D/g, '') : '';
+            let myJustNum = item.bill_number ? String(item.bill_number).replace(/\D/g, '') : '';
+            let myCompNum = item.companion ? String(item.companion).split(',')[0].replace(/\D/g, '') : '';
 
-            let group = workspaceItems.filter(i => {
-                let iJustNum = i.bill_number ? i.bill_number.replace(/\D/g, '') : '';
-                let iCompStr = i.companion ? i.companion.split(',')[0].replace(/\D/g, '') : '';
-                
-                let match1 = myCompStr && iJustNum && myCompStr === iJustNum;
-                let match2 = iCompStr && myJustNum && iCompStr === myJustNum;
-                let match3 = myCompStr && iCompStr && myCompStr === iCompStr;
+            // Find companion item strictly by matching parsed digit strings
+            let compItem = workspaceItems.find(i => {
+                if (i.id === item.id) return false;
+                let iJustNum = i.bill_number ? String(i.bill_number).replace(/\D/g, '') : '';
+                let iCompNum = i.companion ? String(i.companion).split(',')[0].replace(/\D/g, '') : '';
 
-                return i.id === item.id || match1 || match2 || match3;
+                let match1 = (myCompNum !== '' && iJustNum !== '' && myCompNum === iJustNum);
+                let match2 = (iCompNum !== '' && myJustNum !== '' && iCompNum === myJustNum);
+                let match3 = (myCompNum !== '' && iCompNum !== '' && myCompNum === iCompNum);
+
+                return match1 || match2 || match3;
             });
 
-            group.forEach(g => processedIds.add(g.id));
+            let group = [item];
+            if (compItem) {
+                group.push(compItem);
+                processedIds.add(compItem.id);
+            }
+            processedIds.add(item.id);
 
-            let activeId = activeTabs[item.id] || item.id;
+            let baseId = item.id;
+            let activeId = activeTabs[baseId] || baseId;
             let activeItem = group.find(i => i.id === activeId) || group[0];
             
             let officialStatus = activeItem.status || "Unknown";
@@ -519,12 +529,13 @@
             if (isDraft) borderColor = '#f97316'; 
             if (isDead) borderColor = '#64748b'; 
 
-            let groupIdsStr = group.map(g => g.id).join(',');
             let companionUI = '';
-            
             let compBillStrRaw = activeItem.companion ? activeItem.companion.split(',')[0].trim() : "";
+            
             if (group.length > 1) {
-                companionUI = `<div class="flex bg-gray-100 rounded-lg p-0.5 mt-1 border border-gray-200 w-fit">${group.map(g => `<button onclick="switchTab(event, '${groupIdsStr}', ${g.id})" class="px-3 py-1 text-[10px] font-black uppercase rounded-md transition-all ${activeItem.id === g.id ? 'bg-white text-[#002e5d] shadow-sm' : 'text-gray-500 hover:text-gray-700'}">${g.bill_number}</button>`).join('')}</div>`;
+                companionUI = `<div class="flex bg-gray-100 rounded-lg p-0.5 mt-1 border border-gray-200 w-fit">
+                    ${group.map(g => `<button onclick="switchTab(event, ${baseId}, ${g.id})" class="px-3 py-1 text-[10px] font-black uppercase rounded-md transition-all ${activeItem.id === g.id ? 'bg-white text-[#002e5d] shadow-sm' : 'text-gray-500 hover:text-gray-700'}">${g.bill_number}</button>`).join('')}
+                </div>`;
             } else if (compBillStrRaw && compBillStrRaw !== "None" && !isArchive) {
                 companionUI = `<button onclick="quickAddCompanion(event, '${compBillStrRaw}')" class="mt-1 px-3 py-1 text-[9px] font-black uppercase rounded-lg border border-dashed border-gray-300 text-gray-500 hover:border-[#002e5d] hover:text-[#002e5d] transition flex items-center gap-1 bg-gray-50 hover:bg-blue-50 w-fit"><span class="text-lg leading-none mt-[-2px]">+</span> Companion: ${compBillStrRaw}</button>`;
             } else if (compBillStrRaw && compBillStrRaw !== "None") {
@@ -629,7 +640,7 @@
 
             let cardHtml = `
                 <div class="bg-white rounded-xl shadow-md border border-gray-100 overflow-hidden ${visualModifier}" style="border-left: 5px solid ${borderColor};">
-                    <div class="p-5 flex flex-col md:flex-row gap-4 items-start cursor-pointer hover:bg-gray-50 transition" onclick="toggleCard(${item.id})">
+                    <div class="p-5 flex flex-col md:flex-row gap-4 items-start cursor-pointer hover:bg-gray-50 transition" onclick="toggleCard(${baseId})">
                         <div class="w-auto flex-shrink-0 md:w-32 pt-1">
                             ${billTitleHtml}
                             ${companionUI}
@@ -641,7 +652,7 @@
                             <div class="w-full ${isArchive ? '' : 'hover:opacity-80 transition-opacity'}">${commDropdownHtml}</div>
                         </div>
                     </div>
-                    <div id="details_${activeItem.id}" class="px-6 pb-6 pt-2 border-t border-gray-50 ${expandedCards.has(item.id) ? '' : 'details-hidden'}">
+                    <div id="details_${activeItem.id}" class="px-6 pb-6 pt-2 border-t border-gray-50 ${expandedCards.has(baseId) ? '' : 'details-hidden'}">
                         <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-4"><div class="space-y-4">${statusSectionHtml}</div>
                             <div class="space-y-4 flex flex-col h-full"><div class="bg-gray-50 p-4 rounded-lg border border-gray-200 flex-1 flex flex-col"><div class="flex justify-between items-center mb-2"><label class="text-[10px] font-black text-gray-400 uppercase">Workspace Notes</label>${isArchive ? '' : `<button onclick="insertTimestamp(${activeItem.id})" class="text-[9px] font-bold text-blue-600 bg-blue-100 px-2 py-1 rounded hover:bg-blue-200 uppercase">Timestamp</button>`}</div><textarea id="notes_${activeItem.id}" onchange="updateDB(${activeItem.id}, 'live_notes', this.value)" class="w-full bg-transparent text-sm italic flex-1 focus:outline-none resize-none" placeholder="Draft talking points or staff notes..." ${isArchive ? 'disabled' : ''}>${activeItem.live_notes || ""}</textarea></div></div>
                         </div>
@@ -1006,11 +1017,10 @@
         icon.classList.remove('animate-spin');
     }
 
-    function switchTab(event, groupIdsStr, targetId) {
+    function switchTab(event, groupId, targetId) {
         event.stopPropagation();
-        let ids = groupIdsStr.split(',');
-        ids.forEach(id => activeTabs[id] = targetId);
-        expandedCards.add(targetId); 
+        activeTabs[groupId] = targetId;
+        expandedCards.add(groupId); 
         renderGrid();
     }
 
