@@ -8,22 +8,22 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         .leg-navy { background-color: #002e5d; }
-        .live-border { border-left: 4px solid #002e5d !important; }
-        .dead-border { border-left: 4px solid #64748b !important; opacity: 0.8; }
-        .draft-border { border-left: 4px solid #f97316 !important; } 
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
         .details-hidden { display: none; }
     </style>
 </head>
-<body class="bg-gray-100 h-screen font-sans text-gray-900 overflow-hidden flex flex-col md:flex-row">
+<body class="bg-gray-100 h-screen font-sans text-gray-900 overflow-hidden flex flex-col md:flex-row relative">
 
     <div id="sidebar-container" class="flex-shrink-0 w-full md:w-28 md:h-full z-50"></div>
 
     <div class="flex-1 flex flex-col h-full overflow-hidden relative">
         <header class="shrink-0 pt-8 pb-4 px-6 md:px-10 z-40 bg-gray-100 border-b border-gray-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <h1 class="text-2xl font-black text-gray-800 uppercase tracking-tight">Bill Tracker</h1>
+            <button onclick="openTrash()" class="bg-gray-200 hover:bg-gray-300 text-gray-600 px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition flex items-center gap-2 shadow-sm">
+                🗑️ Recycle Bin
+            </button>
         </header>
 
         <main class="flex-1 overflow-y-auto p-6 md:p-10 scroll-smooth">
@@ -75,6 +75,24 @@
             <h2 class="text-xs font-black text-gray-400 uppercase tracking-widest mb-4">My Tracked Bills</h2>
             <div id="workspaceGrid" class="flex flex-col gap-6 pb-20"></div>
         </main>
+    </div>
+
+    <div id="undoToast" class="fixed bottom-6 right-6 bg-gray-900 text-white px-6 py-4 rounded-xl shadow-2xl flex items-center gap-6 transform translate-y-24 opacity-0 transition-all duration-300 z-[200]">
+        <span id="undoMsg" class="text-sm font-bold">Item removed</span>
+        <button id="undoBtn" class="text-orange-400 hover:text-orange-300 font-black uppercase text-xs tracking-wider border border-orange-400/30 px-3 py-1.5 rounded transition">Undo</button>
+    </div>
+
+    <div id="trashForm" style="display: none;" class="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-white p-8 rounded-xl shadow-2xl max-w-2xl w-full border-t-8 border-gray-600 flex flex-col max-h-[80vh]">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold text-gray-800 uppercase">Recycle Bin</h2>
+                <button onclick="emptyTrash()" class="text-[10px] font-black uppercase text-red-500 hover:text-red-700 bg-red-50 px-3 py-1.5 rounded transition border border-red-100">Empty Trash</button>
+            </div>
+            <div id="trashContents" class="flex-1 overflow-y-auto pr-2 space-y-3 mb-6">
+                <span class="text-sm font-bold text-gray-400 italic">Loading...</span>
+            </div>
+            <button onclick="hideAllModals()" class="bg-gray-200 py-3 px-4 rounded-lg font-bold uppercase text-gray-600 hover:bg-gray-300 transition w-full">Close</button>
+        </div>
     </div>
 
     <div id="draftForm" style="display: none;" class="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4 backdrop-blur-sm">
@@ -153,7 +171,7 @@
     
     let currentBillData = null; 
     let workspaceItems = [];
-    let userTemplates = []; // Stores the custom workflow rules
+    let userTemplates = [];
     let expandedCards = new Set();
     let activeTabs = {};
     let editItemId = null; 
@@ -164,6 +182,10 @@
     let currentType = 'All';
     let currentStatus = 'All';
     let currentSort = 'priority';
+
+    // Undo System State
+    let undoTimeout;
+    let pendingUndoAction = null;
 
     const committeeColors = {
         "Agriculture & Natural Resources": "#15803d", "Appropriations": "#047857", 
@@ -185,7 +207,6 @@
 
     const LIVE_STATUS_OPTIONS = ["Introduced", "Public Hearing", "Executive Action", "Fiscal", "Rules", "Floor", "House", "Concurrence", "Passed", "Dead"];
     
-    // Default hardcoded fallbacks if the user has no custom templates
     const DEFAULT_TASKS = {
         "Draft": ["Draft Approved", "Draft to CRO", "CRO Version Received", "Bill & Pink Sheet Sent"],
         "Introduced": ["Review bill", "Add summary to tracker", "Prep talking points"],
@@ -210,7 +231,7 @@
     }
 
     function hideAllModals() {
-        ['draftForm', 'existingForm', 'editForm', 'promoteForm'].forEach(id => {
+        ['draftForm', 'existingForm', 'editForm', 'promoteForm', 'trashForm'].forEach(id => {
             const el = document.getElementById(id);
             if (el) el.style.setProperty('display', 'none', 'important');
         });
@@ -276,11 +297,8 @@
                 if (userProfileCommittees.length === 1) draftSelect.value = userProfileCommittees[0];
             }
 
-            // Fetch custom rules
             const resTemp = await fetch(`${workerBaseUrl}/templates`, { headers: authHeaders });
-            if (resTemp.ok) {
-                userTemplates = await resTemp.json();
-            }
+            if (resTemp.ok) userTemplates = await resTemp.json();
         } catch (e) { console.error("Could not fetch profile/templates"); }
     }
 
@@ -322,11 +340,9 @@
         } catch (e) { console.error(e); }
     }
 
-    // Engine: Determine which tasks to load based on templates hierarchy
     function getTasksForStage(committee, stage) {
         let template = userTemplates.find(t => t.committee === committee && t.stage === stage);
         if (!template) template = userTemplates.find(t => t.committee === 'All' && t.stage === stage);
-        
         if (template && template.tasks) {
             try { return JSON.parse(template.tasks); } catch(e) {}
         }
@@ -388,7 +404,6 @@
                 companionUI = `<button onclick="quickAddCompanion(event, '${compBillStr}')" class="mt-1 px-3 py-1 text-[9px] font-black uppercase rounded-lg border border-dashed border-gray-300 text-gray-500 hover:border-[#002e5d] hover:text-[#002e5d] transition flex items-center gap-1 bg-gray-50 hover:bg-blue-50 w-fit"><span class="text-lg leading-none mt-[-2px]">+</span> Companion: ${compBillStr}</button>`;
             }
 
-            // Pull Custom/Default rules from Rule Engine
             let stageForTasks = isDraft ? "Draft" : internalStatus;
             let resolvedTasks = getTasksForStage(safeCommittee, stageForTasks);
 
@@ -429,7 +444,6 @@
                 </div>`;
             }).join('');
 
-            // Organic Capture UI dropdown
             let addTaskHtml = `
                 <div class="mt-2 flex gap-2">
                     <input type="text" id="newTask_${activeItem.id}" placeholder="Add custom to-do..." class="text-xs font-bold text-gray-600 p-2 border border-gray-200 rounded flex-1 outline-none focus:border-gray-400" onkeypress="if(event.key === 'Enter') addCustomTask(${activeItem.id})">
@@ -482,14 +496,118 @@
         if (liveCount === 0) liveGrid.innerHTML = '<div class="text-gray-400 font-bold italic text-sm">No tracked bills to display.</div>';
     }
 
-    async function quickAddCompanion(event, compBillStr) { /* ... keep existing logic ... */ }
-    async function createDraft() { /* ... keep existing logic ... */ }
-    function openEdit(id) { /* ... keep existing logic ... */ }
-    async function saveEdit() { /* ... keep existing logic ... */ }
-    function openPromoteModal(id) { /* ... keep existing logic ... */ }
-    async function confirmPromote() { /* ... keep existing logic ... */ }
+    // --- Toast & Undo Logic ---
+    function triggerUndoToast(message, onUndo, onConfirm) {
+        const toast = document.getElementById('undoToast');
+        document.getElementById('undoMsg').innerText = message;
+        
+        if (pendingUndoAction) {
+            clearTimeout(undoTimeout);
+            pendingUndoAction.onConfirm();
+        }
 
-    // Updated addCustomTask to handle organic template saving
+        pendingUndoAction = { onUndo, onConfirm };
+        toast.classList.remove('translate-y-24', 'opacity-0');
+        
+        document.getElementById('undoBtn').onclick = () => {
+            if (pendingUndoAction) pendingUndoAction.onUndo();
+            closeUndoToast();
+        };
+
+        undoTimeout = setTimeout(() => {
+            if (pendingUndoAction) pendingUndoAction.onConfirm();
+            closeUndoToast();
+        }, 5000);
+    }
+
+    function closeUndoToast() {
+        const toast = document.getElementById('undoToast');
+        toast.classList.add('translate-y-24', 'opacity-0');
+        pendingUndoAction = null;
+    }
+
+    function deleteCustomTask(id, tName) {
+        const item = workspaceItems.find(i => i.id === id);
+        
+        // Backup state
+        const backupTasks = [...item.custom_tasks];
+        const backupProgress = JSON.parse(JSON.stringify(item.task_progress));
+
+        // Apply deletion optimistically to the UI immediately
+        item.custom_tasks = item.custom_tasks.filter(t => t !== tName);
+        if (item.task_progress["Custom"] && item.task_progress["Custom"][tName]) delete item.task_progress["Custom"][tName];
+        renderGrid(); 
+
+        // Trigger the Undo Toast
+        triggerUndoToast(`Task "${tName}" removed.`, 
+            () => { // Undo action
+                item.custom_tasks = backupTasks;
+                item.task_progress = backupProgress;
+                renderGrid();
+            },
+            () => { // Confirm action
+                syncToServer(item);
+            }
+        );
+    }
+
+    // --- Trash & Soft Delete Logic ---
+    async function deleteBill(id) {
+        if (!confirm("Move this bill to the Recycle Bin?")) return;
+        try {
+            const res = await fetch(`${workerBaseUrl}/delete-bill`, {
+                method: 'DELETE',
+                headers: authHeaders,
+                body: JSON.stringify({ id })
+            });
+            if (res.ok) loadWorkspace();
+        } catch (e) { alert("Failed to move to trash."); }
+    }
+
+    async function openTrash() {
+        showScreen('trashForm');
+        const container = document.getElementById('trashContents');
+        container.innerHTML = '<span class="text-sm font-bold text-gray-400 italic">Loading...</span>';
+        
+        try {
+            const res = await fetch(`${workerBaseUrl}/trash`, { headers: authHeaders });
+            const trashItems = await res.json();
+            
+            if (trashItems.length === 0) {
+                container.innerHTML = '<span class="text-sm font-bold text-gray-400 italic">The recycle bin is empty.</span>';
+                return;
+            }
+
+            container.innerHTML = trashItems.map(item => `
+                <div class="flex items-center justify-between bg-gray-50 p-4 rounded-lg border border-gray-200 shadow-sm">
+                    <div>
+                        <div class="text-sm font-black text-gray-800">${item.bill_number}</div>
+                        <div class="text-xs font-bold text-gray-500">${item.type === 'draft' ? 'Draft' : 'Tracked Bill'} • ${item.committee || 'No Comm'}</div>
+                    </div>
+                    <button onclick="restoreBill(${item.id})" class="bg-blue-100 hover:bg-blue-200 text-blue-700 text-[10px] font-black uppercase px-4 py-2 rounded transition">Restore</button>
+                </div>
+            `).join('');
+
+        } catch (e) { container.innerHTML = '<span class="text-sm font-bold text-red-400">Failed to load recycle bin.</span>'; }
+    }
+
+    async function restoreBill(id) {
+        try {
+            await fetch(`${workerBaseUrl}/restore-bill`, { method: 'POST', headers: authHeaders, body: JSON.stringify({ id }) });
+            openTrash(); // Refresh the modal
+            loadWorkspace(); // Refresh the main grid behind it
+        } catch (e) { alert("Failed to restore bill."); }
+    }
+
+    async function emptyTrash() {
+        if (!confirm("Are you sure? This will permanently delete all bills in the recycle bin and cannot be undone.")) return;
+        try {
+            await fetch(`${workerBaseUrl}/empty-trash`, { method: 'DELETE', headers: authHeaders });
+            openTrash();
+        } catch (e) { alert("Failed to empty trash."); }
+    }
+
+    // --- Remaining App Logic ---
     async function addCustomTask(id) {
         const input = document.getElementById(`newTask_${id}`);
         const ruleSelect = document.getElementById(`saveRule_${id}`);
@@ -498,55 +616,60 @@
         if (!task) return;
 
         const item = workspaceItems.find(i => i.id === id);
-        
-        // 1. Save locally to this specific bill
         if (!item.custom_tasks) item.custom_tasks = [];
         if (!item.custom_tasks.includes(task)) {
             item.custom_tasks.push(task);
             await syncToServer(item);
         }
 
-        // 2. If a rule was selected, push to the template database
         if (rule !== 'none') {
             const targetCommittee = rule === 'committee' ? (item.committee || 'Unknown') : 'All';
             const currentStage = (item.type === 'draft' || item.status === 'Draft') ? 'Draft' : (item.tracking_status || 'Introduced');
-            
             let existingTasks = getTasksForStage(targetCommittee, currentStage);
             if (!existingTasks.includes(task)) {
                 existingTasks.push(task);
-                
                 try {
                     await fetch(`${workerBaseUrl}/save-template`, {
-                        method: 'POST',
-                        headers: authHeaders,
-                        body: JSON.stringify({
-                            committee: targetCommittee,
-                            stage: currentStage,
-                            tasks: existingTasks
-                        })
+                        method: 'POST', headers: authHeaders,
+                        body: JSON.stringify({ committee: targetCommittee, stage: currentStage, tasks: existingTasks })
                     });
-                    // Refresh templates so the UI knows about the new rule
                     await fetchUserProfileAndTemplates(); 
                 } catch (e) { console.error("Failed to save template rule."); }
             }
         }
-        
-        input.value = '';
-        ruleSelect.selectedIndex = 0;
+        input.value = ''; ruleSelect.selectedIndex = 0;
     }
 
-    function toggleCustomTask(id, tName) { /* ... keep existing logic ... */ }
-    function deleteCustomTask(id, tName) { /* ... keep existing logic ... */ }
-    async function syncAllBills() { /* ... keep existing logic ... */ }
-    function switchTab(event, groupId, targetId) { /* ... keep existing logic ... */ }
-    function toggleCard(id) { /* ... keep existing logic ... */ }
-    function insertTimestamp(id) { /* ... keep existing logic ... */ }
-    function toggleTask(id, tName, status) { /* ... keep existing logic ... */ }
-    function updateDB(id, field, value) { /* ... keep existing logic ... */ }
-    async function syncToServer(item) { /* ... keep existing logic ... */ }
-    async function deleteBill(id) { /* ... keep existing logic ... */ }
-    async function fetchAPI() { /* ... keep existing logic ... */ }
-    async function saveToWorkspace() { /* ... keep existing logic ... */ }
+    async function quickAddCompanion(event, compBillStr) { /* ... keep existing ... */ }
+    async function createDraft() { /* ... keep existing ... */ }
+    function openEdit(id) { /* ... keep existing ... */ }
+    async function saveEdit() { /* ... keep existing ... */ }
+    function openPromoteModal(id) { /* ... keep existing ... */ }
+    async function confirmPromote() { /* ... keep existing ... */ }
+    function toggleCustomTask(id, tName) { /* ... keep existing ... */ }
+    async function syncAllBills() { /* ... keep existing ... */ }
+    function switchTab(event, groupId, targetId) { /* ... keep existing ... */ }
+    function toggleCard(id) { /* ... keep existing ... */ }
+    function insertTimestamp(id) { /* ... keep existing ... */ }
+    function toggleTask(id, tName, status) { /* ... keep existing ... */ }
+    function updateDB(id, field, value) { /* ... keep existing ... */ }
+    
+    async function syncToServer(item) {
+        renderGrid(); 
+        const payload = {
+            id: item.id, status: item.status, tracking_status: item.tracking_status, type: item.type,
+            bill_number: item.bill_number, billNumber: item.bill_number, short_desc: item.short_desc, shortDesc: item.short_desc,   
+            sponsor: item.sponsor, companion: item.companion, committee: item.committee || "Unknown",
+            live_notes: item.live_notes || "", task_progress: JSON.stringify(item.task_progress || {}),
+            custom_tasks: JSON.stringify(item.custom_tasks || []), hearing_date: item.hearing_date || "",
+            exec_date: item.exec_date || "", amendments: JSON.stringify(item.amendments || [])
+        };
+        try { await fetch(`${workerBaseUrl}/update-bill`, { method: 'POST', headers: authHeaders, body: JSON.stringify(payload) }); } 
+        catch (e) { console.error("Database sync failed"); }
+    }
+    
+    async function fetchAPI() { /* ... keep existing ... */ }
+    async function saveToWorkspace() { /* ... keep existing ... */ }
 </script>
 
 </body>
