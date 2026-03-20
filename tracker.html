@@ -235,6 +235,12 @@
         form.querySelectorAll('input, textarea, select').forEach(f => {
             if (f.tagName === 'SELECT' && f.id !== 'draftCommittee') f.selectedIndex = 0; else if (f.tagName !== 'SELECT') f.value = '';
         });
+        
+        // Ensure the draft modal resets to the default committee if they only have one
+        if (id === 'draftForm' && userProfileCommittees.length === 1) {
+            document.getElementById('draftCommittee').value = userProfileCommittees[0];
+        }
+
         form.style.display = 'flex';
     }
 
@@ -248,13 +254,12 @@
     function setCommittee(val) { 
         currentCommittee = val; 
         
-        // Dynamically update the top filter's color based on selection
         const selectEl = document.getElementById('committeeSelect');
         if (val !== 'All' && committeeColors[val]) {
             const color = committeeColors[val];
-            selectEl.style.backgroundColor = color + '1A'; // 10% opacity hex
+            selectEl.style.backgroundColor = color + '1A';
             selectEl.style.color = color;
-            selectEl.style.borderColor = color + '40'; // 25% opacity hex
+            selectEl.style.borderColor = color + '40';
         } else {
             selectEl.style.backgroundColor = '';
             selectEl.style.color = '';
@@ -320,6 +325,11 @@
                     opt.innerText = c;
                     draftSelect.appendChild(opt);
                 });
+
+                // Auto-select if they only have one committee
+                if (userProfileCommittees.length === 1) {
+                    draftSelect.value = userProfileCommittees[0];
+                }
             }
         } catch (e) { console.error("Could not fetch profile"); }
     }
@@ -643,6 +653,11 @@
             let companions = [];
             for (let c of xmlDoc.getElementsByTagNameNS("*", "Companion")) companions.push(c.textContent.trim());
 
+            let defaultCommittee = "Unknown";
+            if (userProfileCommittees && userProfileCommittees.length === 1) {
+                defaultCommittee = userProfileCommittees[0];
+            }
+
             const payload = {
                 billNumber: billNumber,
                 shortDesc: shortDesc,
@@ -650,7 +665,7 @@
                 sponsor: sponsor,
                 companion: companions.join(", "),
                 tracking_status: "Introduced",
-                committee: "Unknown",
+                committee: defaultCommittee,
                 type: "live"
             };
 
@@ -992,6 +1007,11 @@
             let companions = [];
             for (let c of xmlDoc.getElementsByTagNameNS("*", "Companion")) companions.push(c.textContent.trim());
 
+            let defaultCommittee = "Unknown";
+            if (userProfileCommittees && userProfileCommittees.length === 1) {
+                defaultCommittee = userProfileCommittees[0];
+            }
+
             currentBillData = { billNumber, shortDesc, status: currentStatus, sponsor, companion: companions.join(", ") };
 
             resDiv.innerHTML = `
@@ -1010,10 +1030,15 @@
     async function saveToWorkspace() {
         if (!currentBillData) return;
         
+        let defaultCommittee = "Unknown";
+        if (userProfileCommittees && userProfileCommittees.length === 1) {
+            defaultCommittee = userProfileCommittees[0];
+        }
+
         const payload = {
             ...currentBillData,
             tracking_status: "Introduced",
-            committee: "Unknown",
+            committee: defaultCommittee,
             type: "live"
         };
 
