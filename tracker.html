@@ -482,23 +482,30 @@
 
         if (currentSort === 'alpha') filteredItems.sort((a, b) => (a.bill_number || "").localeCompare(b.bill_number || ""));
 
+        // Helper to accurately extract just the 4 digit bill number, ignoring years
+        const parseBillDigit = (str) => {
+            if (!str) return '';
+            const matches = String(str).match(/\d{4}/g);
+            if (matches) return matches.filter(n => n !== "2025" && n !== "2026" && n !== "2027" && n !== "2028")[0] || matches[0];
+            return String(str).replace(/\D/g, '');
+        };
+
+        const extractNumbers = (str) => {
+            if (!str || String(str).toLowerCase() === 'none') return [];
+            return String(str).split(',').map(s => parseBillDigit(s)).filter(Boolean);
+        };
+
         filteredItems.forEach(item => {
             if (processedIds.has(item.id)) return;
 
-            // Safe extraction helper to pull an array of numbers from the companion string
-            const extractNumbers = (str) => {
-                if (!str) return [];
-                return String(str).split(',').map(s => s.replace(/\D/g, '')).filter(Boolean);
-            };
-
-            let myJustNum = item.bill_number ? String(item.bill_number).replace(/\D/g, '') : '';
+            let myJustNum = parseBillDigit(item.bill_number);
             let myCompNums = extractNumbers(item.companion);
 
             // Filter sweeps entirely through workspaceItems to group any bidirectional matches
             let group = workspaceItems.filter(i => {
-                let iJustNum = i.bill_number ? String(i.bill_number).replace(/\D/g, '') : '';
+                let iJustNum = parseBillDigit(i.bill_number);
                 let iCompNums = extractNumbers(i.companion);
-                
+
                 let match1 = iJustNum !== '' && myCompNums.includes(iJustNum);
                 let match2 = myJustNum !== '' && iCompNums.includes(myJustNum);
                 let match3 = myCompNums.length > 0 && myCompNums.some(num => iCompNums.includes(num));
@@ -508,7 +515,6 @@
 
             group.forEach(g => processedIds.add(g.id));
 
-            // Lock the group to the lowest DB ID so the UI state doesn't wipe when sorting arrays shift
             let baseId = Math.min(...group.map(g => g.id));
             let activeId = activeTabs[baseId] || baseId;
             let activeItem = group.find(i => i.id === activeId) || group[0];
