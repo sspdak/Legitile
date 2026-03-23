@@ -40,33 +40,24 @@
                         </div>
                     </div>
 
-                    <div class="bg-[#002e5d] rounded-xl shadow-md border border-[#001f3f] p-6 flex flex-col justify-center items-center text-center relative overflow-hidden shrink-0">
+                    <div class="bg-[#002e5d] rounded-xl shadow-md border border-[#001f3f] p-6 flex flex-col justify-center items-center text-center relative overflow-hidden shrink-0 group">
                         <div class="absolute -top-10 -right-10 w-32 h-32 bg-white opacity-5 rounded-full blur-2xl"></div>
-                        <span class="text-[10px] font-black uppercase tracking-[0.2em] text-orange-400 mb-2 z-10">Countdown to Sine Die</span>
+                        
+                        <button onclick="openCountdownSettings()" class="absolute top-3 right-3 text-white/50 hover:text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200 focus:opacity-100 z-20" title="Countdown Settings">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"></circle><circle cx="12" cy="5" r="1"></circle><circle cx="12" cy="19" r="1"></circle></svg>
+                        </button>
+
+                        <span id="countdownTitle" class="text-[10px] font-black uppercase tracking-[0.2em] text-orange-400 mb-2 z-10">Countdown to Sine Die</span>
                         <div class="text-5xl font-black text-white leading-none tracking-tighter z-10" id="countdownDays">--</div>
                         <span class="text-xs font-bold text-blue-200 mt-1 z-10">Days Remaining</span>
                     </div>
 
-                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 flex flex-col justify-center shrink-0">
-                        <span class="text-[10px] font-black uppercase text-gray-400 mb-4 block">Biennium Bill Volume</span>
-                        <div class="flex justify-around items-center">
-                            <div class="text-center">
-                                <div class="text-3xl font-black text-gray-800" id="houseCount">--</div>
-                                <span class="text-[10px] font-bold uppercase text-gray-500">House</span>
-                            </div>
-                            <div class="h-10 w-px bg-gray-200"></div>
-                            <div class="text-center">
-                                <div class="text-3xl font-black text-gray-800" id="senateCount">--</div>
-                                <span class="text-[10px] font-bold uppercase text-gray-500">Senate</span>
-                            </div>
-                        </div>
-                    </div>
                 </div>
 
                 <div class="lg:col-span-2 flex flex-col gap-6">
                     <div class="bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col flex-1 overflow-hidden h-full">
                         <div class="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50 shrink-0">
-                            <span class="text-[10px] font-black uppercase tracking-widest text-gray-400">Tracked Bills Radar</span>
+                            <span class="text-[10px] font-black uppercase tracking-widest text-gray-400">Tracked Bills Updates</span>
                             <a href="tracker.html" class="text-[10px] font-black uppercase text-[#002e5d] hover:text-blue-700 bg-blue-50 px-3 py-1.5 rounded transition border border-blue-100">Go to Workspace ➔</a>
                         </div>
                         <div class="p-6 overflow-y-auto flex-1">
@@ -81,15 +72,43 @@
         </main>
     </div>
 
+    <div id="countdownForm" style="display: none;" class="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-white p-8 rounded-xl shadow-2xl max-w-md w-full border-t-8 border-[#002e5d]">
+            <h2 class="text-2xl font-bold mb-4 text-[#002e5d] uppercase">Countdown Settings</h2>
+            
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Display Mode</label>
+                    <select id="cdMode" class="w-full border-2 border-gray-200 p-3 rounded-lg outline-none focus:border-[#002e5d] font-bold text-gray-700">
+                        <option value="sinedie">Countdown to Sine Die</option>
+                        <option value="start">Countdown to Session Start</option>
+                    </select>
+                </div>
+                
+                <div>
+                    <label class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Target Date</label>
+                    <input type="date" id="cdDate" class="w-full border-2 border-gray-200 p-3 rounded-lg outline-none focus:border-[#002e5d] font-bold text-gray-700">
+                </div>
+
+                <div class="flex gap-2 pt-4">
+                    <button onclick="saveCountdownSettings(this)" class="bg-[#002e5d] text-white font-bold px-6 py-3 rounded-lg flex-1 uppercase hover:bg-[#001f3f] transition">Save Settings</button>
+                    <button onclick="closeCountdownSettings()" class="bg-gray-200 py-3 px-4 rounded-lg font-bold uppercase text-gray-600 hover:bg-gray-300 transition">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
 <script>
     if (!localStorage.getItem('jwt_token')) window.location.href = 'index.html';
 
     const workerBaseUrl = "https://misty-credit-9e6a.ewing-jacob.workers.dev";
-    const authHeaders = { 'Authorization': `Bearer ${localStorage.getItem('jwt_token')}` };
+    const authHeaders = { 'Authorization': `Bearer ${localStorage.getItem('jwt_token')}`, 'Content-Type': 'application/json' };
+
+    let currentCdMode = 'sinedie';
+    let currentCdDate = '2026-03-12';
 
     function logout() { localStorage.clear(); window.location.href = 'index.html'; }
 
-    // 1. New function to load the sidebar dynamically
     async function loadSidebar() {
         try {
             const response = await fetch('sidebar.html');
@@ -98,17 +117,13 @@
             const html = await response.text();
             document.getElementById('sidebar-container').innerHTML = html;
 
-            // Now that the sidebar exists, we can safely inject the email
             document.getElementById('userEmailDisplay').innerText = localStorage.getItem('user_email') || 'Staff';
-
-            // Now that the links exist, we can safely highlight them
             updateNavHighlight();
         } catch (error) {
             console.error(error);
         }
     }
 
-    // Dynamic Navigation Highlighting
     function updateNavHighlight() {
         const path = window.location.pathname;
         const navItems = document.querySelectorAll('.nav-item');
@@ -120,40 +135,80 @@
         });
     }
 
-    // 2. The new window.onload block controlling the sequence
     window.onload = async () => {
-        // Step A: Load the sidebar first
         await loadSidebar(); 
-        
-        // Step B: Fetch all the dashboard data
         refreshDashboard();
-        
-        // Step C: Start the 5-minute timer
         setInterval(refreshDashboard, 300000);
     };
 
-    function refreshDashboard() {
-        calculateSineDie();
-        fetchStats();
+    async function refreshDashboard() {
+        await fetchPreferences();
         fetchRadar();
         fetchMeetings();
     }
 
-    function calculateSineDie() {
-        const sineDieDate = new Date("2026-03-12T23:59:59").getTime();
-        const now = new Date().getTime();
-        const diffDays = Math.ceil((sineDieDate - now) / (1000 * 60 * 60 * 24)); 
-        const display = document.getElementById('countdownDays');
-        display.innerText = diffDays < 0 ? "0" : diffDays;
+    async function fetchPreferences() {
+        try {
+            const res = await fetch(`${workerBaseUrl}/preferences`, { headers: authHeaders });
+            if (res.ok) {
+                const data = await res.json();
+                currentCdMode = data.cd_mode || 'sinedie';
+                currentCdDate = data.cd_date || '2026-03-12';
+            }
+        } catch(e) { console.warn("Could not load preferences, using defaults"); }
+        calculateCountdown();
     }
 
-    async function fetchStats() {
+    function calculateCountdown() {
+        const displayTitle = document.getElementById('countdownTitle');
+        const displayDays = document.getElementById('countdownDays');
+
+        displayTitle.innerText = currentCdMode === 'sinedie' ? 'Countdown to Sine Die' : 'Countdown to Session Start';
+
+        const targetDate = new Date(`${currentCdDate}T23:59:59`).getTime();
+        const now = new Date().getTime();
+        const diffDays = Math.ceil((targetDate - now) / (1000 * 60 * 60 * 24)); 
+        
+        displayDays.innerText = diffDays < 0 ? "0" : diffDays;
+    }
+
+    function openCountdownSettings() {
+        document.getElementById('cdMode').value = currentCdMode;
+        document.getElementById('cdDate').value = currentCdDate;
+        document.getElementById('countdownForm').style.display = 'flex';
+    }
+
+    function closeCountdownSettings() {
+        document.getElementById('countdownForm').style.display = 'none';
+    }
+
+    async function saveCountdownSettings(btn) {
+        const originalText = btn.innerText;
+        btn.innerText = "Saving...";
+        btn.disabled = true;
+
+        currentCdMode = document.getElementById('cdMode').value;
+        currentCdDate = document.getElementById('cdDate').value;
+
         try {
-            const res = await fetch(`${workerBaseUrl}/session-stats`, { headers: authHeaders });
-            const data = await res.json();
-            document.getElementById('houseCount').innerText = data.house.toLocaleString();
-            document.getElementById('senateCount').innerText = data.senate.toLocaleString();
-        } catch (e) {}
+            await fetch(`${workerBaseUrl}/preferences`, {
+                method: 'POST',
+                headers: authHeaders,
+                body: JSON.stringify({ cd_mode: currentCdMode, cd_date: currentCdDate })
+            });
+        } catch(e) { 
+            alert("Failed to save settings to database."); 
+        }
+
+        btn.innerText = originalText;
+        btn.disabled = false;
+        closeCountdownSettings();
+        calculateCountdown();
+    }
+
+    function safeJSONParse(str, fallback) {
+        if (!str) return fallback;
+        try { return JSON.parse(str); } catch(e) { return fallback; }
     }
 
     async function fetchRadar() {
@@ -168,15 +223,37 @@
                 return;
             }
 
-            bills.forEach(item => {
+            const alertedBills = bills.filter(b => safeJSONParse(b.task_progress, {})._sys_alert_unread);
+            const standardBills = bills.filter(b => !safeJSONParse(b.task_progress, {})._sys_alert_unread).slice(0, 5);
+
+            const itemsToDisplay = alertedBills.length > 0 ? alertedBills : standardBills;
+
+            if (alertedBills.length > 0) {
+                grid.innerHTML += `<div class="text-[10px] font-black uppercase tracking-widest text-red-500 mb-1 animate-pulse flex items-center gap-2"><span>🔴</span> Unread Updates</div>`;
+            } else {
+                grid.innerHTML += `<div class="text-[10px] font-black uppercase tracking-widest text-gray-400 mb-1">Recent Bills (No New Updates)</div>`;
+            }
+
+            itemsToDisplay.forEach(item => {
                 const isDead = item.status === 'Dead';
+                const parsedTasks = safeJSONParse(item.task_progress, {});
+                const hasAlert = parsedTasks._sys_alert_unread;
+                const alertMsg = parsedTasks._sys_alert;
+
+                const content = hasAlert 
+                    ? `<span class="text-xs font-black text-red-500 block mb-1 uppercase tracking-wider">${alertMsg}</span><span class="text-sm font-bold text-gray-500 line-clamp-1">${item.short_desc}</span>`
+                    : `<div class="text-sm font-bold text-gray-600 line-clamp-2">${item.short_desc}</div>`;
+
+                const dot = hasAlert ? `<div class="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-white animate-pulse"></div>` : '';
+
                 grid.innerHTML += `
-                    <div class="border ${isDead ? 'border-gray-200 bg-gray-50 grayscale' : 'border-blue-100 bg-white hover:border-[#002e5d]'} rounded-lg p-4 shadow-sm hover:shadow-md transition cursor-pointer flex flex-col sm:flex-row sm:items-center gap-4" onclick="window.location.href='tracker.html'">
+                    <div class="relative border ${hasAlert ? 'border-red-200 bg-red-50' : (isDead ? 'border-gray-200 bg-gray-50 grayscale' : 'border-blue-100 bg-white hover:border-[#002e5d]')} rounded-lg p-4 shadow-sm hover:shadow-md transition cursor-pointer flex flex-col sm:flex-row sm:items-center gap-4" onclick="window.location.href='tracker.html'">
+                        ${dot}
                         <div class="w-24 shrink-0">
                             <span class="text-lg font-black text-[#002e5d] block leading-tight">${item.bill_number}</span>
                             <span class="text-[9px] font-black uppercase px-2 py-0.5 rounded ${isDead ? 'bg-gray-200 text-gray-600' : 'bg-orange-100 text-orange-800'} inline-block mt-1">${item.status}</span>
                         </div>
-                        <div class="text-sm font-bold text-gray-600 line-clamp-2 flex-1">${item.short_desc}</div>
+                        <div class="flex-1">${content}</div>
                     </div>`;
             });
         } catch (e) {}
@@ -193,7 +270,6 @@
             const xmlText = await res.text();
             const xmlDoc = new DOMParser().parseFromString(xmlText, "text/xml");
 
-            // BULLETPROOF: Use querySelectorAll to ignore namespaces
             const cm = Array.from(xmlDoc.querySelectorAll('CommitteeMeeting'));
             const fa = Array.from(xmlDoc.querySelectorAll('FloorAction'));
             const allItems = [...cm, ...fa];
