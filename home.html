@@ -30,8 +30,13 @@
 
                 <div class="lg:col-span-1 flex flex-col gap-6">
 
-                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 flex flex-col flex-1 max-h-[500px]">
-                        <div class="flex justify-between items-center mb-3">
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 flex flex-col flex-1 max-h-[500px] relative group">
+                        
+                        <button onclick="openMeetingSettings()" class="absolute top-4 right-4 text-gray-300 hover:text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity duration-200 focus:opacity-100 z-20" title="Meeting Filter Settings">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"></circle><circle cx="12" cy="5" r="1"></circle><circle cx="12" cy="19" r="1"></circle></svg>
+                        </button>
+
+                        <div class="flex justify-between items-center mb-3 pr-6">
                             <span class="text-[10px] font-black uppercase tracking-widest text-gray-400">Upcoming Meetings</span>
                             <span class="text-[9px] font-bold text-blue-500 animate-pulse">30-DAY WINDOW</span>
                         </div>
@@ -92,7 +97,31 @@
 
                 <div class="flex gap-2 pt-4">
                     <button onclick="saveCountdownSettings(this)" class="bg-[#002e5d] text-white font-bold px-6 py-3 rounded-lg flex-1 uppercase hover:bg-[#001f3f] transition">Save Settings</button>
-                    <button onclick="closeCountdownSettings()" class="bg-gray-200 py-3 px-4 rounded-lg font-bold uppercase text-gray-600 hover:bg-gray-300 transition">Cancel</button>
+                    <button onclick="closeModal('countdownForm')" class="bg-gray-200 py-3 px-4 rounded-lg font-bold uppercase text-gray-600 hover:bg-gray-300 transition">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="meetingSettingsForm" style="display: none;" class="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-white p-8 rounded-xl shadow-2xl max-w-md w-full border-t-8 border-blue-500">
+            <h2 class="text-2xl font-bold mb-4 text-blue-600 uppercase">Meeting Filter</h2>
+            
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Show Meetings For:</label>
+                    <select id="meetingFilterMode" class="w-full border-2 border-gray-200 p-3 rounded-lg outline-none focus:border-blue-500 font-bold text-gray-700">
+                        <option value="all">All Scheduled Meetings</option>
+                        <option value="my_committees">My Saved Committees Only</option>
+                        <option value="house">House Committees Only</option>
+                        <option value="senate">Senate Committees Only</option>
+                        <option value="floor">Floor Sessions Only</option>
+                    </select>
+                </div>
+                
+                <div class="flex gap-2 pt-4">
+                    <button onclick="saveMeetingSettings(this)" class="bg-blue-600 text-white font-bold px-6 py-3 rounded-lg flex-1 uppercase hover:bg-blue-700 transition">Save Filter</button>
+                    <button onclick="closeModal('meetingSettingsForm')" class="bg-gray-200 py-3 px-4 rounded-lg font-bold uppercase text-gray-600 hover:bg-gray-300 transition">Cancel</button>
                 </div>
             </div>
         </div>
@@ -106,6 +135,8 @@
 
     let currentCdMode = 'sinedie';
     let currentCdDate = '2026-03-12';
+    let currentMeetingFilter = 'all';
+    let mySavedCommittees = [];
 
     function logout() { localStorage.clear(); window.location.href = 'index.html'; }
 
@@ -119,9 +150,7 @@
 
             document.getElementById('userEmailDisplay').innerText = localStorage.getItem('user_email') || 'Staff';
             updateNavHighlight();
-        } catch (error) {
-            console.error(error);
-        }
+        } catch (error) { console.error(error); }
     }
 
     function updateNavHighlight() {
@@ -135,8 +164,19 @@
         });
     }
 
+    async function fetchUserCommittees() {
+        try {
+            const resMe = await fetch(`${workerBaseUrl}/me`, { headers: authHeaders });
+            if (resMe.ok) {
+                const userData = await resMe.json();
+                mySavedCommittees = userData.committees || [];
+            }
+        } catch (e) { console.error("Could not fetch user profile committees."); }
+    }
+
     window.onload = async () => {
         await loadSidebar(); 
+        await fetchUserCommittees();
         refreshDashboard();
         setInterval(refreshDashboard, 300000);
     };
@@ -154,6 +194,7 @@
                 const data = await res.json();
                 currentCdMode = data.cd_mode || 'sinedie';
                 currentCdDate = data.cd_date || '2026-03-12';
+                currentMeetingFilter = data.meeting_filter || 'all';
             }
         } catch(e) { console.warn("Could not load preferences, using defaults"); }
         calculateCountdown();
@@ -178,8 +219,13 @@
         document.getElementById('countdownForm').style.display = 'flex';
     }
 
-    function closeCountdownSettings() {
-        document.getElementById('countdownForm').style.display = 'none';
+    function openMeetingSettings() {
+        document.getElementById('meetingFilterMode').value = currentMeetingFilter;
+        document.getElementById('meetingSettingsForm').style.display = 'flex';
+    }
+
+    function closeModal(id) {
+        document.getElementById(id).style.display = 'none';
     }
 
     async function saveCountdownSettings(btn) {
@@ -194,16 +240,37 @@
             await fetch(`${workerBaseUrl}/preferences`, {
                 method: 'POST',
                 headers: authHeaders,
-                body: JSON.stringify({ cd_mode: currentCdMode, cd_date: currentCdDate })
+                body: JSON.stringify({ cd_mode: currentCdMode, cd_date: currentCdDate, meeting_filter: currentMeetingFilter })
             });
-        } catch(e) { 
-            alert("Failed to save settings to database."); 
-        }
+        } catch(e) { alert("Failed to save settings to database."); }
 
         btn.innerText = originalText;
         btn.disabled = false;
-        closeCountdownSettings();
+        closeModal('countdownForm');
         calculateCountdown();
+    }
+
+    async function saveMeetingSettings(btn) {
+        const originalText = btn.innerText;
+        btn.innerText = "Saving...";
+        btn.disabled = true;
+
+        currentMeetingFilter = document.getElementById('meetingFilterMode').value;
+
+        try {
+            await fetch(`${workerBaseUrl}/preferences`, {
+                method: 'POST',
+                headers: authHeaders,
+                body: JSON.stringify({ cd_mode: currentCdMode, cd_date: currentCdDate, meeting_filter: currentMeetingFilter })
+            });
+        } catch(e) { alert("Failed to save settings to database."); }
+
+        btn.innerText = originalText;
+        btn.disabled = false;
+        closeModal('meetingSettingsForm');
+        
+        document.getElementById('meetingList').innerHTML = '<span class="text-xs font-bold text-gray-400 italic">Applying filter...</span>';
+        fetchMeetings();
     }
 
     function safeJSONParse(str, fallback) {
@@ -225,7 +292,6 @@
 
             const alertedBills = bills.filter(b => safeJSONParse(b.task_progress, {})._sys_alert_unread);
 
-            // Clean Empty State if user is caught up
             if (alertedBills.length === 0) {
                 grid.innerHTML = `
                     <div class="flex flex-col items-center justify-center py-10 opacity-60">
@@ -236,7 +302,6 @@
                 return;
             }
 
-            // Otherwise, render the alerted bills
             grid.innerHTML += `<div class="text-[10px] font-black uppercase tracking-widest text-red-500 mb-3 animate-pulse flex items-center gap-2"><span>🔴</span> Unread Updates</div>`;
 
             alertedBills.forEach(item => {
@@ -293,11 +358,35 @@
             }).filter(item => {
                 const isUpcoming = item.date >= now && item.date <= fortyFiveDaysFromNow;
                 if (!isUpcoming || seen.has(item.key)) return false;
+                
+                // --- NEW FILTER LOGIC ---
+                const safeName = item.name.toLowerCase();
+                const safeAgency = item.agency.toLowerCase();
+                
+                if (currentMeetingFilter === 'floor') {
+                    if (!safeName.includes("convened") && !safeName.includes("floor session")) return false;
+                } else if (currentMeetingFilter === 'house') {
+                    if (!safeAgency.includes("house")) return false;
+                } else if (currentMeetingFilter === 'senate') {
+                    if (!safeAgency.includes("senate")) return false;
+                } else if (currentMeetingFilter === 'my_committees') {
+                    // Always show floor sessions even if filtering by committee, otherwise it feels empty
+                    const isFloor = safeName.includes("convened") || safeName.includes("floor session");
+                    const isMyComm = mySavedCommittees.some(myC => safeName.includes(myC.toLowerCase()));
+                    if (!isMyComm && !isFloor) return false;
+                }
+
                 seen.add(item.key);
                 return true;
             }).sort((a, b) => a.date - b.date);
 
             list.innerHTML = '';
+            
+            if (filteredItems.length === 0) {
+                list.innerHTML = '<div class="text-xs font-bold text-gray-400 italic mt-2">No meetings match your filter.</div>';
+                return;
+            }
+
             let lastDateLabel = "";
 
             filteredItems.forEach(item => {
