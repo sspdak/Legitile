@@ -403,7 +403,7 @@
     window.onload = async () => {
         await loadSidebar();
         await fetchUserProfileAndTemplates();
-        await fetchBienniums(); // Load sessions before workspace
+        await fetchBienniums(); 
         await loadWorkspace();
         handleAutoSearch();
         
@@ -482,7 +482,6 @@
 
         if (currentSort === 'alpha') filteredItems.sort((a, b) => (a.bill_number || "").localeCompare(b.bill_number || ""));
 
-        // Helper to accurately extract just the 4 digit bill number, ignoring years
         const parseBillDigit = (str) => {
             if (!str) return '';
             const matches = String(str).match(/\d{4}/g);
@@ -501,7 +500,6 @@
             let myJustNum = parseBillDigit(item.bill_number);
             let myCompNums = extractNumbers(item.companion);
 
-            // Filter sweeps entirely through workspaceItems to group any bidirectional matches
             let group = workspaceItems.filter(i => {
                 let iJustNum = parseBillDigit(i.bill_number);
                 let iCompNums = extractNumbers(i.companion);
@@ -646,7 +644,8 @@
                 : `<a href="${billLink}" target="_blank" onclick="event.stopPropagation()" class="text-xl font-black text-[#002e5d] hover:text-blue-700 leading-tight block no-underline" title="View official bill page">${activeItem.bill_number}</a>`;
 
             let cardHtml = `
-                <div class="bg-white rounded-xl shadow-md border border-gray-100 overflow-hidden ${visualModifier}" style="border-left: 5px solid ${borderColor};">
+                <div class="relative bg-white rounded-xl shadow-md border border-gray-100 overflow-hidden ${visualModifier}" style="border-left: 5px solid ${borderColor};">
+                    ${activeItem.task_progress && activeItem.task_progress._sys_alert_unread ? `<div class="absolute top-2 left-2 w-3 h-3 bg-red-500 rounded-full border border-white shadow-sm animate-pulse z-10" title="New Update: ${activeItem.task_progress._sys_alert}"></div>` : ''}
                     <div class="p-5 flex flex-col md:flex-row gap-4 items-start cursor-pointer hover:bg-gray-50 transition" onclick="toggleCard(${baseId})">
                         <div class="w-auto flex-shrink-0 md:w-32 pt-1">
                             ${billTitleHtml}
@@ -1032,8 +1031,18 @@
     }
 
     function toggleCard(id) {
-        if (expandedCards.has(id)) expandedCards.delete(id);
-        else expandedCards.add(id);
+        if (expandedCards.has(id)) {
+            expandedCards.delete(id);
+        } else {
+            expandedCards.add(id);
+            // Clear the alert automatically when the card is expanded
+            let activeId = activeTabs[id] || id;
+            let activeItem = workspaceItems.find(i => i.id === activeId);
+            if (activeItem && activeItem.task_progress && activeItem.task_progress._sys_alert_unread) {
+                delete activeItem.task_progress._sys_alert_unread;
+                syncToServer(activeItem);
+            }
+        }
         renderGrid();
     }
 
@@ -1147,6 +1156,25 @@
         };
 
         try {
+            try {
+                const trashRes = await fetch(`${workerBaseUrl}/trash`, { headers: authHeaders });
+                if (trashRes.ok) {
+                    const trashItems = await trashRes.json();
+                    const justNum = String(currentBillData.billNumber).replace(/\D/g, '');
+                    const trashedBill = trashItems.find(i => String(i.bill_number).replace(/\D/g, '') === justNum);
+                    
+                    if (trashedBill) {
+                        await fetch(`${workerBaseUrl}/restore-bill`, { 
+                            method: 'POST', 
+                            headers: authHeaders, 
+                            body: JSON.stringify({ id: trashedBill.id }) 
+                        });
+                    }
+                }
+            } catch (trashErr) {
+                console.warn("Could not check recycle bin:", trashErr);
+            }
+
             const res = await fetch(`${workerBaseUrl}/save-bill`, { method: 'POST', headers: authHeaders, body: JSON.stringify(payload) });
             if (res.ok) {
                 document.getElementById('apiResults').innerHTML = `<span class="text-green-600 font-bold text-sm">Added!</span>`;
