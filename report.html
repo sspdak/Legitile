@@ -58,6 +58,7 @@
                             <thead>
                                 <tr class="bg-gray-50 text-gray-500 text-[10px] uppercase tracking-wider font-black border-b border-gray-200">
                                     <th class="p-4">Bill</th>
+                                    <th class="p-4">Version</th>
                                     <th class="p-4">Phrase</th>
                                     <th class="p-4">Location</th>
                                     <th class="p-4 w-1/3">Context Snippet</th>
@@ -67,7 +68,7 @@
                             </thead>
                             <tbody id="reportGrid" class="text-sm divide-y divide-gray-100">
                                 <tr>
-                                    <td colspan="6" class="p-8 text-center text-gray-400 font-bold italic">Enter phrases above to generate the report.</td>
+                                    <td colspan="7" class="p-8 text-center text-gray-400 font-bold italic">Enter phrases above to generate the report.</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -99,15 +100,12 @@
         } catch (error) { console.error("Sidebar failed to load."); }
     }
 
-    // --- SAVED QUERIES LOGIC (D1 Database) ---
     async function updateSavedQueriesDropdown() {
         const dropdown = document.getElementById('savedQueriesDropdown');
         dropdown.innerHTML = '<option value="">-- Loading... --</option>';
-        
         try {
             const res = await fetch(`${searchApiUrl}/saved-queries`);
             const saved = await res.json();
-            
             dropdown.innerHTML = '<option value="">-- Select a saved search --</option>';
             if (Array.isArray(saved)) {
                 saved.forEach(q => {
@@ -118,7 +116,6 @@
                 });
             }
         } catch (error) {
-            console.error("Failed to load saved queries:", error);
             dropdown.innerHTML = '<option value="">-- Error loading --</option>';
         }
     }
@@ -126,11 +123,9 @@
     async function saveCurrentQuery() {
         const query = document.getElementById('reportInput').value.trim();
         if (!query) return;
-        
         const saveBtn = document.querySelector('button[title="Save this search"]');
         const originalText = saveBtn.innerText;
         saveBtn.innerText = "Saving...";
-        
         try {
             await fetch(`${searchApiUrl}/saved-queries`, {
                 method: 'POST',
@@ -138,23 +133,17 @@
                 body: JSON.stringify({ action: "save", query: query })
             });
             await updateSavedQueriesDropdown();
-        } catch (error) {
-            console.error("Failed to save query:", error);
-        }
-        
+        } catch (error) { console.error("Failed to save query:", error); }
         saveBtn.innerText = originalText;
     }
 
     function loadSavedQuery() {
         const dropdown = document.getElementById('savedQueriesDropdown');
-        if (dropdown.value) {
-            document.getElementById('reportInput').value = dropdown.value;
-        }
+        if (dropdown.value) document.getElementById('reportInput').value = dropdown.value;
     }
 
     async function clearSavedQueries() {
         if (!confirm("Are you sure you want to delete all saved searches?")) return;
-        
         try {
             await fetch(`${searchApiUrl}/saved-queries`, {
                 method: 'POST',
@@ -162,9 +151,7 @@
                 body: JSON.stringify({ action: "clear" })
             });
             await updateSavedQueriesDropdown();
-        } catch (error) {
-            console.error("Failed to clear queries:", error);
-        }
+        } catch (error) { console.error("Failed to clear queries:", error); }
     }
 
     window.onload = () => {
@@ -172,18 +159,33 @@
         updateSavedQueriesDropdown();
     };
 
-    // --- REPORT LOGIC ---
+    // --- NEW: VERSION TRANSLATOR ---
+    function getBillVersion(url) {
+        if (!url) return "Original";
+        const fileName = url.split('/').pop().toUpperCase();
+        
+        if (fileName.includes("-S.E")) return "Engrossed Substitute";
+        if (fileName.includes("-S2.E")) return "Engrossed 2nd Substitute";
+        if (fileName.includes("-S3.E")) return "Engrossed 3rd Substitute";
+        if (fileName.includes("-S2")) return "2nd Substitute";
+        if (fileName.includes("-S3")) return "3rd Substitute";
+        if (fileName.includes("-S")) return "Substitute";
+        if (fileName.includes(".E")) return "Engrossed";
+        if (fileName.includes(".PL")) return "Passed Legislature";
+        if (fileName.includes(".SL")) return "Session Law";
+        
+        return "Original";
+    }
+
     function extractLocation(fullText, phrase) {
         const lowerText = fullText.toLowerCase();
         const lowerPhrase = phrase.toLowerCase();
         const index = lowerText.indexOf(lowerPhrase);
-        
         if (index === -1) return { section: "Not Found", snippet: "" };
 
         const textBefore = fullText.substring(0, index);
         const sectionRegex = /(?:NEW SECTION\.\s*)?(?:Sec\.|Section)\s*\d+/gi;
         const matches = [...textBefore.matchAll(sectionRegex)];
-        
         const section = matches.length > 0 ? matches[matches.length - 1][0] : "Intro/Preamble";
         
         const start = Math.max(0, index - 40);
@@ -200,7 +202,6 @@
         try {
             const res = await fetch(`${searchApiUrl}/get-bill-status?billNumber=${encodeURIComponent(billNumber)}&biennium=${encodeURIComponent(biennium)}`);
             const data = await res.json();
-            
             if (data.error) throw new Error(data.error);
             return { sponsor: data.sponsor, status: data.status };
         } catch (e) {
@@ -217,13 +218,12 @@
 
         if (!rawQuery) return;
 
-        // Split input into multiple phrases
         const phrases = rawQuery.split(',').map(p => p.trim()).filter(p => p.length > 0);
 
         generateBtn.innerText = "Processing...";
         generateBtn.disabled = true;
         exportBtn.classList.add('hidden');
-        reportGrid.innerHTML = '<tr><td colspan="6" class="p-8 text-center text-blue-500 font-bold animate-pulse">Scanning database and retrieving live status...</td></tr>';
+        reportGrid.innerHTML = '<tr><td colspan="7" class="p-8 text-center text-blue-500 font-bold animate-pulse">Scanning database and retrieving live status...</td></tr>';
         currentReportData = [];
         let htmlOutput = "";
         let foundAnyMatches = false;
@@ -240,9 +240,13 @@
                     for (const item of data) {
                         const { section, snippet, rawSnippet } = extractLocation(item.full_text, phrase);
                         const { sponsor, status } = await fetchBillDetails(item.bill_number, biennium);
+                        
+                        // Pass the URL to our new translator function
+                        const version = getBillVersion(item.url);
 
                         currentReportData.push({
                             bill_number: item.bill_number,
+                            version: version,
                             phrase: phrase,
                             section: section,
                             snippet: rawSnippet,
@@ -253,6 +257,7 @@
                         htmlOutput += `
                             <tr class="hover:bg-gray-50 transition border-b border-gray-100 last:border-0">
                                 <td class="p-4 font-black text-[#002e5d]">${item.bill_number}</td>
+                                <td class="p-4 text-[10px] font-black uppercase text-gray-500 tracking-wider">${version}</td>
                                 <td class="p-4 text-xs font-bold text-gray-800 bg-yellow-50/50">${phrase}</td>
                                 <td class="p-4 text-xs font-bold text-gray-600 bg-gray-50 border-r border-gray-200">${section}</td>
                                 <td class="p-4 text-xs text-gray-600 italic leading-relaxed">${snippet}</td>
@@ -265,14 +270,14 @@
             }
 
             if (!foundAnyMatches) {
-                reportGrid.innerHTML = '<tr><td colspan="6" class="p-8 text-center text-gray-500 font-bold">No bills contain the requested phrases.</td></tr>';
+                reportGrid.innerHTML = '<tr><td colspan="7" class="p-8 text-center text-gray-500 font-bold">No bills contain the requested phrases.</td></tr>';
             } else {
                 reportGrid.innerHTML = htmlOutput;
                 exportBtn.classList.remove('hidden');
             }
 
         } catch (e) {
-            reportGrid.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-red-500 font-bold">Error: ${e.message}</td></tr>`;
+            reportGrid.innerHTML = `<tr><td colspan="7" class="p-8 text-center text-red-500 font-bold">Error: ${e.message}</td></tr>`;
         }
 
         generateBtn.innerText = "Generate";
@@ -282,9 +287,10 @@
     function exportToCSV() {
         if (currentReportData.length === 0) return;
         
-        const headers = ["Bill Number", "Phrase", "Location", "Context Snippet", "Sponsor", "Current Status"];
+        const headers = ["Bill Number", "Version", "Phrase", "Location", "Context Snippet", "Sponsor", "Current Status"];
         const rows = currentReportData.map(row => [
             row.bill_number,
+            `"${row.version}"`,
             `"${row.phrase}"`,
             row.section,
             `"${row.snippet.replace(/"/g, '""')}"`,
