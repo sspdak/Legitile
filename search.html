@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LegiTile | Bill Language Search</title>
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgcng9IjIwIiBmaWxsPSIjMDAyZTVkIi8+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCUiIHkxPSIwJSIgeDI9IjEwMCUiIHkyPSIxMDAlIj48c3RvcCBvZmZzZXQ9IjAlIiBzdG9wLWNvbG9yPSIjZmI5MjNjIi8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjZmZmZmZmIi8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHRleHQgeD0iNTAiIHk9Ijc1IiBmb250LWZhbWlseT0ic2VyaWYiIGZvbnQtc3R5bGU9Iml0YWxpYyIgZm9udC13ZWlnaHQ9IjkwMCIgZm9udC1zaXplPSI3NSIgZmlsbD0idXJsKCNnKSIgdGV4dC1hbmNob3I9Im1pZGRsZSI+TDwvdGV4dD48L3N2Zz4=">
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         .leg-navy { background-color: #002e5d; }
@@ -25,18 +24,16 @@
 
         <main class="flex-1 overflow-y-auto p-6 md:p-10 scroll-smooth">
             <div class="bg-white p-6 rounded-xl shadow-sm mb-6 border border-gray-100 max-w-4xl mx-auto">
-                
                 <div class="flex flex-col md:flex-row gap-3 w-full mb-4">
                     <select id="searchBiennium" class="bg-gray-50 border-2 border-gray-200 text-gray-800 font-black uppercase text-[10px] rounded-lg px-4 py-3 outline-none focus:border-[#002e5d] transition cursor-pointer md:w-40">
                         <option value="2025-26" selected>2025-26 Session</option>
                     </select>
-                    <input type="text" id="searchInput" placeholder="Enter keyword or exact phrase (e.g. emergency clause)" class="flex-1 border-2 border-gray-200 p-3 rounded-lg outline-none focus:border-[#002e5d] font-bold text-gray-700" onkeypress="if(event.key === 'Enter') runSearch()">
+                    <input type="text" id="searchInput" placeholder="Enter keyword or exact phrase..." class="flex-1 border-2 border-gray-200 p-3 rounded-lg outline-none focus:border-[#002e5d] font-bold text-gray-700" onkeypress="if(event.key === 'Enter') runSearch()">
                     <button onclick="runSearch()" id="searchBtn" class="bg-[#002e5d] hover:bg-[#001f3f] text-white text-[12px] font-black uppercase px-8 py-3 rounded-lg shadow-sm transition">Search</button>
                 </div>
             </div>
 
             <div class="max-w-4xl mx-auto">
-                <h2 class="text-xs font-black text-gray-400 uppercase tracking-widest mb-4">Search Results</h2>
                 <div id="resultsGrid" class="flex flex-col gap-4">
                     <div class="text-gray-400 font-bold italic text-sm">Enter a search term above.</div>
                 </div>
@@ -47,7 +44,7 @@
 <script>
     if (!localStorage.getItem('jwt_token')) window.location.href = 'index.html';
 
-    // Target the scraper API, not the main LegiTile API
+    // This specifically targets your scraper worker from your main site
     const searchApiUrl = "https://legitile-scraper.ewing-jacob.workers.dev";
 
     async function loadSidebar() {
@@ -55,7 +52,6 @@
             const response = await fetch('sidebar.html');
             if (response.ok) {
                 document.getElementById('sidebar-container').innerHTML = await response.text();
-                document.getElementById('userEmailDisplay').innerText = localStorage.getItem('user_email') || 'Staff';
                 
                 const path = window.location.pathname;
                 document.querySelectorAll('.nav-item').forEach(item => {
@@ -86,20 +82,19 @@
 
         try {
             const res = await fetch(`${searchApiUrl}/search?q=${encodeURIComponent(query)}&biennium=${encodeURIComponent(biennium)}`);
-            
             const rawText = await res.text(); 
             
             let data;
             try {
                 data = JSON.parse(rawText);
             } catch (parseError) {
-                throw new Error(`The server returned plain text instead of data: <br><br> <span class="text-gray-500 font-mono text-xs">${rawText}</span>`);
+                throw new Error(`Server Error: <br><br> <span class="text-gray-500 font-mono text-xs">${rawText}</span>`);
             }
 
             if (!res.ok || data.error) throw new Error(data.error || "Search API failed");
 
             if (data.length === 0) {
-                resultsGrid.innerHTML = '<div class="text-gray-500 font-bold text-sm bg-white p-6 rounded-xl border border-gray-100">No matching bills found in the indexed database.</div>';
+                resultsGrid.innerHTML = '<div class="text-gray-500 font-bold text-sm bg-white p-6 rounded-xl border border-gray-100">No matching bills found.</div>';
             } else {
                 resultsGrid.innerHTML = data.map(item => `
                     <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition">
@@ -121,6 +116,5 @@
         searchBtn.disabled = false;
     }
 </script>
-
 </body>
 </html>
