@@ -20,7 +20,7 @@
         <header class="shrink-0 pt-8 pb-4 px-6 md:px-10 z-40 bg-gray-100 border-b border-gray-200 flex justify-between items-end">
             <div>
                 <h1 class="text-2xl font-black text-gray-800 uppercase tracking-tight">Phrase Report Generator</h1>
-                <p class="text-xs text-gray-500 font-bold mt-1">Locate specific language and export bill status data.</p>
+                <p class="text-xs text-gray-500 font-bold mt-1">Search multiple phrases (comma separated) and track bill language.</p>
             </div>
             <button id="exportBtn" onclick="exportToCSV()" class="hidden bg-green-600 hover:bg-green-700 text-white text-[10px] font-black uppercase px-4 py-2 rounded shadow-sm transition">
                 Download CSV
@@ -28,23 +28,37 @@
         </header>
 
         <main class="flex-1 overflow-y-auto p-6 md:p-10 scroll-smooth">
-            <div class="bg-white p-6 rounded-xl shadow-sm mb-6 border border-gray-100 max-w-6xl mx-auto">
-                <div class="flex flex-col md:flex-row gap-3 w-full">
+            <div class="bg-white p-6 rounded-xl shadow-sm mb-6 border border-gray-100 max-w-7xl mx-auto">
+                
+                <div class="flex flex-col md:flex-row gap-3 w-full mb-3">
                     <select id="reportBiennium" class="bg-gray-50 border-2 border-gray-200 text-gray-800 font-black uppercase text-[10px] rounded-lg px-4 py-3 outline-none focus:border-[#002e5d] transition cursor-pointer md:w-40">
                         <option value="2025-26" selected>2025-26 Session</option>
                     </select>
-                    <input type="text" id="reportInput" placeholder="Enter exact phrase to locate..." class="flex-1 border-2 border-gray-200 p-3 rounded-lg outline-none focus:border-[#002e5d] font-bold text-gray-700" onkeypress="if(event.key === 'Enter') generateReport()">
+                    
+                    <input type="text" id="reportInput" placeholder="Enter phrases separated by commas (e.g. housing, tax, emergency)" class="flex-1 border-2 border-gray-200 p-3 rounded-lg outline-none focus:border-[#002e5d] font-bold text-gray-700" onkeypress="if(event.key === 'Enter') generateReport()">
+                    
+                    <button onclick="saveCurrentQuery()" class="bg-blue-50 text-blue-600 hover:bg-blue-100 border border-blue-200 text-[12px] font-black uppercase px-4 py-3 rounded-lg shadow-sm transition" title="Save this search">💾 Save</button>
+                    
                     <button onclick="generateReport()" id="generateBtn" class="bg-[#002e5d] hover:bg-[#001f3f] text-white text-[12px] font-black uppercase px-8 py-3 rounded-lg shadow-sm transition">Generate</button>
+                </div>
+
+                <div class="flex items-center gap-3">
+                    <span class="text-[10px] font-black uppercase text-gray-400">Saved Searches:</span>
+                    <select id="savedQueriesDropdown" onchange="loadSavedQuery()" class="bg-gray-50 border border-gray-200 text-gray-600 text-xs rounded px-3 py-1 outline-none cursor-pointer">
+                        <option value="">-- Loading... --</option>
+                    </select>
+                    <button onclick="clearSavedQueries()" class="text-[9px] font-bold text-red-400 hover:text-red-600 uppercase transition">Clear All</button>
                 </div>
             </div>
 
-            <div class="max-w-6xl mx-auto">
+            <div class="max-w-7xl mx-auto">
                 <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
                     <div class="overflow-x-auto">
                         <table class="w-full text-left border-collapse" id="reportTable">
                             <thead>
                                 <tr class="bg-gray-50 text-gray-500 text-[10px] uppercase tracking-wider font-black border-b border-gray-200">
                                     <th class="p-4">Bill</th>
+                                    <th class="p-4">Phrase</th>
                                     <th class="p-4">Location</th>
                                     <th class="p-4 w-1/3">Context Snippet</th>
                                     <th class="p-4">Sponsor</th>
@@ -53,7 +67,7 @@
                             </thead>
                             <tbody id="reportGrid" class="text-sm divide-y divide-gray-100">
                                 <tr>
-                                    <td colspan="5" class="p-8 text-center text-gray-400 font-bold italic">Enter a phrase above to generate the report.</td>
+                                    <td colspan="6" class="p-8 text-center text-gray-400 font-bold italic">Enter phrases above to generate the report.</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -85,8 +99,80 @@
         } catch (error) { console.error("Sidebar failed to load."); }
     }
 
-    window.onload = loadSidebar;
+    // --- SAVED QUERIES LOGIC (D1 Database) ---
+    async function updateSavedQueriesDropdown() {
+        const dropdown = document.getElementById('savedQueriesDropdown');
+        dropdown.innerHTML = '<option value="">-- Loading... --</option>';
+        
+        try {
+            const res = await fetch(`${searchApiUrl}/saved-queries`);
+            const saved = await res.json();
+            
+            dropdown.innerHTML = '<option value="">-- Select a saved search --</option>';
+            if (Array.isArray(saved)) {
+                saved.forEach(q => {
+                    const opt = document.createElement('option');
+                    opt.value = q;
+                    opt.innerText = q.length > 50 ? q.substring(0, 50) + '...' : q;
+                    dropdown.appendChild(opt);
+                });
+            }
+        } catch (error) {
+            console.error("Failed to load saved queries:", error);
+            dropdown.innerHTML = '<option value="">-- Error loading --</option>';
+        }
+    }
 
+    async function saveCurrentQuery() {
+        const query = document.getElementById('reportInput').value.trim();
+        if (!query) return;
+        
+        const saveBtn = document.querySelector('button[title="Save this search"]');
+        const originalText = saveBtn.innerText;
+        saveBtn.innerText = "Saving...";
+        
+        try {
+            await fetch(`${searchApiUrl}/saved-queries`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: "save", query: query })
+            });
+            await updateSavedQueriesDropdown();
+        } catch (error) {
+            console.error("Failed to save query:", error);
+        }
+        
+        saveBtn.innerText = originalText;
+    }
+
+    function loadSavedQuery() {
+        const dropdown = document.getElementById('savedQueriesDropdown');
+        if (dropdown.value) {
+            document.getElementById('reportInput').value = dropdown.value;
+        }
+    }
+
+    async function clearSavedQueries() {
+        if (!confirm("Are you sure you want to delete all saved searches?")) return;
+        
+        try {
+            await fetch(`${searchApiUrl}/saved-queries`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: "clear" })
+            });
+            await updateSavedQueriesDropdown();
+        } catch (error) {
+            console.error("Failed to clear queries:", error);
+        }
+    }
+
+    window.onload = () => {
+        loadSidebar();
+        updateSavedQueriesDropdown();
+    };
+
+    // --- REPORT LOGIC ---
     function extractLocation(fullText, phrase) {
         const lowerText = fullText.toLowerCase();
         const lowerPhrase = phrase.toLowerCase();
@@ -94,98 +180,99 @@
         
         if (index === -1) return { section: "Not Found", snippet: "" };
 
-        // Scan backward for the nearest section marker
         const textBefore = fullText.substring(0, index);
         const sectionRegex = /(?:NEW SECTION\.\s*)?(?:Sec\.|Section)\s*\d+/gi;
         const matches = [...textBefore.matchAll(sectionRegex)];
         
         const section = matches.length > 0 ? matches[matches.length - 1][0] : "Intro/Preamble";
         
-        // Grab surrounding text for context
-        const start = Math.max(0, index - 30);
-        const end = Math.min(fullText.length, index + phrase.length + 30);
+        const start = Math.max(0, index - 40);
+        const end = Math.min(fullText.length, index + phrase.length + 40);
         const snippet = "..." + fullText.substring(start, end).replace(/\n/g, ' ').trim() + "...";
 
-        // Highlight the phrase
         const regex = new RegExp(`(${phrase})`, "gi");
         const highlightedSnippet = snippet.replace(regex, '<mark class="bg-yellow-200 font-bold px-1 rounded">$1</mark>');
 
         return { section, snippet: highlightedSnippet, rawSnippet: snippet };
     }
 
-async function fetchBillDetails(billNumber, biennium) {
+    async function fetchBillDetails(billNumber, biennium) {
         try {
-            // Ping your own Cloudflare proxy instead of the WA API directly
             const res = await fetch(`${searchApiUrl}/get-bill-status?billNumber=${encodeURIComponent(billNumber)}&biennium=${encodeURIComponent(biennium)}`);
             const data = await res.json();
             
             if (data.error) throw new Error(data.error);
             return { sponsor: data.sponsor, status: data.status };
         } catch (e) {
-            console.error(`Failed to fetch details for ${billNumber}:`, e);
             return { sponsor: "Error fetching", status: "Error fetching" };
         }
     }
 
     async function generateReport() {
-        const query = document.getElementById('reportInput').value.trim();
+        const rawQuery = document.getElementById('reportInput').value.trim();
         const biennium = document.getElementById('reportBiennium').value;
         const reportGrid = document.getElementById('reportGrid');
         const generateBtn = document.getElementById('generateBtn');
         const exportBtn = document.getElementById('exportBtn');
 
-        if (!query) return;
+        if (!rawQuery) return;
+
+        // Split input into multiple phrases
+        const phrases = rawQuery.split(',').map(p => p.trim()).filter(p => p.length > 0);
 
         generateBtn.innerText = "Processing...";
         generateBtn.disabled = true;
         exportBtn.classList.add('hidden');
-        reportGrid.innerHTML = '<tr><td colspan="5" class="p-8 text-center text-blue-500 font-bold animate-pulse">Scanning database and retrieving live status...</td></tr>';
+        reportGrid.innerHTML = '<tr><td colspan="6" class="p-8 text-center text-blue-500 font-bold animate-pulse">Scanning database and retrieving live status...</td></tr>';
         currentReportData = [];
+        let htmlOutput = "";
+        let foundAnyMatches = false;
 
         try {
-            // 1. Get full text matches from your worker
-            const res = await fetch(`${searchApiUrl}/generate-report?q=${encodeURIComponent(query)}&biennium=${encodeURIComponent(biennium)}`);
-            const data = await res.json();
+            for (const phrase of phrases) {
+                const res = await fetch(`${searchApiUrl}/generate-report?q=${encodeURIComponent(phrase)}&biennium=${encodeURIComponent(biennium)}`);
+                const data = await res.json();
 
-            if (data.error) throw new Error(data.error);
-            if (data.length === 0) {
-                reportGrid.innerHTML = '<tr><td colspan="5" class="p-8 text-center text-gray-500 font-bold">No bills contain this exact phrase.</td></tr>';
-                generateBtn.innerText = "Generate";
-                generateBtn.disabled = false;
-                return;
+                if (data.error) throw new Error(data.error);
+                
+                if (data.length > 0) {
+                    foundAnyMatches = true;
+                    for (const item of data) {
+                        const { section, snippet, rawSnippet } = extractLocation(item.full_text, phrase);
+                        const { sponsor, status } = await fetchBillDetails(item.bill_number, biennium);
+
+                        currentReportData.push({
+                            bill_number: item.bill_number,
+                            phrase: phrase,
+                            section: section,
+                            snippet: rawSnippet,
+                            sponsor: sponsor,
+                            status: status
+                        });
+
+                        htmlOutput += `
+                            <tr class="hover:bg-gray-50 transition border-b border-gray-100 last:border-0">
+                                <td class="p-4 font-black text-[#002e5d]">${item.bill_number}</td>
+                                <td class="p-4 text-xs font-bold text-gray-800 bg-yellow-50/50">${phrase}</td>
+                                <td class="p-4 text-xs font-bold text-gray-600 bg-gray-50 border-r border-gray-200">${section}</td>
+                                <td class="p-4 text-xs text-gray-600 italic leading-relaxed">${snippet}</td>
+                                <td class="p-4 text-xs font-medium text-gray-800">${sponsor}</td>
+                                <td class="p-4"><span class="bg-blue-50 text-blue-700 text-[10px] font-bold px-2 py-1 rounded border border-blue-100">${status}</span></td>
+                            </tr>
+                        `;
+                    }
+                }
             }
 
-            let htmlOutput = "";
-            
-            // 2. Process each bill
-            for (const item of data) {
-                const { section, snippet, rawSnippet } = extractLocation(item.full_text, query);
-                const { sponsor, status } = await fetchBillDetails(item.bill_number, biennium);
-
-                currentReportData.push({
-                    bill_number: item.bill_number,
-                    section: section,
-                    snippet: rawSnippet,
-                    sponsor: sponsor,
-                    status: status
-                });
-
-                htmlOutput += `
-                    <tr class="hover:bg-gray-50 transition border-b border-gray-100 last:border-0">
-                        <td class="p-4 font-black text-[#002e5d]">${item.bill_number}</td>
-                        <td class="p-4 text-xs font-bold text-gray-600 bg-gray-50 border-r border-gray-200">${section}</td>
-                        <td class="p-4 text-xs text-gray-600 italic leading-relaxed">${snippet}</td>
-                        <td class="p-4 text-xs font-medium text-gray-800">${sponsor}</td>
-                        <td class="p-4"><span class="bg-blue-50 text-blue-700 text-[10px] font-bold px-2 py-1 rounded border border-blue-100">${status}</span></td>
-                    </tr>
-                `;
+            if (!foundAnyMatches) {
+                reportGrid.innerHTML = '<tr><td colspan="6" class="p-8 text-center text-gray-500 font-bold">No bills contain the requested phrases.</td></tr>';
+            } else {
+                reportGrid.innerHTML = htmlOutput;
+                exportBtn.classList.remove('hidden');
             }
-
-            reportGrid.innerHTML = htmlOutput;
-            exportBtn.classList.remove('hidden');
 
         } catch (e) {
-            reportGrid.innerHTML = `<tr><td colspan="5" class="p-8 text-center text-red-500 font-bold">Error: ${e.message}</td></tr>`;
+            reportGrid.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-red-500 font-bold">Error: ${e.message}</td></tr>`;
         }
 
         generateBtn.innerText = "Generate";
@@ -195,11 +282,12 @@ async function fetchBillDetails(billNumber, biennium) {
     function exportToCSV() {
         if (currentReportData.length === 0) return;
         
-        const headers = ["Bill Number", "Location", "Context Snippet", "Sponsor", "Current Status"];
+        const headers = ["Bill Number", "Phrase", "Location", "Context Snippet", "Sponsor", "Current Status"];
         const rows = currentReportData.map(row => [
             row.bill_number,
+            `"${row.phrase}"`,
             row.section,
-            `"${row.snippet.replace(/"/g, '""')}"`, // Escape quotes for CSV
+            `"${row.snippet.replace(/"/g, '""')}"`,
             `"${row.sponsor}"`,
             `"${row.status}"`
         ]);
