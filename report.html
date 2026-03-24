@@ -113,25 +113,14 @@
         return { section, snippet: highlightedSnippet, rawSnippet: snippet };
     }
 
-    async function fetchBillDetails(billNumber, biennium) {
-        // Ping the WA API for status and sponsor
-        const reqBody = `<?xml version="1.0" encoding="utf-8"?><soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/"><soap:Body><GetLegislation xmlns="http://WSLWebServices.leg.wa.gov/"><biennium>${biennium}</biennium><billNumber>${billNumber.replace(/\D/g, '')}</billNumber></GetLegislation></soap:Body></soap:Envelope>`;
-        
+async function fetchBillDetails(billNumber, biennium) {
         try {
-            const res = await fetch("https://wslwebservices.leg.wa.gov/LegislationService.asmx", {
-                method: "POST",
-                headers: { "Content-Type": "text/xml; charset=utf-8", "SOAPAction": "http://WSLWebServices.leg.wa.gov/GetLegislation" },
-                body: reqBody
-            });
-            const xml = await res.text();
+            // Ping your own Cloudflare proxy instead of the WA API directly
+            const res = await fetch(`${searchApiUrl}/get-bill-status?billNumber=${encodeURIComponent(billNumber)}&biennium=${encodeURIComponent(biennium)}`);
+            const data = await res.json();
             
-            const sponsorMatch = xml.match(/<SponsorName>([^<]+)<\/SponsorName>/) || xml.match(/<LongFriendlyName>([^<]+)<\/LongFriendlyName>/);
-            const statusMatches = [...xml.matchAll(/<HistoryLine>([^<]+)<\/HistoryLine>/g)];
-            
-            const sponsor = sponsorMatch ? sponsorMatch[1] : "Unknown";
-            const status = statusMatches.length > 0 ? statusMatches[statusMatches.length - 1][1] : "Unknown";
-            
-            return { sponsor, status };
+            if (data.error) throw new Error(data.error);
+            return { sponsor: data.sponsor, status: data.status };
         } catch (e) {
             console.error(`Failed to fetch details for ${billNumber}:`, e);
             return { sponsor: "Error fetching", status: "Error fetching" };
