@@ -541,19 +541,22 @@
             let compBillStrRaw = activeItem.companion ? activeItem.companion.split(',')[0].trim() : "";
             
             if (group.length > 1) {
-                // NEW: Visual indicators for dead pills
                 companionUI = `<div class="flex bg-gray-100 rounded-lg p-0.5 mt-1 border border-gray-200 w-fit">
                     ${group.map(g => {
                         let gIsDead = g.tracking_status === 'Dead' || g.status === 'Dead';
-                        let deadStyle = gIsDead ? 'line-through text-gray-400 decoration-red-400' : '';
-                        let activeStyle = activeItem.id === g.id ? 'bg-white text-[#002e5d] shadow-sm' : 'text-gray-500 hover:text-gray-700';
-                        return `<button onclick="switchTab(event, ${baseId}, ${g.id})" class="px-3 py-1 text-[10px] font-black uppercase rounded-md transition-all ${activeStyle} ${deadStyle}">${g.bill_number}${gIsDead ? ' <span class="no-underline text-red-500 opacity-60">💀</span>' : ''}</button>`;
+                        
+                        // Default styles for inactive tabs
+                        let textStyle = gIsDead ? 'text-red-500 hover:text-red-600 line-through' : 'text-gray-500 hover:text-gray-700';
+                        
+                        // Override styles if this is the currently selected tab
+                        if (activeItem.id === g.id) {
+                            textStyle = gIsDead ? 'bg-white text-red-600 shadow-sm line-through decoration-red-300' : 'bg-white text-[#002e5d] shadow-sm';
+                        }
+                        
+                        return `<button onclick="switchTab(event, ${baseId}, ${g.id})" class="px-3 py-1 text-[10px] font-black uppercase rounded-md transition-all ${textStyle}">${g.bill_number}</button>`;
                     }).join('')}
                 </div>`;
             } else if (compBillStrRaw && compBillStrRaw !== "None" && !isArchive) {
-                companionUI = `<button onclick="quickAddCompanion(event, '${compBillStrRaw}')" class="mt-1 px-3 py-1 text-[9px] font-black uppercase rounded-lg border border-dashed border-gray-300 text-gray-500 hover:border-[#002e5d] hover:text-[#002e5d] transition flex items-center gap-1 bg-gray-50 hover:bg-blue-50 w-fit"><span class="text-lg leading-none mt-[-2px]">+</span> Companion: ${compBillStrRaw}</button>`;
-            } else if (compBillStrRaw && compBillStrRaw !== "None") {
-                companionUI = `<div class="mt-1 px-3 py-1 text-[9px] font-black uppercase rounded-lg border border-gray-200 text-gray-500 bg-gray-50 w-fit">Companion: ${compBillStrRaw}</div>`;
             }
 
             let stageForTasks = isDraft ? "Draft" : internalStatus;
