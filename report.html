@@ -61,11 +61,11 @@
                             <thead>
                                 <tr class="bg-gray-50 text-gray-500 text-[10px] uppercase tracking-wider font-black border-b border-gray-200">
                                     <th class="p-4">Bill</th>
+                                    <th class="p-4">Sponsor</th>
                                     <th class="p-4">Version</th>
                                     <th class="p-4">Phrase</th>
                                     <th class="p-4">Location</th>
                                     <th class="p-4 w-1/3">Context Snippet</th>
-                                    <th class="p-4">Sponsor</th>
                                     <th class="p-4">Current Status</th>
                                 </tr>
                             </thead>
@@ -231,9 +231,19 @@
         
         currentReportData = [];
         let foundAnyMatches = false;
+        let totalBillsSearched = "all";
 
         try {
-            // 1. Fetch all data first
+            // Fetch total bills in DB for context
+            try {
+                const statsRes = await fetch(`${searchApiUrl}/db-stats?biennium=${encodeURIComponent(biennium)}`);
+                if (statsRes.ok) {
+                    const statsData = await statsRes.json();
+                    if (statsData.total_bills) totalBillsSearched = statsData.total_bills.toLocaleString();
+                }
+            } catch (e) { console.warn("Stats API not reachable."); }
+
+            // Fetch report data
             for (const phrase of phrases) {
                 const res = await fetch(`${searchApiUrl}/generate-report?q=${encodeURIComponent(phrase)}&biennium=${encodeURIComponent(biennium)}`);
                 const data = await res.json();
@@ -252,8 +262,8 @@
                             version: version,
                             phrase: phrase,
                             section: section,
-                            snippet: rawSnippet,          // Unformatted text for the CSV export
-                            highlightedSnippet: snippet,  // Highlighted text for the HTML table
+                            snippet: rawSnippet,          
+                            highlightedSnippet: snippet,  
                             sponsor: sponsor,
                             status: status
                         });
@@ -264,29 +274,28 @@
             if (!foundAnyMatches) {
                 reportGrid.innerHTML = '<tr><td colspan="7" class="p-8 text-center text-gray-500 font-bold">No bills contain the requested phrases.</td></tr>';
             } else {
-                // 2. Sort the array numerically by stripping out non-digits from the bill number
+                // Sort numerically by bill number
                 currentReportData.sort((a, b) => {
                     const numA = parseInt(a.bill_number.replace(/\D/g, ''), 10) || 0;
                     const numB = parseInt(b.bill_number.replace(/\D/g, ''), 10) || 0;
                     return numA - numB;
                 });
 
-                // 3. Calculate unique bills vs total matches
                 const uniqueBills = new Set(currentReportData.map(item => item.bill_number)).size;
                 
-                // 4. Update the stats bar
-                statsDiv.innerHTML = `Found <span class="text-[#002e5d] font-black">${currentReportData.length}</span> matches across <span class="text-[#002e5d] font-black">${uniqueBills}</span> unique bills.`;
+                // Update the stats bar
+                statsDiv.innerHTML = `Searched <strong>${totalBillsSearched}</strong> total bills. Found <span class="text-[#002e5d] font-black">${currentReportData.length}</span> matches across <span class="text-[#002e5d] font-black">${uniqueBills}</span> unique bills.`;
                 statsDiv.classList.remove('hidden');
 
-                // 5. Generate the HTML from the newly sorted array
+                // Generate the HTML table
                 reportGrid.innerHTML = currentReportData.map(item => `
                     <tr class="hover:bg-gray-50 transition border-b border-gray-100 last:border-0">
                         <td class="p-4 font-black text-[#002e5d]">${item.bill_number}</td>
+                        <td class="p-4 text-xs font-medium text-gray-800">${item.sponsor}</td>
                         <td class="p-4 text-[10px] font-black uppercase text-gray-500 tracking-wider">${item.version}</td>
                         <td class="p-4 text-xs font-bold text-gray-800 bg-yellow-50/50">${item.phrase}</td>
                         <td class="p-4 text-xs font-bold text-gray-600 bg-gray-50 border-r border-gray-200">${item.section}</td>
                         <td class="p-4 text-xs text-gray-600 italic leading-relaxed">${item.highlightedSnippet}</td>
-                        <td class="p-4 text-xs font-medium text-gray-800">${item.sponsor}</td>
                         <td class="p-4"><span class="bg-blue-50 text-blue-700 text-[10px] font-bold px-2 py-1 rounded border border-blue-100">${item.status}</span></td>
                     </tr>
                 `).join('');
@@ -305,14 +314,15 @@
     function exportToCSV() {
         if (currentReportData.length === 0) return;
         
-        const headers = ["Bill Number", "Version", "Phrase", "Location", "Context Snippet", "Sponsor", "Current Status"];
+        // CSV Headers matched to the new UI order
+        const headers = ["Bill Number", "Sponsor", "Version", "Phrase", "Location", "Context Snippet", "Current Status"];
         const rows = currentReportData.map(row => [
             row.bill_number,
+            `"${row.sponsor}"`,
             `"${row.version}"`,
             `"${row.phrase}"`,
             row.section,
             `"${row.snippet.replace(/"/g, '""')}"`,
-            `"${row.sponsor}"`,
             `"${row.status}"`
         ]);
         
