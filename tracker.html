@@ -36,45 +36,53 @@
                 <label class="text-[10px] font-black uppercase text-gray-400 tracking-widest mb-2 block">Lookup & Track a Bill</label>
                 <div class="flex gap-3 w-full mb-4">
                     <input type="text" id="billNum" placeholder="Enter Bill Number (e.g. 1000)" class="flex-1 border-2 border-gray-200 p-3 rounded-lg outline-none focus:border-[#002e5d] font-bold text-gray-700" onkeypress="if(event.key === 'Enter') fetchAPI()">
-                    <button onclick="fetchAPI()" class="bg-gray-200 hover:bg-gray-300 text-gray-700 text-[12px] font-black uppercase px-6 py-3 rounded-lg shadow-sm transition">Search</button>
+                    <button onclick="fetchAPI()" class="bg-gray-200 hover:bg-gray-300 text-gray-700 text-[12px] font-black uppercase px-6 py-3 rounded-lg shadow-sm transition">Find Bill</button>
                 </div>
                 <div id="apiResults"></div>
             </div>
 
-            <div class="bg-white p-4 rounded-xl shadow-sm mb-8 flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 border border-gray-100">
-                
-                <div class="flex flex-wrap gap-2 w-full xl:w-auto items-center">
-                    <select onchange="setBiennium(this.value)" id="bienniumSelect" class="bg-gray-50 border border-gray-200 text-gray-800 font-black uppercase text-[10px] rounded-lg px-2 py-1.5 outline-none focus:border-blue-500 transition shadow-sm cursor-pointer">
-                        <option value="2025-26" selected>2025-26 Session</option>
-                    </select>
-                    <select onchange="setCommittee(this.value)" id="committeeSelect" class="bg-gray-50 border-2 border-gray-200 text-gray-700 font-black uppercase text-[10px] rounded-lg px-2 py-1.5 outline-none focus:border-gray-400 transition shadow-sm cursor-pointer">
-                        <option value="All">All Committees</option>
-                    </select>
-                    <select onchange="setType(this.value)" id="typeSelect" class="bg-gray-50 text-[10px] font-black uppercase rounded-lg px-2 py-1.5 border-none outline-none text-gray-600 focus:text-blue-900 cursor-pointer hover:bg-gray-100 transition">
-                        <option value="All">All Types</option>
-                        <option value="draft">Drafts Only</option>
-                        <option value="live">Live Bills</option>
-                        <option value="dead">Dead Bills</option>
-                    </select>
-                    <select onchange="setStatusFilter(this.value)" id="statusFilter" class="bg-gray-50 text-[10px] font-black uppercase rounded-lg px-2 py-1.5 border-none outline-none text-gray-600 focus:text-blue-900 cursor-pointer hover:bg-gray-100 transition">
-                        <option value="All">All Steps</option>
-                    </select>
-                    <select onchange="setSort(this.value)" class="bg-gray-50 text-[10px] font-black uppercase rounded-lg px-2 py-1.5 border-none outline-none text-gray-600 focus:text-blue-900 cursor-pointer hover:bg-gray-100 transition">
-                        <option value="priority">Sort: Priority</option>
-                        <option value="alpha">Sort: Bill #</option>
-                    </select>
-                </div>
+<div class="bg-white p-4 rounded-xl shadow-sm mb-8 flex flex-col gap-4 border border-gray-100">
+                <div class="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 w-full">
+                    <div class="flex flex-wrap gap-2 w-full xl:w-auto items-center">
+                        <select onchange="setBiennium(this.value)" id="bienniumSelect" class="bg-gray-50 border border-gray-200 text-gray-700 font-black uppercase text-[10px] rounded-lg px-2 py-1.5 outline-none focus:border-blue-500 transition shadow-sm cursor-pointer hover:bg-gray-100">
+                            <option value="2025-26" selected>2025-26 Session</option>
+                        </select>
+                        <select onchange="setCommittee(this.value)" id="committeeSelect" class="bg-gray-50 border border-gray-200 text-gray-700 font-black uppercase text-[10px] rounded-lg px-2 py-1.5 outline-none focus:border-blue-500 transition shadow-sm cursor-pointer hover:bg-gray-100">
+                            <option value="All">All Committees</option>
+                        </select>
+                        <select onchange="setType(this.value)" id="typeSelect" class="bg-gray-50 border border-gray-200 text-gray-700 font-black uppercase text-[10px] rounded-lg px-2 py-1.5 outline-none focus:border-blue-500 transition shadow-sm cursor-pointer hover:bg-gray-100">
+                            <option value="All">All Types</option>
+                            <option value="draft">Drafts Only</option>
+                            <option value="live">Live Bills</option>
+                            <option value="dead">Dead Bills</option>
+                        </select>
+                        <select onchange="setStatusFilter(this.value)" id="statusFilter" class="bg-gray-50 border border-gray-200 text-gray-700 font-black uppercase text-[10px] rounded-lg px-2 py-1.5 outline-none focus:border-blue-500 transition shadow-sm cursor-pointer hover:bg-gray-100">
+                            <option value="All">All Steps</option>
+                        </select>
+                        <select onchange="setSort(this.value)" class="bg-gray-50 border border-gray-200 text-gray-700 font-black uppercase text-[10px] rounded-lg px-2 py-1.5 outline-none focus:border-blue-500 transition shadow-sm cursor-pointer hover:bg-gray-100">
+                            <option value="priority">Sort: Priority</option>
+                            <option value="alpha">Sort: Bill #</option>
+                        </select>
+                    </div>
 
-                <div class="flex flex-wrap gap-2 w-full xl:w-auto items-center ml-auto">
-                    <button id="newDraftBtn" onclick="showScreen('draftForm')" class="flex-1 md:flex-none bg-orange-500 hover:bg-orange-600 text-white text-[10px] font-black uppercase px-4 py-2 rounded-lg shadow-sm hover:shadow-md transition flex items-center justify-center gap-2">
-                        <span>📝</span> New Draft
-                    </button>
-                    <button id="trackBillBtn" onclick="showScreen('existingForm')" class="flex-1 md:flex-none bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-black uppercase px-4 py-2 rounded-lg shadow-sm hover:shadow-md transition flex items-center justify-center gap-2">
-                        <span>📑</span> Track Bill
-                    </button>
-                    <button onclick="syncAllBills()" id="syncAllBtn" class="flex-1 md:flex-none bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-black uppercase px-4 py-2 rounded-lg shadow-sm hover:shadow-md transition flex items-center justify-center gap-2">
-                        <span id="syncAllIcon">🔄</span> Refresh
-                    </button>
+                    <div class="flex flex-wrap gap-2 w-full xl:w-auto items-center xl:ml-auto">
+                        <button id="newDraftBtn" onclick="showScreen('draftForm')" class="flex-1 md:flex-none bg-orange-500 hover:bg-orange-600 text-white text-[10px] font-black uppercase px-4 py-2 rounded-lg shadow-sm hover:shadow-md transition flex items-center justify-center gap-2">
+                            <span>📝</span> New Draft
+                        </button>
+                        <button id="trackBillBtn" onclick="showScreen('existingForm')" class="flex-1 md:flex-none bg-blue-600 hover:bg-blue-700 text-white text-[10px] font-black uppercase px-4 py-2 rounded-lg shadow-sm hover:shadow-md transition flex items-center justify-center gap-2">
+                            <span>📑</span> Track Bill
+                        </button>
+                        <button onclick="syncAllBills()" id="syncAllBtn" class="flex-1 md:flex-none bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-black uppercase px-4 py-2 rounded-lg shadow-sm hover:shadow-md transition flex items-center justify-center gap-2">
+                            <span id="syncAllIcon">🔄</span> Refresh
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="w-full pt-3 mt-1 border-t border-gray-100">
+                    <div class="relative">
+                        <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">🔍</span>
+                        <input type="text" id="localSearch" onkeyup="setSearchQuery(this.value)" placeholder="Search workspace by bill number, sponsor, or keyword..." class="w-full bg-gray-50 border border-gray-200 text-gray-700 font-bold text-sm rounded-lg pl-10 pr-4 py-2 outline-none focus:border-[#002e5d] transition shadow-sm">
+                    </div>
                 </div>
             </div>
 
@@ -195,6 +203,10 @@
     let currentType = 'All';
     let currentStatus = 'All';
     let currentSort = 'priority';
+    
+    // NEW SEARCH VARIABLES
+    let currentSearchQuery = '';
+    function setSearchQuery(val) { currentSearchQuery = val.toLowerCase(); renderGrid(); }
 
     let undoTimeout;
     let pendingUndoAction = null;
@@ -463,7 +475,7 @@
         let bData = availableBienniums.find(b => b.name === currentBiennium);
         let isArchive = bData ? bData.is_active === 0 : false;
 
-        let filteredItems = workspaceItems.filter(item => {
+let filteredItems = workspaceItems.filter(item => {
             if (currentStatus !== 'All' && item.tracking_status !== currentStatus) return false;
             if (currentCommittee !== 'All' && item.committee !== currentCommittee) return false;
             
@@ -476,6 +488,12 @@
             if (currentType === 'draft' && !isItemDraft) return false;
             if (currentType === 'live' && (isItemDraft || isDead)) return false;
             if (currentType === 'dead' && !isDead) return false;
+
+            // NEW: Local Search Logic
+            if (currentSearchQuery) {
+                const searchStr = `${item.bill_number} ${item.short_desc} ${item.sponsor} ${item.committee}`.toLowerCase();
+                if (!searchStr.includes(currentSearchQuery)) return false;
+            }
 
             return true;
         });
