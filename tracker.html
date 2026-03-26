@@ -451,7 +451,7 @@
         return DEFAULT_TASKS[stage] || DEFAULT_TASKS["Default"];
     }
 
-    function renderGrid() {
+   function renderGrid() {
         const liveGrid = document.getElementById('workspaceGrid');
         const draftGrid = document.getElementById('draftsGrid');
         const deadGrid = document.getElementById('deadGrid');
@@ -520,26 +520,35 @@
             let officialStatus = activeItem.status || "Unknown";
             let internalStatus = activeItem.tracking_status || "Introduced";
             
-            let isDead = internalStatus === 'Dead' || officialStatus === 'Dead';
+            // NEW: Differentiate between the ACTIVE item being dead, vs the WHOLE GROUP being dead
+            let isActiveItemDead = internalStatus === 'Dead' || officialStatus === 'Dead';
+            let isGroupFullyDead = group.every(g => g.tracking_status === 'Dead' || g.status === 'Dead');
             let isDraft = activeItem.type === 'draft' || activeItem.status === 'Draft';
 
             let progress = activeItem.task_progress[internalStatus] || {};
             if (isDraft) progress = activeItem.task_progress["Draft"] || {}; 
 
-            let visualModifier = (isDead && !isDraft) ? 'grayscale-[0.5]' : '';
+            // Gray out the card ONLY if the specific tab you are looking at is dead
+            let visualModifier = (isActiveItemDead && !isDraft) ? 'grayscale-[0.5] opacity-80' : '';
             const safeCommittee = activeItem.committee || "Unknown";
             const commColor = committeeColors[safeCommittee] || "#002e5d";
 
             let borderColor = commColor;
             if (isDraft) borderColor = '#f97316'; 
-            if (isDead) borderColor = '#64748b'; 
+            if (isActiveItemDead) borderColor = '#64748b'; 
 
             let companionUI = '';
             let compBillStrRaw = activeItem.companion ? activeItem.companion.split(',')[0].trim() : "";
             
             if (group.length > 1) {
+                // NEW: Visual indicators for dead pills
                 companionUI = `<div class="flex bg-gray-100 rounded-lg p-0.5 mt-1 border border-gray-200 w-fit">
-                    ${group.map(g => `<button onclick="switchTab(event, ${baseId}, ${g.id})" class="px-3 py-1 text-[10px] font-black uppercase rounded-md transition-all ${activeItem.id === g.id ? 'bg-white text-[#002e5d] shadow-sm' : 'text-gray-500 hover:text-gray-700'}">${g.bill_number}</button>`).join('')}
+                    ${group.map(g => {
+                        let gIsDead = g.tracking_status === 'Dead' || g.status === 'Dead';
+                        let deadStyle = gIsDead ? 'line-through text-gray-400 decoration-red-400' : '';
+                        let activeStyle = activeItem.id === g.id ? 'bg-white text-[#002e5d] shadow-sm' : 'text-gray-500 hover:text-gray-700';
+                        return `<button onclick="switchTab(event, ${baseId}, ${g.id})" class="px-3 py-1 text-[10px] font-black uppercase rounded-md transition-all ${activeStyle} ${deadStyle}">${g.bill_number}${gIsDead ? ' <span class="no-underline text-red-500 opacity-60">💀</span>' : ''}</button>`;
+                    }).join('')}
                 </div>`;
             } else if (compBillStrRaw && compBillStrRaw !== "None" && !isArchive) {
                 companionUI = `<button onclick="quickAddCompanion(event, '${compBillStrRaw}')" class="mt-1 px-3 py-1 text-[9px] font-black uppercase rounded-lg border border-dashed border-gray-300 text-gray-500 hover:border-[#002e5d] hover:text-[#002e5d] transition flex items-center gap-1 bg-gray-50 hover:bg-blue-50 w-fit"><span class="text-lg leading-none mt-[-2px]">+</span> Companion: ${compBillStrRaw}</button>`;
@@ -615,7 +624,7 @@
 
             let deadToggleBtn = '';
             if (!isArchive && !isDraft) {
-                deadToggleBtn = isDead
+                deadToggleBtn = isActiveItemDead
                     ? `<button onclick="updateDB(${activeItem.id}, 'tracking_status', 'Introduced'); event.stopPropagation();" class="text-[10px] font-black uppercase text-purple-600 hover:text-purple-800 bg-purple-50 hover:bg-purple-100 px-4 py-2 rounded transition border border-purple-200">Revive Bill</button>`
                     : `<button onclick="updateDB(${activeItem.id}, 'tracking_status', 'Dead'); event.stopPropagation();" class="text-[10px] font-black uppercase text-gray-500 hover:text-gray-800 bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded transition border border-gray-200">Mark Dead</button>`;
             }
@@ -666,9 +675,10 @@
                     </div>
                 </div>`;
 
+            // NEW: Render the card in the correct grid based on the ENTIRE group's status
             if (isDraft) { 
                 draftGrid.innerHTML += cardHtml; draftCount++; 
-            } else if (isDead) { 
+            } else if (isGroupFullyDead) { 
                 deadGrid.innerHTML += cardHtml; deadCount++; 
             } else { 
                 liveGrid.innerHTML += cardHtml; liveCount++; 
