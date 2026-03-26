@@ -53,6 +53,9 @@
 
             <div class="max-w-7xl mx-auto">
                 <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                    
+                    <div id="reportStats" class="px-6 py-4 text-sm font-bold text-gray-700 bg-gray-50 border-b border-gray-200 hidden"></div>
+                    
                     <div class="overflow-x-auto">
                         <table class="w-full text-left border-collapse" id="reportTable">
                             <thead>
@@ -159,7 +162,6 @@
         updateSavedQueriesDropdown();
     };
 
-    // --- NEW: VERSION TRANSLATOR ---
     function getBillVersion(url) {
         if (!url) return "Original";
         const fileName = url.split('/').pop().toUpperCase();
@@ -215,6 +217,7 @@
         const reportGrid = document.getElementById('reportGrid');
         const generateBtn = document.getElementById('generateBtn');
         const exportBtn = document.getElementById('exportBtn');
+        const statsDiv = document.getElementById('reportStats');
 
         if (!rawQuery) return;
 
@@ -223,12 +226,14 @@
         generateBtn.innerText = "Processing...";
         generateBtn.disabled = true;
         exportBtn.classList.add('hidden');
+        statsDiv.classList.add('hidden');
         reportGrid.innerHTML = '<tr><td colspan="7" class="p-8 text-center text-blue-500 font-bold animate-pulse">Scanning database and retrieving live status...</td></tr>';
+        
         currentReportData = [];
-        let htmlOutput = "";
         let foundAnyMatches = false;
 
         try {
+            // 1. Fetch all data first
             for (const phrase of phrases) {
                 const res = await fetch(`${searchApiUrl}/generate-report?q=${encodeURIComponent(phrase)}&biennium=${encodeURIComponent(biennium)}`);
                 const data = await res.json();
@@ -240,8 +245,6 @@
                     for (const item of data) {
                         const { section, snippet, rawSnippet } = extractLocation(item.full_text, phrase);
                         const { sponsor, status } = await fetchBillDetails(item.bill_number, biennium);
-                        
-                        // Pass the URL to our new translator function
                         const version = getBillVersion(item.url);
 
                         currentReportData.push({
@@ -249,22 +252,11 @@
                             version: version,
                             phrase: phrase,
                             section: section,
-                            snippet: rawSnippet,
+                            snippet: rawSnippet,          // Unformatted text for the CSV export
+                            highlightedSnippet: snippet,  // Highlighted text for the HTML table
                             sponsor: sponsor,
                             status: status
                         });
-
-                        htmlOutput += `
-                            <tr class="hover:bg-gray-50 transition border-b border-gray-100 last:border-0">
-                                <td class="p-4 font-black text-[#002e5d]">${item.bill_number}</td>
-                                <td class="p-4 text-[10px] font-black uppercase text-gray-500 tracking-wider">${version}</td>
-                                <td class="p-4 text-xs font-bold text-gray-800 bg-yellow-50/50">${phrase}</td>
-                                <td class="p-4 text-xs font-bold text-gray-600 bg-gray-50 border-r border-gray-200">${section}</td>
-                                <td class="p-4 text-xs text-gray-600 italic leading-relaxed">${snippet}</td>
-                                <td class="p-4 text-xs font-medium text-gray-800">${sponsor}</td>
-                                <td class="p-4"><span class="bg-blue-50 text-blue-700 text-[10px] font-bold px-2 py-1 rounded border border-blue-100">${status}</span></td>
-                            </tr>
-                        `;
                     }
                 }
             }
@@ -272,7 +264,33 @@
             if (!foundAnyMatches) {
                 reportGrid.innerHTML = '<tr><td colspan="7" class="p-8 text-center text-gray-500 font-bold">No bills contain the requested phrases.</td></tr>';
             } else {
-                reportGrid.innerHTML = htmlOutput;
+                // 2. Sort the array numerically by stripping out non-digits from the bill number
+                currentReportData.sort((a, b) => {
+                    const numA = parseInt(a.bill_number.replace(/\D/g, ''), 10) || 0;
+                    const numB = parseInt(b.bill_number.replace(/\D/g, ''), 10) || 0;
+                    return numA - numB;
+                });
+
+                // 3. Calculate unique bills vs total matches
+                const uniqueBills = new Set(currentReportData.map(item => item.bill_number)).size;
+                
+                // 4. Update the stats bar
+                statsDiv.innerHTML = `Found <span class="text-[#002e5d] font-black">${currentReportData.length}</span> matches across <span class="text-[#002e5d] font-black">${uniqueBills}</span> unique bills.`;
+                statsDiv.classList.remove('hidden');
+
+                // 5. Generate the HTML from the newly sorted array
+                reportGrid.innerHTML = currentReportData.map(item => `
+                    <tr class="hover:bg-gray-50 transition border-b border-gray-100 last:border-0">
+                        <td class="p-4 font-black text-[#002e5d]">${item.bill_number}</td>
+                        <td class="p-4 text-[10px] font-black uppercase text-gray-500 tracking-wider">${item.version}</td>
+                        <td class="p-4 text-xs font-bold text-gray-800 bg-yellow-50/50">${item.phrase}</td>
+                        <td class="p-4 text-xs font-bold text-gray-600 bg-gray-50 border-r border-gray-200">${item.section}</td>
+                        <td class="p-4 text-xs text-gray-600 italic leading-relaxed">${item.highlightedSnippet}</td>
+                        <td class="p-4 text-xs font-medium text-gray-800">${item.sponsor}</td>
+                        <td class="p-4"><span class="bg-blue-50 text-blue-700 text-[10px] font-bold px-2 py-1 rounded border border-blue-100">${item.status}</span></td>
+                    </tr>
+                `).join('');
+                
                 exportBtn.classList.remove('hidden');
             }
 
