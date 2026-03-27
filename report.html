@@ -259,10 +259,16 @@
                         const { section, snippet, rawSnippet } = extractLocation(item.full_text, phrase);
                         const { sponsor, status, title } = await fetchBillDetails(item.bill_number, biennium);
                         const version = getBillVersion(item.url);
+                        
+                        // Construct the official summary URL
+                        const year = biennium.split('-')[0];
+                        const cleanBillNum = item.bill_number.replace(/\D/g, '');
+                        const summaryUrl = `https://app.leg.wa.gov/billsummary/?BillNumber=${cleanBillNum}&Year=${year}&Initiative=false`;
 
                         currentReportData.push({
                             bill_number: item.bill_number,
-                            url: item.url, // Added to pass to HTML and CSV
+                            url: item.url, 
+                            summaryUrl: summaryUrl, // Added new dynamic URL
                             title: title,
                             version: version,
                             phrase: phrase,
@@ -290,10 +296,10 @@
                 statsDiv.innerHTML = `Searched <strong>${totalBillsSearched}</strong> total bills. Found <span class="text-[#002e5d] font-black">${currentReportData.length}</span> matches across <span class="text-[#002e5d] font-black">${uniqueBills}</span> unique bills.`;
                 statsDiv.classList.remove('hidden');
 
-                // Generated HTML now wraps the bill_number in an anchor tag linked to item.url
+                // HTML updated to use summaryUrl
                 reportGrid.innerHTML = currentReportData.map(item => `
                     <tr class="hover:bg-gray-50 transition border-b border-gray-100 last:border-0">
-                        <td class="p-4 font-black text-[#002e5d] whitespace-nowrap"><a href="${item.url}" target="_blank" class="hover:underline hover:text-blue-700 cursor-pointer" title="View Bill Document">${item.bill_number}</a></td>
+                        <td class="p-4 font-black text-[#002e5d] whitespace-nowrap"><a href="${item.summaryUrl}" target="_blank" class="hover:underline hover:text-blue-700 cursor-pointer" title="View Bill Summary">${item.bill_number}</a></td>
                         <td class="p-4 text-xs font-bold text-gray-700 min-w-[150px]"><span class="line-clamp-2" title="${item.title}">${item.title}</span></td>
                         <td class="p-4 text-xs font-medium text-gray-800">${item.sponsor}</td>
                         <td class="p-4 text-[10px] font-black uppercase text-gray-500 tracking-wider">${item.version}</td>
@@ -319,9 +325,9 @@
         
         const headers = ["Bill Number", "Title", "Sponsor", "Version", "Location", "Context Snippet", "Current Status"];
         
-        // Export replaces plain text with the HYPERLINK formula
+        // Export updated to use summaryUrl
         const rows = currentReportData.map(row => [
-            `"=HYPERLINK(""${row.url}"", ""${row.bill_number}"")"`,
+            `"=HYPERLINK(""${row.summaryUrl}"", ""${row.bill_number}"")"`,
             `"${row.title.replace(/"/g, '""')}"`,
             `"${row.sponsor}"`,
             `"${row.version}"`,
