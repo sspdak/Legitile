@@ -206,7 +206,6 @@
             const res = await fetch(`${searchApiUrl}/get-bill-status?billNumber=${encodeURIComponent(billNumber)}&biennium=${encodeURIComponent(biennium)}`);
             const data = await res.json();
             if (data.error) throw new Error(data.error);
-            // Added short_desc/title extraction
             return { 
                 sponsor: data.sponsor || "Unknown", 
                 status: data.status || "Unknown",
@@ -240,7 +239,6 @@
         let totalBillsSearched = "all";
 
         try {
-            // Fetch total bills in DB for context
             try {
                 const statsRes = await fetch(`${searchApiUrl}/db-stats?biennium=${encodeURIComponent(biennium)}`);
                 if (statsRes.ok) {
@@ -249,7 +247,6 @@
                 }
             } catch (e) { console.warn("Stats API not reachable."); }
 
-            // Fetch report data
             for (const phrase of phrases) {
                 const res = await fetch(`${searchApiUrl}/generate-report?q=${encodeURIComponent(phrase)}&biennium=${encodeURIComponent(biennium)}`);
                 const data = await res.json();
@@ -265,9 +262,10 @@
 
                         currentReportData.push({
                             bill_number: item.bill_number,
+                            url: item.url, // Added to pass to HTML and CSV
                             title: title,
                             version: version,
-                            phrase: phrase, // Kept in data structure for logic, removed from UI
+                            phrase: phrase,
                             section: section,
                             snippet: rawSnippet,          
                             highlightedSnippet: snippet,  
@@ -281,7 +279,6 @@
             if (!foundAnyMatches) {
                 reportGrid.innerHTML = '<tr><td colspan="7" class="p-8 text-center text-gray-500 font-bold">No bills contain the requested phrases.</td></tr>';
             } else {
-                // Sort numerically by bill number
                 currentReportData.sort((a, b) => {
                     const numA = parseInt(a.bill_number.replace(/\D/g, ''), 10) || 0;
                     const numB = parseInt(b.bill_number.replace(/\D/g, ''), 10) || 0;
@@ -290,14 +287,13 @@
 
                 const uniqueBills = new Set(currentReportData.map(item => item.bill_number)).size;
                 
-                // Update the stats bar
                 statsDiv.innerHTML = `Searched <strong>${totalBillsSearched}</strong> total bills. Found <span class="text-[#002e5d] font-black">${currentReportData.length}</span> matches across <span class="text-[#002e5d] font-black">${uniqueBills}</span> unique bills.`;
                 statsDiv.classList.remove('hidden');
 
-                // Generate the HTML table
+                // Generated HTML now wraps the bill_number in an anchor tag linked to item.url
                 reportGrid.innerHTML = currentReportData.map(item => `
                     <tr class="hover:bg-gray-50 transition border-b border-gray-100 last:border-0">
-                        <td class="p-4 font-black text-[#002e5d] whitespace-nowrap">${item.bill_number}</td>
+                        <td class="p-4 font-black text-[#002e5d] whitespace-nowrap"><a href="${item.url}" target="_blank" class="hover:underline hover:text-blue-700 cursor-pointer" title="View Bill Document">${item.bill_number}</a></td>
                         <td class="p-4 text-xs font-bold text-gray-700 min-w-[150px]"><span class="line-clamp-2" title="${item.title}">${item.title}</span></td>
                         <td class="p-4 text-xs font-medium text-gray-800">${item.sponsor}</td>
                         <td class="p-4 text-[10px] font-black uppercase text-gray-500 tracking-wider">${item.version}</td>
@@ -322,8 +318,10 @@
         if (currentReportData.length === 0) return;
         
         const headers = ["Bill Number", "Title", "Sponsor", "Version", "Location", "Context Snippet", "Current Status"];
+        
+        // Export replaces plain text with the HYPERLINK formula
         const rows = currentReportData.map(row => [
-            row.bill_number,
+            `"=HYPERLINK(""${row.url}"", ""${row.bill_number}"")"`,
             `"${row.title.replace(/"/g, '""')}"`,
             `"${row.sponsor}"`,
             `"${row.version}"`,
