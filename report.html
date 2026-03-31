@@ -68,10 +68,10 @@
                                     <th class="p-4">Title</th>
                                     <th class="p-4">Sponsor</th>
                                     <th class="p-4">Version</th>
-                                    <th class="p-4">Location</th>
                                     <th class="p-4">Current Status</th>
                                     <th class="p-4">Introduced</th>
                                     <th class="p-4">Last Updated</th>
+                                    <th class="p-4">Location</th>
                                     <th class="p-4 w-1/3">Context Snippet</th>
                                 </tr>
                             </thead>
@@ -362,10 +362,10 @@
                         <td class="p-4 text-xs font-bold text-gray-700 min-w-[150px]"><span class="line-clamp-2" title="${item.title}">${item.title}</span></td>
                         <td class="p-4 text-xs font-medium text-gray-800">${item.sponsor}</td>
                         <td class="p-4 text-[10px] font-black uppercase text-gray-500 tracking-wider">${item.version}</td>
-                        <td class="p-4 text-xs font-bold text-gray-600 bg-gray-50 border-r border-gray-200">${item.section}</td>
                         <td class="p-4"><span class="bg-blue-50 text-blue-700 text-[10px] font-bold px-2 py-1 rounded border border-blue-100">${item.status}</span></td>
                         <td class="p-4 text-[10px] font-bold text-gray-500 whitespace-nowrap">${item.introDate}</td>
                         <td class="p-4 text-[10px] font-bold text-gray-500 whitespace-nowrap">${item.lastUpdated}</td>
+                        <td class="p-4 text-xs font-bold text-gray-600 bg-gray-50 border-r border-gray-200">${item.section}</td>
                         <td class="p-4 text-xs text-gray-600 italic leading-relaxed">${item.highlightedSnippet}</td>
                     </tr>
                 `).join('');
@@ -384,17 +384,17 @@
     function exportToCSV() {
         if (currentReportData.length === 0) return;
         
-        const headers = ["Bill Number", "Title", "Sponsor", "Version", "Location", "Current Status", "Introduced", "Last Updated", "Context Snippet"];
+        const headers = ["Bill Number", "Title", "Sponsor", "Version", "Current Status", "Introduced", "Last Updated", "Location", "Context Snippet"];
         
         const rows = currentReportData.map(row => [
             `"=HYPERLINK(""${row.summaryUrl}"", ""${row.bill_number}"")"`,
             `"${row.title.replace(/"/g, '""')}"`,
             `"${row.sponsor}"`,
             `"${row.version}"`,
-            `"${row.section}"`,
             `"${row.status}"`,
             `"${row.introDate}"`,
             `"${row.lastUpdated}"`,
+            `"${row.section}"`,
             `"${row.snippet.replace(/"/g, '""')}"`
         ]);
         
