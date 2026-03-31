@@ -21,7 +21,6 @@
         <header class="shrink-0 pt-8 pb-4 px-6 md:px-10 z-40 bg-gray-100 border-b border-gray-200 flex justify-between items-end">
             <div>
                 <h1 class="text-2xl font-black text-gray-800 uppercase tracking-tight">Phrase Report Generator</h1>
-                <p class="text-xs text-gray-500 font-bold mt-1">Search multiple phrases (comma separated) and track bill language.</p>
             </div>
             <button id="exportBtn" onclick="exportToCSV()" class="hidden bg-green-600 hover:bg-green-700 text-white text-[10px] font-black uppercase px-4 py-2 rounded shadow-sm transition">
                 Download CSV
@@ -66,10 +65,10 @@
                                     <th class="p-4">Sponsor</th>
                                     <th class="p-4">Version</th>
                                     <th class="p-4">Location</th>
-                                    <th class="p-4 w-1/3">Context Snippet</th>
                                     <th class="p-4">Current Status</th>
                                     <th class="p-4">Introduced</th>
                                     <th class="p-4">Last Updated</th>
+                                    <th class="p-4 w-1/3">Context Snippet</th>
                                 </tr>
                             </thead>
                             <tbody id="reportGrid" class="text-sm divide-y divide-gray-100">
@@ -308,10 +307,10 @@
                         <td class="p-4 text-xs font-medium text-gray-800">${item.sponsor}</td>
                         <td class="p-4 text-[10px] font-black uppercase text-gray-500 tracking-wider">${item.version}</td>
                         <td class="p-4 text-xs font-bold text-gray-600 bg-gray-50 border-r border-gray-200">${item.section}</td>
-                        <td class="p-4 text-xs text-gray-600 italic leading-relaxed">${item.highlightedSnippet}</td>
                         <td class="p-4"><span class="bg-blue-50 text-blue-700 text-[10px] font-bold px-2 py-1 rounded border border-blue-100">${item.status}</span></td>
                         <td class="p-4 text-[10px] font-bold text-gray-500 whitespace-nowrap">${item.introDate}</td>
                         <td class="p-4 text-[10px] font-bold text-gray-500 whitespace-nowrap">${item.lastUpdated}</td>
+                        <td class="p-4 text-xs text-gray-600 italic leading-relaxed">${item.highlightedSnippet}</td>
                     </tr>
                 `).join('');
                 
@@ -329,7 +328,7 @@
     function exportToCSV() {
         if (currentReportData.length === 0) return;
         
-        const headers = ["Bill Number", "Title", "Sponsor", "Version", "Location", "Context Snippet", "Current Status", "Introduced", "Last Updated"];
+        const headers = ["Bill Number", "Title", "Sponsor", "Version", "Location", "Current Status", "Introduced", "Last Updated", "Context Snippet"];
         
         const rows = currentReportData.map(row => [
             `"=HYPERLINK(""${row.summaryUrl}"", ""${row.bill_number}"")"`,
@@ -337,10 +336,10 @@
             `"${row.sponsor}"`,
             `"${row.version}"`,
             `"${row.section}"`,
-            `"${row.snippet.replace(/"/g, '""')}"`,
             `"${row.status}"`,
             `"${row.introDate}"`,
-            `"${row.lastUpdated}"`
+            `"${row.lastUpdated}"`,
+            `"${row.snippet.replace(/"/g, '""')}"`
         ]);
         
         const csvContent = "data:text/csv;charset=utf-8," 
