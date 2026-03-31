@@ -31,9 +31,13 @@
             <div class="bg-white p-6 rounded-xl shadow-sm mb-6 border border-gray-100 max-w-7xl mx-auto">
                 
                 <div class="flex flex-col md:flex-row gap-3 w-full mb-3">
-                    <select id="reportBiennium" class="bg-gray-50 border-2 border-gray-200 text-gray-800 font-black uppercase text-[10px] rounded-lg px-4 py-3 outline-none focus:border-[#002e5d] transition cursor-pointer md:w-40">
-                        <option value="2025-26" selected>2025-26 Session</option>
-                    </select>
+                    
+                    <div class="flex items-center gap-2 md:w-56">
+                        <select id="reportBiennium" class="bg-gray-50 border-2 border-gray-200 text-gray-800 font-black uppercase text-[10px] rounded-lg px-4 py-3 outline-none focus:border-[#002e5d] transition cursor-pointer flex-1">
+                            <option value="2025-26">Loading...</option>
+                        </select>
+                        <button onclick="addNewSession()" class="bg-gray-200 hover:bg-gray-300 text-gray-700 font-black text-lg h-full px-4 rounded-lg transition shadow-sm" title="Add a historical session">+</button>
+                    </div>
                     
                     <input type="text" id="reportInput" placeholder="Enter phrases separated by commas (e.g. housing, tax, emergency)" class="flex-1 border-2 border-gray-200 p-3 rounded-lg outline-none focus:border-[#002e5d] font-bold text-gray-700" onkeypress="if(event.key === 'Enter') generateReport()">
                     
@@ -125,6 +129,57 @@
         }
     }
 
+    async function loadBienniums() {
+        const dropdown = document.getElementById('reportBiennium');
+        try {
+            const res = await fetch(`${searchApiUrl}/get-bienniums`);
+            const sessions = await res.json();
+            if (Array.isArray(sessions) && sessions.length > 0) {
+                dropdown.innerHTML = sessions.map(s => `<option value="${s}">${s} Session</option>`).join('');
+            }
+        } catch (e) {
+            console.error("Failed to load sessions:", e);
+        }
+    }
+
+    async function addNewSession() {
+        const newSession = prompt("Enter the biennium to track (e.g., 2019-20, 2021-22):");
+        if (!newSession) return;
+        
+        if (!/^\d{4}-\d{2}$/.test(newSession.trim())) {
+            alert("Invalid format. Please use YYYY-YY (e.g., 2019-20).");
+            return;
+        }
+
+        const sessionClean = newSession.trim();
+        const btn = document.querySelector('button[title="Add a historical session"]');
+        const originalText = btn.innerText;
+        btn.innerText = "⏳";
+        btn.disabled = true;
+
+        try {
+            const res = await fetch(`${searchApiUrl}/build-database`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ biennium: sessionClean })
+            });
+            const data = await res.json();
+            
+            if (data.success) {
+                alert(`Successfully queued ${data.total_unique_bills_queued} bills for the ${sessionClean} session. They will begin downloading automatically.`);
+                await loadBienniums(); 
+                document.getElementById('reportBiennium').value = sessionClean; 
+            } else {
+                alert(`Error: ${data.error}`);
+            }
+        } catch (e) {
+            alert(`Network error: ${e.message}`);
+        }
+        
+        btn.innerText = originalText;
+        btn.disabled = false;
+    }
+
     async function saveCurrentQuery() {
         const query = document.getElementById('reportInput').value.trim();
         if (!query) return;
@@ -162,6 +217,7 @@
     window.onload = () => {
         loadSidebar();
         updateSavedQueriesDropdown();
+        loadBienniums();
     };
 
     function getBillVersion(url) {
