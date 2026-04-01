@@ -46,7 +46,7 @@
                     </div>
                 </div>
 
-                <ul id="taskList" class="space-y-3">
+                <ul id="taskList" class="space-y-4 pb-20">
                     <div class="text-center text-gray-400 text-sm font-bold italic py-10 animate-pulse">Loading tasks from database...</div>
                 </ul>
             </div>
@@ -54,10 +54,8 @@
     </div>
 
     <script>
-        // Check authentication
         if (!localStorage.getItem('jwt_token')) window.location.href = 'index.html';
 
-        // Connect to Misty-Credit
         const workerBaseUrl = "https://misty-credit-9e6a.ewing-jacob.workers.dev";
         const authHeaders = { 
             'Authorization': `Bearer ${localStorage.getItem('jwt_token')}`, 
@@ -66,14 +64,12 @@
         
         let tasks = [];
 
-        // Load Legitile Sidebar
         async function loadSidebar() {
             try {
                 const response = await fetch('sidebar.html');
                 if (response.ok) {
                     document.getElementById('sidebar-container').innerHTML = await response.text();
                     
-                    // Display User Email in Sidebar if the element exists
                     const emailDisplay = document.getElementById('userEmailDisplay');
                     if (emailDisplay) {
                         emailDisplay.innerText = localStorage.getItem('user_email') || 'Unknown User';
@@ -90,12 +86,18 @@
             } catch (error) { console.error("Sidebar failed to load."); }
         }
 
-        // Fetch tasks from D1 Database
         async function fetchTasks() {
             try {
                 const res = await fetch(`${workerBaseUrl}/todos`, { headers: authHeaders });
                 if (!res.ok) throw new Error("Failed to authenticate or fetch data.");
-                tasks = await res.json();
+                const rawTasks = await res.json();
+                
+                // Parse the JSON subtasks array from the database
+                tasks = rawTasks.map(t => ({
+                    ...t,
+                    subtasks: typeof t.subtasks === 'string' ? JSON.parse(t.subtasks) : (t.subtasks || [])
+                }));
+                
                 renderTasks();
             } catch (e) {
                 document.getElementById('taskList').innerHTML = `<div class="text-center text-red-500 text-sm font-bold py-10">Error loading tasks: ${e.message}</div>`;
@@ -129,31 +131,55 @@
 
                 const createdHtml = `<div class="text-[10px] text-gray-400 font-bold mt-1">Created: ${task.created_at}</div>`;
 
-                li.className = `flex items-start justify-between p-4 border border-gray-200 rounded-xl shadow-sm transition-all duration-200 ${bgClass}`;
+                // Render the Subtasks
+                let subtasksHtml = '';
+                if (task.subtasks && task.subtasks.length > 0) {
+                    subtasksHtml = `<ul class="space-y-2 mb-3">` + task.subtasks.map(sub => `
+                        <li class="flex items-center gap-3 group">
+                            <input type="checkbox" ${sub.completed ? 'checked' : ''} onchange="toggleSubtask('${task.id}', '${sub.id}')" class="h-4 w-4 text-blue-600 rounded border-gray-300 cursor-pointer">
+                            <span class="text-sm font-bold flex-1 ${sub.completed ? 'text-gray-400 line-through' : 'text-gray-600'}">${sub.text}</span>
+                            <button onclick="deleteSubtask('${task.id}', '${sub.id}')" class="text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition px-2">×</button>
+                        </li>
+                    `).join('') + `</ul>`;
+                }
+
+                const subtaskInputHtml = `
+                    <div class="flex gap-2 mt-2 pt-3 border-t border-gray-100 w-full">
+                        <input type="text" id="subtaskInput_${task.id}" placeholder="Add subtask..." class="text-xs font-bold text-gray-600 p-2 border border-gray-200 rounded flex-1 outline-none focus:border-[#002e5d]" onkeypress="if(event.key === 'Enter') addSubtask('${task.id}')">
+                        <button onclick="addSubtask('${task.id}')" class="bg-gray-100 hover:bg-gray-200 border border-gray-200 text-gray-600 px-4 py-1.5 rounded text-[10px] uppercase font-black transition outline-none">Add</button>
+                    </div>
+                `;
+
+                li.className = `flex flex-col p-4 border border-gray-200 rounded-xl shadow-sm transition-all duration-200 ${bgClass}`;
                 
                 li.innerHTML = `
-                    <div class="flex items-start gap-4 flex-1">
-                        <input 
-                            type="checkbox" 
-                            ${isCompleted ? 'checked' : ''} 
-                            onchange="toggleTask('${task.id}', ${isCompleted})" 
-                            class="mt-1 w-5 h-5 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 cursor-pointer transition"
-                        >
-                        <div class="flex-1 pt-0.5">
-                            <div class="font-bold text-[15px] ${textClass}">
-                                ${task.text} ${dueDateHtml}
+                    <div class="flex items-start justify-between w-full">
+                        <div class="flex items-start gap-4 flex-1">
+                            <input 
+                                type="checkbox" 
+                                ${isCompleted ? 'checked' : ''} 
+                                onchange="toggleTask('${task.id}', ${isCompleted})" 
+                                class="mt-1 w-5 h-5 text-[#002e5d] bg-gray-100 border-gray-300 rounded cursor-pointer transition"
+                            >
+                            <div class="flex-1 pt-0.5">
+                                <div class="font-bold text-[15px] ${textClass}">
+                                    ${task.text} ${dueDateHtml}
+                                </div>
+                                ${createdHtml}
                             </div>
-                            ${createdHtml}
                         </div>
+                        <button 
+                            onclick="deleteTask('${task.id}')" 
+                            class="text-gray-300 hover:text-red-500 ml-4 p-1 rounded transition-colors"
+                            title="Delete task"
+                        >
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                        </button>
                     </div>
-                    
-                    <button 
-                        onclick="deleteTask('${task.id}')" 
-                        class="text-gray-300 hover:text-red-500 ml-4 p-1 rounded transition-colors"
-                        title="Delete task"
-                    >
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                    </button>
+                    <div class="mt-3 pl-9 w-full">
+                        ${subtasksHtml}
+                        ${subtaskInputHtml}
+                    </div>
                 `;
                 list.appendChild(li);
             });
@@ -170,13 +196,13 @@
             const formattedDate = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
             const taskId = Date.now().toString();
 
-            // Optimistic UI update
             tasks.unshift({
                 id: taskId,
                 text: text,
                 due_date: dateInput.value,
                 created_at: formattedDate,
-                completed: 0
+                completed: 0,
+                subtasks: []
             });
             renderTasks();
 
@@ -184,7 +210,6 @@
             dateInput.value = '';
             input.focus();
 
-            // Save to D1
             await fetch(`${workerBaseUrl}/todos`, {
                 method: 'POST',
                 headers: authHeaders,
@@ -194,17 +219,14 @@
 
         async function toggleTask(id, currentStatus) {
             const newStatus = currentStatus ? 0 : 1;
-            
-            // Optimistic UI update
             const taskIndex = tasks.findIndex(t => t.id === id);
+            
             if (taskIndex > -1) {
                 tasks[taskIndex].completed = newStatus;
-                // Re-sort: uncompleted at top
                 tasks.sort((a, b) => a.completed - b.completed || b.id - a.id);
                 renderTasks();
             }
 
-            // Update D1
             await fetch(`${workerBaseUrl}/todos`, {
                 method: 'POST',
                 headers: authHeaders,
@@ -213,11 +235,9 @@
         }
 
         async function deleteTask(id) {
-            // Optimistic UI update
             tasks = tasks.filter(t => t.id !== id);
             renderTasks();
 
-            // Delete from D1
             await fetch(`${workerBaseUrl}/todos`, {
                 method: 'POST',
                 headers: authHeaders,
@@ -225,7 +245,57 @@
             });
         }
 
-        // Allow pressing "Enter" to add
+        // --- SUBTASK FUNCTIONS ---
+
+        async function addSubtask(taskId) {
+            const input = document.getElementById(`subtaskInput_${taskId}`);
+            const text = input.value.trim();
+            if (!text) return;
+
+            const task = tasks.find(t => t.id === taskId);
+            if (!task) return;
+
+            task.subtasks.push({
+                id: Date.now().toString(),
+                text: text,
+                completed: false
+            });
+            
+            renderTasks();
+            document.getElementById(`subtaskInput_${taskId}`).focus();
+            await syncSubtasks(taskId);
+        }
+
+        async function toggleSubtask(taskId, subtaskId) {
+            const task = tasks.find(t => t.id === taskId);
+            const subtask = task.subtasks.find(s => s.id === subtaskId);
+            subtask.completed = !subtask.completed;
+            
+            renderTasks();
+            await syncSubtasks(taskId);
+        }
+
+        async function deleteSubtask(taskId, subtaskId) {
+            const task = tasks.find(t => t.id === taskId);
+            task.subtasks = task.subtasks.filter(s => s.id !== subtaskId);
+            
+            renderTasks();
+            await syncSubtasks(taskId);
+        }
+
+        async function syncSubtasks(taskId) {
+            const task = tasks.find(t => t.id === taskId);
+            await fetch(`${workerBaseUrl}/todos`, {
+                method: 'POST',
+                headers: authHeaders,
+                body: JSON.stringify({
+                    action: 'update_subtasks',
+                    id: taskId,
+                    subtasks: task.subtasks
+                })
+            });
+        }
+
         document.getElementById('taskInput').addEventListener('keypress', function(e) {
             if (e.key === 'Enter') addTask();
         });
