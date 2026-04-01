@@ -85,6 +85,7 @@
     </div>
 
 <script>
+ <script>
     if (!localStorage.getItem('jwt_token')) window.location.href = 'index.html';
 
     const searchApiUrl = "https://legitile-scraper.ewing-jacob.workers.dev";
@@ -211,7 +212,6 @@
         loadBienniums();
     };
 
-    // --- VERSION RANKING AND TRANSLATION LOGIC ---
     function getBillStage(url) {
         if (!url) return "Unknown";
         const fileName = url.split('/').pop().toUpperCase();
@@ -299,21 +299,18 @@
         let totalBillsSearched = "all";
 
         try {
-            // 1. Fetch the master list of all URLs so we can calculate "Ghost Phrases"
             try {
                 const urlRes = await fetch(`${searchApiUrl}/all-urls?biennium=${encodeURIComponent(biennium)}`);
                 if (urlRes.ok) allDatabaseUrls = await urlRes.json();
                 totalBillsSearched = Object.keys(allDatabaseUrls).length.toLocaleString();
             } catch (e) { console.warn("Could not fetch global URL directory."); }
 
-            // 2. Fetch the matches
             for (const phrase of phrases) {
                 const res = await fetch(`${searchApiUrl}/generate-report?q=${encodeURIComponent(phrase)}&biennium=${encodeURIComponent(biennium)}`);
                 const data = await res.json();
 
                 if (data.error) throw new Error(data.error);
                 
-                // 3. Roll up the data locally
                 if (data.length > 0) {
                     for (const item of data) {
                         if (!groupedBills[item.bill_number]) {
@@ -333,7 +330,6 @@
 
                         groupedBills[item.bill_number].stagesFound.add(stage);
 
-                        // If this is the newest version containing the phrase, save the snippet
                         if (rank >= groupedBills[item.bill_number].highestRankFound) {
                             groupedBills[item.bill_number].highestRankFound = rank;
                             const locInfo = extractLocation(item.full_text, phrase);
@@ -351,17 +347,20 @@
                 reportGrid.innerHTML = '<tr><td colspan="6" class="p-8 text-center text-gray-500 font-bold">No bills contain the requested phrases.</td></tr>';
             } else {
                 
-                // 4. Fetch official API data and calculate Match Status for each rolled-up bill
                 for (const billNum of uniqueBillNumbers) {
                     const rollup = groupedBills[billNum];
                     const details = await fetchBillDetails(billNum, biennium);
                     
-                    // Determine Active vs Historical
                     let maxOverallRank = 0;
+                    let currentForm = "Introduced"; // Default fallback
+
                     if (allDatabaseUrls[billNum]) {
                         allDatabaseUrls[billNum].forEach(url => {
                             const rank = getStageRank(url);
-                            if (rank > maxOverallRank) maxOverallRank = rank;
+                            if (rank >= maxOverallRank) {
+                                maxOverallRank = rank;
+                                currentForm = getBillStage(url);
+                            }
                         });
                     }
                     
@@ -384,6 +383,7 @@
                         matchStatusText: matchStatusText,
                         matchStatusBadge: matchStatusBadge,
                         stagesFound: stageString,
+                        currentForm: currentForm,
                         section: rollup.latestLocation,
                         snippet: rollup.latestRawSnippet,          
                         highlightedSnippet: rollup.latestSnippet,  
@@ -414,7 +414,10 @@
                             </div>
                         </td>
                         <td class="p-4 align-top pt-5">${item.matchStatusBadge}</td>
-                        <td class="p-4 align-top pt-5"><span class="text-[10px] font-black uppercase text-gray-600 tracking-wider">${item.stagesFound}</span></td>
+                        <td class="p-4 align-top pt-4">
+                            <div class="text-[10px] font-black uppercase text-gray-800 tracking-wider mb-1"><span class="text-gray-400">Found In:</span> <br>${item.stagesFound}</div>
+                            <div class="text-[10px] font-black uppercase tracking-wider mt-2 pt-2 border-t border-gray-200"><span class="text-gray-400">Current Form:</span> <br><span class="text-[#002e5d]">${item.currentForm}</span></div>
+                        </td>
                         <td class="p-4 text-xs font-bold text-gray-600 bg-gray-50 border-r border-gray-200 align-top pt-5">${item.section}</td>
                         <td class="p-4 text-xs text-gray-600 italic leading-relaxed align-top">${item.highlightedSnippet}</td>
                     </tr>
@@ -434,13 +437,14 @@
     function exportToCSV() {
         if (currentReportData.length === 0) return;
         
-        const headers = ["Bill Number", "Title", "Match Status", "Stage(s) with Phrase", "Location", "Context Snippet", "Current Status", "Sponsor"];
+        const headers = ["Bill Number", "Title", "Match Status", "Found In Stage", "Current Bill Form", "Location", "Context Snippet", "Current WSL Status", "Sponsor"];
         
         const rows = currentReportData.map(row => [
             `"=HYPERLINK(""${row.summaryUrl}"", ""${row.bill_number}"")"`,
             `"${row.title.replace(/"/g, '""')}"`,
             `"${row.matchStatusText}"`,
             `"${row.stagesFound}"`,
+            `"${row.currentForm}"`,
             `"${row.section}"`,
             `"${row.snippet.replace(/"/g, '""')}"`,
             `"${row.status}"`,
