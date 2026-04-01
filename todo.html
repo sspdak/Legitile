@@ -54,7 +54,7 @@
     </div>
 
     <script>
-        if (!localStorage.getItem('jwt_token')) window.location.href = 'index.html';
+       if (!localStorage.getItem('jwt_token')) window.location.href = 'index.html';
 
         const workerBaseUrl = "https://misty-credit-9e6a.ewing-jacob.workers.dev";
         const authHeaders = { 
@@ -92,7 +92,6 @@
                 if (!res.ok) throw new Error("Failed to authenticate or fetch data.");
                 const rawTasks = await res.json();
                 
-                // Parse the JSON subtasks array from the database
                 tasks = rawTasks.map(t => ({
                     ...t,
                     subtasks: typeof t.subtasks === 'string' ? JSON.parse(t.subtasks) : (t.subtasks || [])
@@ -131,22 +130,24 @@
 
                 const createdHtml = `<div class="text-[10px] text-gray-400 font-bold mt-1">Created: ${task.created_at}</div>`;
 
-                // Render the Subtasks
                 let subtasksHtml = '';
                 if (task.subtasks && task.subtasks.length > 0) {
-                    subtasksHtml = `<ul class="space-y-2 mb-3">` + task.subtasks.map(sub => `
+                    subtasksHtml = `<ul class="space-y-2 mt-3 w-full pl-9">` + task.subtasks.map(sub => `
                         <li class="flex items-center gap-3 group">
-                            <input type="checkbox" ${sub.completed ? 'checked' : ''} onchange="toggleSubtask('${task.id}', '${sub.id}')" class="h-4 w-4 text-blue-600 rounded border-gray-300 cursor-pointer">
+                            <input type="checkbox" ${sub.completed ? 'checked' : ''} onchange="toggleSubtask('${task.id}', '${sub.id}')" class="h-4 w-4 text-[#002e5d] rounded border-gray-300 cursor-pointer">
                             <span class="text-sm font-bold flex-1 ${sub.completed ? 'text-gray-400 line-through' : 'text-gray-600'}">${sub.text}</span>
                             <button onclick="deleteSubtask('${task.id}', '${sub.id}')" class="text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition px-2">×</button>
                         </li>
                     `).join('') + `</ul>`;
                 }
 
+                // The input container is now hidden by default
                 const subtaskInputHtml = `
-                    <div class="flex gap-2 mt-2 pt-3 border-t border-gray-100 w-full">
-                        <input type="text" id="subtaskInput_${task.id}" placeholder="Add subtask..." class="text-xs font-bold text-gray-600 p-2 border border-gray-200 rounded flex-1 outline-none focus:border-[#002e5d]" onkeypress="if(event.key === 'Enter') addSubtask('${task.id}')">
-                        <button onclick="addSubtask('${task.id}')" class="bg-gray-100 hover:bg-gray-200 border border-gray-200 text-gray-600 px-4 py-1.5 rounded text-[10px] uppercase font-black transition outline-none">Add</button>
+                    <div id="subtaskInputContainer_${task.id}" class="hidden pl-9 mt-3 pt-3 border-t border-gray-100 w-full">
+                        <div class="flex gap-2 w-full">
+                            <input type="text" id="subtaskInput_${task.id}" placeholder="Add subtask..." class="text-xs font-bold text-gray-600 p-2 border border-gray-200 rounded flex-1 outline-none focus:border-[#002e5d]" onkeypress="if(event.key === 'Enter') addSubtask('${task.id}')">
+                            <button onclick="addSubtask('${task.id}')" class="bg-gray-100 hover:bg-gray-200 border border-gray-200 text-gray-600 px-4 py-1.5 rounded text-[10px] uppercase font-black transition outline-none">Add</button>
+                        </div>
                     </div>
                 `;
 
@@ -168,18 +169,21 @@
                                 ${createdHtml}
                             </div>
                         </div>
-                        <button 
-                            onclick="deleteTask('${task.id}')" 
-                            class="text-gray-300 hover:text-red-500 ml-4 p-1 rounded transition-colors"
-                            title="Delete task"
-                        >
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                        </button>
+                        <div class="flex items-center gap-1 ml-4">
+                            <button onclick="toggleSubtaskInput('${task.id}')" class="text-[9px] font-black uppercase text-gray-400 hover:text-[#002e5d] bg-transparent hover:bg-blue-50 transition px-3 py-1.5 rounded border border-transparent hover:border-blue-100">
+                                + Subtask
+                            </button>
+                            <button 
+                                onclick="deleteTask('${task.id}')" 
+                                class="text-gray-300 hover:text-red-500 p-1.5 rounded transition-colors"
+                                title="Delete task"
+                            >
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                            </button>
+                        </div>
                     </div>
-                    <div class="mt-3 pl-9 w-full">
-                        ${subtasksHtml}
-                        ${subtaskInputHtml}
-                    </div>
+                    ${subtasksHtml}
+                    ${subtaskInputHtml}
                 `;
                 list.appendChild(li);
             });
@@ -247,6 +251,18 @@
 
         // --- SUBTASK FUNCTIONS ---
 
+        function toggleSubtaskInput(taskId) {
+            const container = document.getElementById(`subtaskInputContainer_${taskId}`);
+            const input = document.getElementById(`subtaskInput_${taskId}`);
+            
+            if (container.classList.contains('hidden')) {
+                container.classList.remove('hidden');
+                input.focus();
+            } else {
+                container.classList.add('hidden');
+            }
+        }
+
         async function addSubtask(taskId) {
             const input = document.getElementById(`subtaskInput_${taskId}`);
             const text = input.value.trim();
@@ -262,7 +278,12 @@
             });
             
             renderTasks();
+            
+            // Re-open the input and focus it so you can add multiple subtasks quickly
+            const container = document.getElementById(`subtaskInputContainer_${taskId}`);
+            container.classList.remove('hidden');
             document.getElementById(`subtaskInput_${taskId}`).focus();
+            
             await syncSubtasks(taskId);
         }
 
