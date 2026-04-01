@@ -433,21 +433,33 @@
         generateBtn.disabled = false;
     }
 
-    function exportToCSV() {
+function exportToCSV() {
         if (currentReportData.length === 0) return;
         
-        const headers = ["Bill Number", "Title", "Match Status", "Found In Stage", "Current Bill Form", "Location", "Context Snippet", "Current WSL Status", "Sponsor"];
+        // Updated Headers Order
+        const headers = [
+            "Bill Number", 
+            "Sponsor", 
+            "Title", 
+            "Match Status", 
+            "Current WSL Status", 
+            "Current Bill Form", 
+            "Found in Stage", 
+            "Location", 
+            "Context Snippet"
+        ];
         
+        // Mapped to match the new headers order
         const rows = currentReportData.map(row => [
             `"=HYPERLINK(""${row.summaryUrl}"", ""${row.bill_number}"")"`,
+            `"${row.sponsor}"`,
             `"${row.title.replace(/"/g, '""')}"`,
             `"${row.matchStatusText}"`,
-            `"${row.stagesFound}"`,
-            `"${row.currentForm}"`,
-            `"${row.section}"`,
-            `"${row.snippet.replace(/"/g, '""')}"`,
             `"${row.status}"`,
-            `"${row.sponsor}"`
+            `"${row.currentForm}"`,
+            `"${row.stagesFound}"`,
+            `"${row.section}"`,
+            `"${row.snippet.replace(/"/g, '""')}"`
         ]);
         
         const csvContent = "data:text/csv;charset=utf-8," 
