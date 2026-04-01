@@ -65,19 +65,16 @@
                             <thead>
                                 <tr class="bg-gray-50 text-gray-500 text-[10px] uppercase tracking-wider font-black border-b border-gray-200">
                                     <th class="p-4">Bill</th>
-                                    <th class="p-4">Title</th>
-                                    <th class="p-4">Sponsor</th>
-                                    <th class="p-4">Version</th>
-                                    <th class="p-4">Current Status</th>
-                                    <th class="p-4">Introduced</th>
-                                    <th class="p-4">Last Updated</th>
+                                    <th class="p-4">Title & Info</th>
+                                    <th class="p-4">Match Status</th>
+                                    <th class="p-4">Stage(s) with Phrase</th>
                                     <th class="p-4">Location</th>
                                     <th class="p-4 w-1/3">Context Snippet</th>
                                 </tr>
                             </thead>
                             <tbody id="reportGrid" class="text-sm divide-y divide-gray-100">
                                 <tr>
-                                    <td colspan="9" class="p-8 text-center text-gray-400 font-bold italic">Enter phrases above to generate the report.</td>
+                                    <td colspan="6" class="p-8 text-center text-gray-400 font-bold italic">Enter phrases above to generate the report.</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -137,9 +134,7 @@
             if (Array.isArray(sessions) && sessions.length > 0) {
                 dropdown.innerHTML = sessions.map(s => `<option value="${s}">${s} Session</option>`).join('');
             }
-        } catch (e) {
-            console.error("Failed to load sessions:", e);
-        }
+        } catch (e) { console.error("Failed to load sessions:", e); }
     }
 
     async function addNewSession() {
@@ -166,15 +161,11 @@
             const data = await res.json();
             
             if (data.success) {
-                alert(`Successfully queued ${data.total_unique_bills_queued} bills for the ${sessionClean} session. They will begin downloading automatically.`);
+                alert(`Successfully queued ${data.total_files_queued} files for the ${sessionClean} session.`);
                 await loadBienniums(); 
                 document.getElementById('reportBiennium').value = sessionClean; 
-            } else {
-                alert(`Error: ${data.error}`);
-            }
-        } catch (e) {
-            alert(`Network error: ${e.message}`);
-        }
+            } else { alert(`Error: ${data.error}`); }
+        } catch (e) { alert(`Network error: ${e.message}`); }
         
         btn.innerText = originalText;
         btn.disabled = false;
@@ -220,21 +211,30 @@
         loadBienniums();
     };
 
-    function getBillVersion(url) {
-        if (!url) return "Original";
+    // --- VERSION RANKING AND TRANSLATION LOGIC ---
+    function getBillStage(url) {
+        if (!url) return "Unknown";
         const fileName = url.split('/').pop().toUpperCase();
         
-        if (fileName.includes("-S.E")) return "Engrossed Substitute";
-        if (fileName.includes("-S2.E")) return "Engrossed 2nd Substitute";
-        if (fileName.includes("-S3.E")) return "Engrossed 3rd Substitute";
-        if (fileName.includes("-S2")) return "2nd Substitute";
-        if (fileName.includes("-S3")) return "3rd Substitute";
-        if (fileName.includes("-S")) return "Substitute";
-        if (fileName.includes(".E")) return "Engrossed";
-        if (fileName.includes(".PL")) return "Passed Legislature";
-        if (fileName.includes(".SL")) return "Session Law";
-        
-        return "Original";
+        if (fileName.includes(".PL") || fileName.includes(".SL")) return "Passed Legislature";
+        if (fileName.includes(".E")) {
+            if (fileName.includes("-S")) return "Engrossed Substitute";
+            return "Engrossed";
+        }
+        if (fileName.includes("-S")) {
+            if (fileName.includes("2")) return "2nd Substitute";
+            if (fileName.includes("3")) return "3rd Substitute";
+            return "Substitute";
+        }
+        return "Introduced";
+    }
+
+    function getStageRank(url) {
+        const stage = getBillStage(url);
+        if (stage === "Passed Legislature") return 4;
+        if (stage.includes("Engrossed")) return 3;
+        if (stage.includes("Substitute")) return 2;
+        return 1;
     }
 
     function extractLocation(fullText, phrase) {
@@ -291,82 +291,132 @@
         generateBtn.disabled = true;
         exportBtn.classList.add('hidden');
         statsDiv.classList.add('hidden');
-        reportGrid.innerHTML = '<tr><td colspan="9" class="p-8 text-center text-blue-500 font-bold animate-pulse">Scanning database and retrieving live status...</td></tr>';
+        reportGrid.innerHTML = '<tr><td colspan="6" class="p-8 text-center text-blue-500 font-bold animate-pulse">Scanning database and rolling up history...</td></tr>';
         
         currentReportData = [];
-        let foundAnyMatches = false;
+        let groupedBills = {};
+        let allDatabaseUrls = {};
         let totalBillsSearched = "all";
 
         try {
+            // 1. Fetch the master list of all URLs so we can calculate "Ghost Phrases"
             try {
-                const statsRes = await fetch(`${searchApiUrl}/db-stats?biennium=${encodeURIComponent(biennium)}`);
-                if (statsRes.ok) {
-                    const statsData = await statsRes.json();
-                    if (statsData.total_bills) totalBillsSearched = statsData.total_bills.toLocaleString();
-                }
-            } catch (e) { console.warn("Stats API not reachable."); }
+                const urlRes = await fetch(`${searchApiUrl}/all-urls?biennium=${encodeURIComponent(biennium)}`);
+                if (urlRes.ok) allDatabaseUrls = await urlRes.json();
+                totalBillsSearched = Object.keys(allDatabaseUrls).length.toLocaleString();
+            } catch (e) { console.warn("Could not fetch global URL directory."); }
 
+            // 2. Fetch the matches
             for (const phrase of phrases) {
                 const res = await fetch(`${searchApiUrl}/generate-report?q=${encodeURIComponent(phrase)}&biennium=${encodeURIComponent(biennium)}`);
                 const data = await res.json();
 
                 if (data.error) throw new Error(data.error);
                 
+                // 3. Roll up the data locally
                 if (data.length > 0) {
-                    foundAnyMatches = true;
                     for (const item of data) {
-                        const { section, snippet, rawSnippet } = extractLocation(item.full_text, phrase);
-                        const { sponsor, status, title, introDate, lastUpdated } = await fetchBillDetails(item.bill_number, biennium);
-                        const version = getBillVersion(item.url);
-                        
-                        const year = biennium.split('-')[0];
-                        const cleanBillNum = item.bill_number.replace(/\D/g, '');
-                        const summaryUrl = `https://app.leg.wa.gov/billsummary/?BillNumber=${cleanBillNum}&Year=${year}&Initiative=false`;
+                        if (!groupedBills[item.bill_number]) {
+                            groupedBills[item.bill_number] = {
+                                bill_number: item.bill_number,
+                                phrase: phrase,
+                                stagesFound: new Set(),
+                                highestRankFound: 0,
+                                latestSnippet: null,
+                                latestRawSnippet: null,
+                                latestLocation: null
+                            };
+                        }
 
-                        currentReportData.push({
-                            bill_number: item.bill_number,
-                            url: item.url, 
-                            summaryUrl: summaryUrl,
-                            title: title,
-                            version: version,
-                            phrase: phrase,
-                            section: section,
-                            snippet: rawSnippet,          
-                            highlightedSnippet: snippet,  
-                            sponsor: sponsor,
-                            status: status,
-                            introDate: introDate,
-                            lastUpdated: lastUpdated
-                        });
+                        const stage = getBillStage(item.url);
+                        const rank = getStageRank(item.url);
+
+                        groupedBills[item.bill_number].stagesFound.add(stage);
+
+                        // If this is the newest version containing the phrase, save the snippet
+                        if (rank >= groupedBills[item.bill_number].highestRankFound) {
+                            groupedBills[item.bill_number].highestRankFound = rank;
+                            const locInfo = extractLocation(item.full_text, phrase);
+                            groupedBills[item.bill_number].latestSnippet = locInfo.snippet;
+                            groupedBills[item.bill_number].latestRawSnippet = locInfo.rawSnippet;
+                            groupedBills[item.bill_number].latestLocation = locInfo.section;
+                        }
                     }
                 }
             }
 
-            if (!foundAnyMatches) {
-                reportGrid.innerHTML = '<tr><td colspan="9" class="p-8 text-center text-gray-500 font-bold">No bills contain the requested phrases.</td></tr>';
+            const uniqueBillNumbers = Object.keys(groupedBills);
+
+            if (uniqueBillNumbers.length === 0) {
+                reportGrid.innerHTML = '<tr><td colspan="6" class="p-8 text-center text-gray-500 font-bold">No bills contain the requested phrases.</td></tr>';
             } else {
+                
+                // 4. Fetch official API data and calculate Match Status for each rolled-up bill
+                for (const billNum of uniqueBillNumbers) {
+                    const rollup = groupedBills[billNum];
+                    const details = await fetchBillDetails(billNum, biennium);
+                    
+                    // Determine Active vs Historical
+                    let maxOverallRank = 0;
+                    if (allDatabaseUrls[billNum]) {
+                        allDatabaseUrls[billNum].forEach(url => {
+                            const rank = getStageRank(url);
+                            if (rank > maxOverallRank) maxOverallRank = rank;
+                        });
+                    }
+                    
+                    const isHistoricalOnly = maxOverallRank > rollup.highestRankFound;
+                    const matchStatusText = isHistoricalOnly ? "Historical Only" : "Active";
+                    const matchStatusBadge = isHistoricalOnly 
+                        ? `<span class="bg-orange-50 text-orange-700 text-[10px] font-black uppercase px-2 py-1 rounded border border-orange-200 whitespace-nowrap">🟠 Historical Only</span>`
+                        : `<span class="bg-green-50 text-green-700 text-[10px] font-black uppercase px-2 py-1 rounded border border-green-200 whitespace-nowrap">🟢 Active Match</span>`;
+
+                    const stageString = Array.from(rollup.stagesFound).join(', ');
+                    
+                    const year = biennium.split('-')[0];
+                    const cleanBillNum = billNum.replace(/\D/g, '');
+                    const summaryUrl = `https://app.leg.wa.gov/billsummary/?BillNumber=${cleanBillNum}&Year=${year}&Initiative=false`;
+
+                    currentReportData.push({
+                        bill_number: billNum,
+                        summaryUrl: summaryUrl,
+                        title: details.title,
+                        matchStatusText: matchStatusText,
+                        matchStatusBadge: matchStatusBadge,
+                        stagesFound: stageString,
+                        section: rollup.latestLocation,
+                        snippet: rollup.latestRawSnippet,          
+                        highlightedSnippet: rollup.latestSnippet,  
+                        sponsor: details.sponsor,
+                        status: details.status,
+                        lastUpdated: details.lastUpdated
+                    });
+                }
+
                 currentReportData.sort((a, b) => {
                     const numA = parseInt(a.bill_number.replace(/\D/g, ''), 10) || 0;
                     const numB = parseInt(b.bill_number.replace(/\D/g, ''), 10) || 0;
                     return numA - numB;
                 });
 
-                const uniqueBills = new Set(currentReportData.map(item => item.bill_number)).size;
-                
-                statsDiv.innerHTML = `Searched <strong>${totalBillsSearched}</strong> total bills. Found <span class="text-[#002e5d] font-black">${currentReportData.length}</span> matches across <span class="text-[#002e5d] font-black">${uniqueBills}</span> unique bills.`;
+                statsDiv.innerHTML = `Searched <strong>${totalBillsSearched}</strong> total bills. Found <span class="text-[#002e5d] font-black">${currentReportData.length}</span> matching bills (with all versions rolled up).`;
                 statsDiv.classList.remove('hidden');
 
                 reportGrid.innerHTML = currentReportData.map(item => `
                     <tr class="hover:bg-gray-50 transition border-b border-gray-100 last:border-0">
-                        <td class="p-4 font-black text-[#002e5d] whitespace-nowrap"><a href="${item.summaryUrl}" target="_blank" class="hover:underline hover:text-blue-700 cursor-pointer" title="View Bill Summary">${item.bill_number}</a></td>
-                        <td class="p-4 text-xs font-bold text-gray-700 min-w-[150px]"><span class="line-clamp-2" title="${item.title}">${item.title}</span></td>
-                        <td class="p-4 text-xs font-medium text-gray-800">${item.sponsor}</td>
-                        <td class="p-4 text-[10px] font-black uppercase text-gray-500 tracking-wider">${item.version}</td>
-                        <td class="p-4"><span class="bg-blue-50 text-blue-700 text-[10px] font-bold px-2 py-1 rounded border border-blue-100">${item.status}</span></td>
-                        <td class="p-4 text-[10px] font-bold text-gray-500 whitespace-nowrap">${item.introDate}</td>
-                        <td class="p-4 text-[10px] font-bold text-gray-500 whitespace-nowrap">${item.lastUpdated}</td>
-                        <td class="p-4 text-xs font-bold text-gray-600 bg-gray-50 border-r border-gray-200">${item.section}</td>
-                        <td class="p-4 text-xs text-gray-600 italic leading-relaxed">${item.highlightedSnippet}</td>
+                        <td class="p-4 font-black text-[#002e5d] whitespace-nowrap align-top pt-5"><a href="${item.summaryUrl}" target="_blank" class="hover:underline hover:text-blue-700 cursor-pointer text-base" title="View Bill Summary">${item.bill_number}</a></td>
+                        <td class="p-4 align-top">
+                            <div class="text-xs font-bold text-gray-800 line-clamp-2 mb-2" title="${item.title}">${item.title}</div>
+                            <div class="flex flex-wrap gap-2 text-[10px] font-bold text-gray-500">
+                                <span class="bg-gray-100 px-2 py-0.5 rounded text-gray-700 border border-gray-200">${item.status}</span>
+                                <span>Sponsor: ${item.sponsor}</span>
+                                <span>Updated: ${item.lastUpdated}</span>
+                            </div>
+                        </td>
+                        <td class="p-4 align-top pt-5">${item.matchStatusBadge}</td>
+                        <td class="p-4 align-top pt-5"><span class="text-[10px] font-black uppercase text-gray-600 tracking-wider">${item.stagesFound}</span></td>
+                        <td class="p-4 text-xs font-bold text-gray-600 bg-gray-50 border-r border-gray-200 align-top pt-5">${item.section}</td>
+                        <td class="p-4 text-xs text-gray-600 italic leading-relaxed align-top">${item.highlightedSnippet}</td>
                     </tr>
                 `).join('');
                 
@@ -374,7 +424,7 @@
             }
 
         } catch (e) {
-            reportGrid.innerHTML = `<tr><td colspan="9" class="p-8 text-center text-red-500 font-bold">Error: ${e.message}</td></tr>`;
+            reportGrid.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-red-500 font-bold">Error: ${e.message}</td></tr>`;
         }
 
         generateBtn.innerText = "Generate";
@@ -384,18 +434,17 @@
     function exportToCSV() {
         if (currentReportData.length === 0) return;
         
-        const headers = ["Bill Number", "Title", "Sponsor", "Version", "Current Status", "Introduced", "Last Updated", "Location", "Context Snippet"];
+        const headers = ["Bill Number", "Title", "Match Status", "Stage(s) with Phrase", "Location", "Context Snippet", "Current Status", "Sponsor"];
         
         const rows = currentReportData.map(row => [
             `"=HYPERLINK(""${row.summaryUrl}"", ""${row.bill_number}"")"`,
             `"${row.title.replace(/"/g, '""')}"`,
-            `"${row.sponsor}"`,
-            `"${row.version}"`,
-            `"${row.status}"`,
-            `"${row.introDate}"`,
-            `"${row.lastUpdated}"`,
+            `"${row.matchStatusText}"`,
+            `"${row.stagesFound}"`,
             `"${row.section}"`,
-            `"${row.snippet.replace(/"/g, '""')}"`
+            `"${row.snippet.replace(/"/g, '""')}"`,
+            `"${row.status}"`,
+            `"${row.sponsor}"`
         ]);
         
         const csvContent = "data:text/csv;charset=utf-8," 
@@ -405,7 +454,7 @@
         const encodedUri = encodeURI(csvContent);
         const link = document.createElement("a");
         link.setAttribute("href", encodedUri);
-        link.setAttribute("download", "legitile_phrase_report.csv");
+        link.setAttribute("download", "legitile_historical_phrase_report.csv");
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
