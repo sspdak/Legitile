@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Legitile | General To-Do</title>
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgcng9IjIwIiBmaWxsPSIjMDAyZTVkIi8+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCUiIHkxPSIwJSIgeDI9IjEwMCUiIHkyPSIxMDAlIj48c3RvcCBvZmZzZXQ9IjAlIiBzdG9wLWNvbG9yPSIjZmI5MjNjIi8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjZmZmZmZmIi8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHRleHQgeD0iNTAiIHk9Ijc1IiBmb250LWZhbWlseT0ic2VyaWYiIGZvbnQtc3R5bGU9Iml0YWxpYyIgZm9udC13ZWlnaHQ9IjkwMCIgZm9udC1zaXplPSI3NSIgZmlsbD0idXJsKCNnKSIgdGV4dC1hbmNob3I9Im1pZGRsZSI+TDwvdGV4dD48L3N2Zz4=">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .leg-navy { background-color: #002e5d; }
+    </style>
+</head>
+<body class="bg-gray-100 h-screen font-sans text-gray-900 overflow-hidden flex flex-col md:flex-row">
+
+    <div id="sidebar-container" class="flex-shrink-0 w-full md:w-28 md:h-full z-50"></div>
+
+    <div class="flex-1 flex flex-col h-full overflow-hidden relative">
+        <header class="shrink-0 pt-8 pb-4 px-6 md:px-10 z-40 bg-gray-100 border-b border-gray-200">
+            <h1 class="text-2xl font-black text-gray-800 uppercase tracking-tight">Tasks</h1>
+            <p class="text-xs text-gray-500 font-bold mt-1">General action items and reminders.</p>
+        </header>
+
+        <main class="flex-1 overflow-y-auto p-6 md:p-10 scroll-smooth">
+            <div class="max-w-4xl mx-auto">
+                
+                <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-200 mb-8 flex flex-col sm:flex-row gap-3">
+                    <input 
+                        type="text" 
+                        id="taskInput" 
+                        placeholder="What needs to be done?" 
+                        class="flex-1 bg-gray-50 border border-gray-200 p-3 rounded-lg outline-none focus:border-[#002e5d] transition font-bold text-gray-700"
+                    >
+                    <div class="flex gap-3">
+                        <input 
+                            type="date" 
+                            id="dueDateInput" 
+                            class="bg-gray-50 border border-gray-200 p-3 rounded-lg outline-none focus:border-[#002e5d] transition text-sm text-gray-600 font-bold cursor-pointer"
+                            title="Optional Due Date"
+                        >
+                        <button 
+                            onclick="addTask()" 
+                            class="bg-[#002e5d] hover:bg-[#001f3f] text-white text-[12px] font-black uppercase px-8 py-3 rounded-lg shadow-sm transition"
+                        >
+                            Add
+                        </button>
+                    </div>
+                </div>
+
+                <ul id="taskList" class="space-y-3">
+                    <div class="text-center text-gray-400 text-sm font-bold italic py-10 animate-pulse">Loading tasks from database...</div>
+                </ul>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // Check authentication
+        if (!localStorage.getItem('jwt_token')) window.location.href = 'index.html';
+
+        // Connect to Misty-Credit
+        const workerBaseUrl = "https://misty-credit-9e6a.ewing-jacob.workers.dev";
+        const authHeaders = { 
+            'Authorization': `Bearer ${localStorage.getItem('jwt_token')}`, 
+            'Content-Type': 'application/json' 
+        };
+        
+        let tasks = [];
+
+        // Load Legitile Sidebar
+        async function loadSidebar() {
+            try {
+                const response = await fetch('sidebar.html');
+                if (response.ok) {
+                    document.getElementById('sidebar-container').innerHTML = await response.text();
+                    
+                    // Display User Email in Sidebar if the element exists
+                    const emailDisplay = document.getElementById('userEmailDisplay');
+                    if (emailDisplay) {
+                        emailDisplay.innerText = localStorage.getItem('user_email') || 'Unknown User';
+                    }
+
+                    const path = window.location.pathname;
+                    document.querySelectorAll('.nav-item').forEach(item => {
+                        if (path.includes(item.getAttribute('href'))) {
+                            item.classList.add('bg-white/10', 'text-white');
+                            item.classList.remove('text-blue-200');
+                        }
+                    });
+                }
+            } catch (error) { console.error("Sidebar failed to load."); }
+        }
+
+        // Fetch tasks from D1 Database
+        async function fetchTasks() {
+            try {
+                const res = await fetch(`${workerBaseUrl}/todos`, { headers: authHeaders });
+                if (!res.ok) throw new Error("Failed to authenticate or fetch data.");
+                tasks = await res.json();
+                renderTasks();
+            } catch (e) {
+                document.getElementById('taskList').innerHTML = `<div class="text-center text-red-500 text-sm font-bold py-10">Error loading tasks: ${e.message}</div>`;
+            }
+        }
+
+        function renderTasks() {
+            const list = document.getElementById('taskList');
+            list.innerHTML = '';
+
+            if (tasks.length === 0) {
+                list.innerHTML = `<div class="text-center text-gray-400 text-sm font-bold italic py-10">All caught up! No active tasks.</div>`;
+                return;
+            }
+
+            tasks.forEach(task => {
+                const li = document.createElement('li');
+                const isCompleted = task.completed === 1;
+                
+                const bgClass = isCompleted ? 'bg-gray-50 opacity-60' : 'bg-white';
+                const textClass = isCompleted ? 'line-through text-gray-400' : 'text-gray-800';
+                
+                let dueDateHtml = '';
+                if (task.due_date) {
+                    const dateParts = task.due_date.split('-');
+                    const dateObj = new Date(dateParts[0], dateParts[1] - 1, dateParts[2]); 
+                    const shortDate = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                    const badgeColor = isCompleted ? 'bg-gray-200 text-gray-500' : 'bg-orange-100 text-orange-700 border border-orange-200';
+                    dueDateHtml = `<span class="ml-3 text-[10px] font-black uppercase tracking-wide px-2 py-0.5 rounded ${badgeColor}">Due: ${shortDate}</span>`;
+                }
+
+                const createdHtml = `<div class="text-[10px] text-gray-400 font-bold mt-1">Created: ${task.created_at}</div>`;
+
+                li.className = `flex items-start justify-between p-4 border border-gray-200 rounded-xl shadow-sm transition-all duration-200 ${bgClass}`;
+                
+                li.innerHTML = `
+                    <div class="flex items-start gap-4 flex-1">
+                        <input 
+                            type="checkbox" 
+                            ${isCompleted ? 'checked' : ''} 
+                            onchange="toggleTask('${task.id}', ${isCompleted})" 
+                            class="mt-1 w-5 h-5 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 cursor-pointer transition"
+                        >
+                        <div class="flex-1 pt-0.5">
+                            <div class="font-bold text-[15px] ${textClass}">
+                                ${task.text} ${dueDateHtml}
+                            </div>
+                            ${createdHtml}
+                        </div>
+                    </div>
+                    
+                    <button 
+                        onclick="deleteTask('${task.id}')" 
+                        class="text-gray-300 hover:text-red-500 ml-4 p-1 rounded transition-colors"
+                        title="Delete task"
+                    >
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                    </button>
+                `;
+                list.appendChild(li);
+            });
+        }
+
+        async function addTask() {
+            const input = document.getElementById('taskInput');
+            const dateInput = document.getElementById('dueDateInput');
+            const text = input.value.trim();
+            
+            if (!text) return;
+            
+            const now = new Date();
+            const formattedDate = now.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+            const taskId = Date.now().toString();
+
+            // Optimistic UI update
+            tasks.unshift({
+                id: taskId,
+                text: text,
+                due_date: dateInput.value,
+                created_at: formattedDate,
+                completed: 0
+            });
+            renderTasks();
+
+            input.value = '';
+            dateInput.value = '';
+            input.focus();
+
+            // Save to D1
+            await fetch(`${workerBaseUrl}/todos`, {
+                method: 'POST',
+                headers: authHeaders,
+                body: JSON.stringify({ action: 'add', id: taskId, text: text, dueDate: dateInput.value, createdAt: formattedDate })
+            });
+        }
+
+        async function toggleTask(id, currentStatus) {
+            const newStatus = currentStatus ? 0 : 1;
+            
+            // Optimistic UI update
+            const taskIndex = tasks.findIndex(t => t.id === id);
+            if (taskIndex > -1) {
+                tasks[taskIndex].completed = newStatus;
+                // Re-sort: uncompleted at top
+                tasks.sort((a, b) => a.completed - b.completed || b.id - a.id);
+                renderTasks();
+            }
+
+            // Update D1
+            await fetch(`${workerBaseUrl}/todos`, {
+                method: 'POST',
+                headers: authHeaders,
+                body: JSON.stringify({ action: 'toggle', id: id, completed: newStatus === 1 })
+            });
+        }
+
+        async function deleteTask(id) {
+            // Optimistic UI update
+            tasks = tasks.filter(t => t.id !== id);
+            renderTasks();
+
+            // Delete from D1
+            await fetch(`${workerBaseUrl}/todos`, {
+                method: 'POST',
+                headers: authHeaders,
+                body: JSON.stringify({ action: 'delete', id: id })
+            });
+        }
+
+        // Allow pressing "Enter" to add
+        document.getElementById('taskInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') addTask();
+        });
+
+        window.onload = () => {
+            loadSidebar();
+            fetchTasks();
+        };
+    </script>
+</body>
+</html>
