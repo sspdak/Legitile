@@ -6,7 +6,6 @@
     <title>LegiTile | Phrase Report</title>
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgcng9IjIwIiBmaWxsPSIjMDAyZTVkIi8+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCUiIHkxPSIwJSIgeDI9IjEwMCUiIHkyPSIxMDAlIj48c3RvcCBvZmZzZXQ9IjAlIiBzdG9wLWNvbG9yPSIjZmI5MjNjIi8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjZmZmZmZmIi8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHRleHQgeD0iNTAiIHk9Ijc1IiBmb250LWZhbWlseT0ic2VyaWYiIGZvbnQtc3R5bGU9Iml0YWxpYyIgZm9udC13ZWlnaHQ9IjkwMCIgZm9udC1zaXplPSI3NSIgZmlsbD0idXJsKCNnKSIgdGV4dC1hbmNob3I9Im1pZGRsZSI+TDwvdGV4dD48L3N2Zz4=">
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.min.js"></script>
     <style>
         .leg-navy { background-color: #002e5d; }
         ::-webkit-scrollbar { width: 6px; height: 6px; }
@@ -23,14 +22,13 @@
             <div>
                 <h1 class="text-2xl font-black text-gray-800 uppercase tracking-tight">Phrase Report Generator</h1>
             </div>
-            <button id="exportBtn" onclick="exportToExcel()" class="hidden bg-green-600 hover:bg-green-700 text-white text-[10px] font-black uppercase px-4 py-2 rounded shadow-sm transition">
-                Download Excel (.xlsx)
+            <button id="exportBtn" onclick="exportToCSV()" class="hidden bg-green-600 hover:bg-green-700 text-white text-[10px] font-black uppercase px-4 py-2 rounded shadow-sm transition">
+                Download CSV
             </button>
         </header>
 
         <main class="flex-1 overflow-y-auto p-6 md:p-10 scroll-smooth">
             <div class="bg-white p-6 rounded-xl shadow-sm mb-6 border border-gray-100 max-w-7xl mx-auto">
-                
                 <div class="flex flex-col md:flex-row gap-3 w-full mb-3">
                     <div class="flex items-center gap-2 md:w-56">
                         <select id="reportBiennium" class="bg-gray-50 border-2 border-gray-200 text-gray-800 font-black uppercase text-[10px] rounded-lg px-4 py-3 outline-none focus:border-[#002e5d] transition cursor-pointer flex-1">
@@ -38,14 +36,10 @@
                         </select>
                         <button onclick="addNewSession()" class="bg-gray-200 hover:bg-gray-300 text-gray-700 font-black text-lg h-full px-4 rounded-lg transition shadow-sm" title="Add a historical session">+</button>
                     </div>
-                    
                     <input type="text" id="reportInput" placeholder="Enter phrases separated by commas (e.g. housing, tax, emergency)" class="flex-1 border-2 border-gray-200 p-3 rounded-lg outline-none focus:border-[#002e5d] font-bold text-gray-700" onkeypress="if(event.key === 'Enter') generateReport()">
-                    
                     <button onclick="saveCurrentQuery()" class="bg-blue-50 text-blue-600 hover:bg-blue-100 border border-blue-200 text-[12px] font-black uppercase px-4 py-3 rounded-lg shadow-sm transition" title="Save this search">💾 Save</button>
-                    
                     <button onclick="generateReport()" id="generateBtn" class="bg-[#002e5d] hover:bg-[#001f3f] text-white text-[12px] font-black uppercase px-8 py-3 rounded-lg shadow-sm transition">Generate</button>
                 </div>
-
                 <div class="flex items-center gap-3">
                     <span class="text-[10px] font-black uppercase text-gray-400">Saved Searches:</span>
                     <select id="savedQueriesDropdown" onchange="loadSavedQuery()" class="bg-gray-50 border border-gray-200 text-gray-600 text-xs rounded px-3 py-1 outline-none cursor-pointer">
@@ -120,9 +114,7 @@
                     dropdown.appendChild(opt);
                 });
             }
-        } catch (error) {
-            dropdown.innerHTML = '<option value="">-- Error loading --</option>';
-        }
+        } catch (error) { dropdown.innerHTML = '<option value="">-- Error loading --</option>'; }
     }
 
     async function loadBienniums() {
@@ -143,13 +135,11 @@
             alert("Invalid format. Please use YYYY-YY (e.g., 2019-20).");
             return;
         }
-
         const sessionClean = newSession.trim();
         const btn = document.querySelector('button[title="Add a historical session"]');
         const originalText = btn.innerText;
         btn.innerText = "⏳";
         btn.disabled = true;
-
         try {
             const res = await fetch(`${searchApiUrl}/build-database`, {
                 method: 'POST',
@@ -163,7 +153,6 @@
                 document.getElementById('reportBiennium').value = sessionClean; 
             } else { alert(`Error: ${data.error}`); }
         } catch (e) { alert(`Network error: ${e.message}`); }
-        
         btn.innerText = originalText;
         btn.disabled = false;
     }
@@ -237,22 +226,17 @@
         const lowerPhrase = phrase.toLowerCase();
         const index = lowerText.indexOf(lowerPhrase);
         if (index === -1) return { section: "Not Found", snippet: "" };
-
         const textBefore = fullText.substring(0, index);
         const sectionRegex = /(?:NEW SECTION\.\s*)?(?:Sec\.|Section)\s*\d+/gi;
         const matches = [...textBefore.matchAll(sectionRegex)];
         const section = matches.length > 0 ? matches[matches.length - 1][0] : "Intro/Preamble";
-        
         const start = Math.max(0, index - 60);
         const end = Math.min(fullText.length, index + phrase.length + 55);
         let snippet = fullText.substring(start, end).replace(/\n/g, ' ').trim();
-        
         if (start > 0) snippet = "..." + snippet;
         if (end < fullText.length) snippet = snippet + "...";
-
         const regex = new RegExp(`(${phrase})`, "gi");
         const highlightedSnippet = snippet.replace(regex, '<mark class="bg-yellow-200 font-bold px-1 rounded">$1</mark>');
-
         return { section, snippet: highlightedSnippet, rawSnippet: snippet };
     }
 
@@ -296,11 +280,9 @@
         let totalBillsSearched = "all";
 
         try {
-            try {
-                const urlRes = await fetch(`${searchApiUrl}/all-urls?biennium=${encodeURIComponent(biennium)}`);
-                if (urlRes.ok) allDatabaseUrls = await urlRes.json();
-                totalBillsSearched = Object.keys(allDatabaseUrls).length.toLocaleString();
-            } catch (e) { console.warn("Could not fetch global URL directory."); }
+            const urlRes = await fetch(`${searchApiUrl}/all-urls?biennium=${encodeURIComponent(biennium)}`);
+            if (urlRes.ok) allDatabaseUrls = await urlRes.json();
+            totalBillsSearched = Object.keys(allDatabaseUrls).length.toLocaleString();
 
             for (const phrase of phrases) {
                 const res = await fetch(`${searchApiUrl}/generate-report?q=${encodeURIComponent(phrase)}&biennium=${encodeURIComponent(biennium)}`);
@@ -323,7 +305,6 @@
                         const stage = getBillStage(item.url);
                         const rank = getStageRank(item.url);
                         groupedBills[item.bill_number].stagesFound.add(stage);
-
                         if (rank >= groupedBills[item.bill_number].highestRankFound) {
                             groupedBills[item.bill_number].highestRankFound = rank;
                             const locInfo = extractLocation(item.full_text, phrase);
@@ -344,7 +325,6 @@
                     const details = await fetchBillDetails(billNum, biennium);
                     let maxOverallRank = 0;
                     let currentForm = "Introduced";
-
                     if (allDatabaseUrls[billNum]) {
                         allDatabaseUrls[billNum].forEach(url => {
                             const rank = getStageRank(url);
@@ -354,17 +334,15 @@
                             }
                         });
                     }
-                    
-                    const isHistoricalOnly = maxOverallRank > rollup.highestRankFound;
-                    const matchStatusText = isHistoricalOnly ? "Amended Out" : "Active";
-                    const matchStatusBadge = isHistoricalOnly 
+                    const isRemoved = maxOverallRank > rollup.highestRankFound;
+                    const matchStatusText = isRemoved ? "Removed" : "Active";
+                    const matchStatusBadge = isRemoved 
                         ? `<span class="bg-orange-50 text-orange-700 text-[10px] font-black uppercase px-2 py-1 rounded border border-orange-200 whitespace-nowrap">🟠 Removed</span>`
                         : `<span class="bg-green-50 text-green-700 text-[10px] font-black uppercase px-2 py-1 rounded border border-green-200 whitespace-nowrap">🟢 Active Match</span>`;
 
                     const stageString = Array.from(rollup.stagesFound).join(', ');
                     const year = biennium.split('-')[0];
-                    const cleanBillNum = billNum.replace(/\D/g, '');
-                    const summaryUrl = `https://app.leg.wa.gov/billsummary/?BillNumber=${cleanBillNum}&Year=${year}&Initiative=false`;
+                    const summaryUrl = `https://app.leg.wa.gov/billsummary/?BillNumber=${billNum.replace(/\D/g, '')}&Year=${year}&Initiative=false`;
 
                     currentReportData.push({
                         bill_number: billNum,
@@ -384,20 +362,15 @@
                     });
                 }
 
-                currentReportData.sort((a, b) => {
-                    const numA = parseInt(a.bill_number.replace(/\D/g, ''), 10) || 0;
-                    const numB = parseInt(b.bill_number.replace(/\D/g, ''), 10) || 0;
-                    return numA - numB;
-                });
-
+                currentReportData.sort((a, b) => parseInt(a.bill_number.replace(/\D/g, '')) - parseInt(b.bill_number.replace(/\D/g, '')));
                 statsDiv.innerHTML = `Searched <strong>${totalBillsSearched}</strong> total bills. Found <span class="text-[#002e5d] font-black">${currentReportData.length}</span> matching bills.`;
                 statsDiv.classList.remove('hidden');
 
                 reportGrid.innerHTML = currentReportData.map(item => `
                     <tr class="hover:bg-gray-50 transition border-b border-gray-100 last:border-0">
-                        <td class="p-4 font-black text-[#002e5d] whitespace-nowrap align-top pt-5"><a href="${item.summaryUrl}" target="_blank" class="hover:underline hover:text-blue-700 cursor-pointer text-base" title="View Bill Summary">${item.bill_number}</a></td>
+                        <td class="p-4 font-black text-[#002e5d] whitespace-nowrap align-top pt-5"><a href="${item.summaryUrl}" target="_blank" class="hover:underline hover:text-blue-700 cursor-pointer text-base">${item.bill_number}</a></td>
                         <td class="p-4 align-top">
-                            <div class="text-xs font-bold text-gray-800 line-clamp-2 mb-2" title="${item.title}">${item.title}</div>
+                            <div class="text-xs font-bold text-gray-800 line-clamp-2 mb-2">${item.title}</div>
                             <div class="flex flex-wrap gap-2 text-[10px] font-bold text-gray-500">
                                 <span class="bg-gray-100 px-2 py-0.5 rounded text-gray-700 border border-gray-200">${item.status}</span>
                                 <span>Sponsor: ${item.sponsor}</span>
@@ -414,50 +387,34 @@
                         </td>
                         <td class="p-4 text-xs font-bold text-gray-600 bg-gray-50 border-r border-gray-200 align-top pt-5">${item.section}</td>
                         <td class="p-4 text-xs text-gray-600 italic leading-relaxed align-top">${item.highlightedSnippet}</td>
-                    </tr>
-                `).join('');
+                    </tr>`).join('');
                 exportBtn.classList.remove('hidden');
             }
-        } catch (e) {
-            reportGrid.innerHTML = `<tr><td colspan="7" class="p-8 text-center text-red-500 font-bold">Error: ${e.message}</td></tr>`;
-        }
-        generateBtn.innerText = "Generate";
-        generateBtn.disabled = false;
+        } catch (e) { reportGrid.innerHTML = `<tr><td colspan="7" class="p-8 text-center text-red-500 font-bold">Error: ${e.message}</td></tr>`; }
+        generateBtn.innerText = "Generate"; generateBtn.disabled = false;
     }
 
-    function exportToExcel() {
+    function exportToCSV() {
         if (currentReportData.length === 0) return;
-        const worksheetData = currentReportData.map(row => ({
-            "Bill Number": row.bill_number,
-            "Sponsor": row.sponsor,
-            "Title": row.title,
-            "Introduced": row.introDate,
-            "Last Updated": row.lastUpdated,
-            "Match Status": row.matchStatusText,
-            "Current WSL Status": row.status,
-            "Current Bill Form": row.currentForm,
-            "Found in Stage": row.stagesFound,
-            "Location": row.section,
-            "Context Snippet": row.snippet
-        }));
-
-        const worksheet = XLSX.utils.json_to_sheet(worksheetData);
-        const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet, "Phrase Report");
-
-        const wscols = [
-            {wch: 12}, {wch: 15}, {wch: 40}, {wch: 12}, {wch: 12},
-            {wch: 18}, {wch: 25}, {wch: 20}, {wch: 25}, {wch: 15}, {wch: 60}
-        ];
-        worksheet['!cols'] = wscols;
-
-        currentReportData.forEach((row, index) => {
-            const cellAddress = XLSX.utils.encode_cell({c: 0, r: index + 1});
-            if (worksheet[cellAddress]) {
-                worksheet[cellAddress].l = { Target: row.summaryUrl, Tooltip: "View on WSL Website" };
-            }
-        });
-        XLSX.writeFile(workbook, "LegiTile_Phrase_Report.xlsx");
+        const headers = ["Bill Number", "Sponsor", "Title", "Match Status", "Current WSL Status", "Current Bill Form", "Found in Stage", "Location", "Context Snippet", "Introduced", "Last Updated"];
+        const rows = currentReportData.map(row => [
+            `"=HYPERLINK(""${row.summaryUrl}"", ""${row.bill_number}"")"`,
+            `"${row.sponsor}"`,
+            `"${row.title.replace(/"/g, '""')}"`,
+            `"${row.matchStatusText}"`,
+            `"${row.status}"`,
+            `"${row.currentForm}"`,
+            `"${row.stagesFound}"`,
+            `"${row.section}"`,
+            `"${row.snippet.replace(/"/g, '""')}"`,
+            `"${row.introDate}"`,
+            `"${row.lastUpdated}"`
+        ]);
+        const csvContent = "data:text/csv;charset=utf-8," + headers.join(",") + "\n" + rows.map(e => e.join(",")).join("\n");
+        const link = document.createElement("a");
+        link.setAttribute("href", encodeURI(csvContent));
+        link.setAttribute("download", "legitile_phrase_report.csv");
+        document.body.appendChild(link); link.click(); document.body.removeChild(link);
     }
 </script>
 </body>
