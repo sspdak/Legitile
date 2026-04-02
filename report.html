@@ -6,6 +6,7 @@
     <title>LegiTile | Phrase Report</title>
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgcng9IjIwIiBmaWxsPSIjMDAyZTVkIi8+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCUiIHkxPSIwJSIgeDI9IjEwMCUiIHkyPSIxMDAlIj48c3RvcCBvZmZzZXQ9IjAlIiBzdG9wLWNvbG9yPSIjZmI5MjNjIi8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjZmZmZmZmIi8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHRleHQgeD0iNTAiIHk9Ijc1IiBmb250LWZhbWlseT0ic2VyaWYiIGZvbnQtc3R5bGU9Iml0YWxpYyIgZm9udC13ZWlnaHQ9IjkwMCIgZm9udC1zaXplPSI3NSIgZmlsbD0idXJsKCNnKSIgdGV4dC1hbmNob3I9Im1pZGRsZSI+TDwvdGV4dD48L3N2Zz4=">
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.min.js"></script>
     <style>
         .leg-navy { background-color: #002e5d; }
         ::-webkit-scrollbar { width: 6px; height: 6px; }
@@ -22,9 +23,9 @@
             <div>
                 <h1 class="text-2xl font-black text-gray-800 uppercase tracking-tight">Phrase Report Generator</h1>
             </div>
-            <button id="exportBtn" onclick="exportToCSV()" class="hidden bg-green-600 hover:bg-green-700 text-white text-[10px] font-black uppercase px-4 py-2 rounded shadow-sm transition">
-                Download CSV
-            </button>
+<button id="exportBtn" onclick="exportToExcel()" class="hidden bg-green-600 hover:bg-green-700 text-white text-[10px] font-black uppercase px-4 py-2 rounded shadow-sm transition">
+    Download Excel (.xlsx)
+</button>
         </header>
 
         <main class="flex-1 overflow-y-auto p-6 md:p-10 scroll-smooth">
@@ -445,48 +446,56 @@ const matchStatusBadge = isHistoricalOnly
         generateBtn.disabled = false;
     }
 
-    function exportToCSV() {
+    function exportToExcel() {
         if (currentReportData.length === 0) return;
-        
-        const headers = [
-            "Bill Number", 
-            "Sponsor", 
-            "Title", 
-            "Introduced", 
-            "Last Updated", 
-            "Match Status", 
-            "Current WSL Status", 
-            "Current Bill Form", 
-            "Found in Stage", 
-            "Location", 
-            "Context Snippet"
+
+        // 1. Prepare the data for SheetJS
+        const worksheetData = currentReportData.map(row => ({
+            "Bill Number": row.bill_number,
+            "Sponsor": row.sponsor,
+            "Title": row.title,
+            "Introduced": row.introDate,
+            "Last Updated": row.lastUpdated,
+            "Match Status": row.matchStatusText,
+            "Current WSL Status": row.status,
+            "Current Bill Form": row.currentForm,
+            "Found in Stage": row.stagesFound,
+            "Location": row.section,
+            "Context Snippet": row.snippet
+        }));
+
+        // 2. Create a new workbook and worksheet
+        const worksheet = XLSX.utils.json_to_sheet(worksheetData);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Phrase Report");
+
+        // 3. Fix Column Widths (Optional but makes it look professional)
+        const wscols = [
+            {wch: 12}, // Bill Number
+            {wch: 15}, // Sponsor
+            {wch: 40}, // Title
+            {wch: 12}, // Introduced
+            {wch: 12}, // Last Updated
+            {wch: 18}, // Match Status
+            {wch: 25}, // Current WSL Status
+            {wch: 20}, // Current Bill Form
+            {wch: 25}, // Found in Stage
+            {wch: 15}, // Location
+            {wch: 60}  // Context Snippet
         ];
-        
-        const rows = currentReportData.map(row => [
-            `"=HYPERLINK(""${row.summaryUrl}"", ""${row.bill_number}"")"`,
-            `"${row.sponsor}"`,
-            `"${row.title.replace(/"/g, '""')}"`,
-            `"${row.introDate}"`,
-            `"${row.lastUpdated}"`,
-            `"${row.matchStatusText}"`,
-            `"${row.status}"`,
-            `"${row.currentForm}"`,
-            `"${row.stagesFound}"`,
-            `"${row.section}"`,
-            `"${row.snippet.replace(/"/g, '""')}"`
-        ]);
-        
-        const csvContent = "data:text/csv;charset=utf-8," 
-            + headers.join(",") + "\n" 
-            + rows.map(e => e.join(",")).join("\n");
-            
-        const encodedUri = encodeURI(csvContent);
-        const link = document.createElement("a");
-        link.setAttribute("href", encodedUri);
-        link.setAttribute("download", "legitile_historical_phrase_report.csv");
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+        worksheet['!cols'] = wscols;
+
+        // 4. Handle Hyperlinks for Bill Numbers
+        // SheetJS allows us to turn the Bill Number column into clickable links
+        currentReportData.forEach((row, index) => {
+            const cellAddress = XLSX.utils.encode_cell({c: 0, r: index + 1}); // Column 0 (A), Row index+1
+            if (worksheet[cellAddress]) {
+                worksheet[cellAddress].l = { Target: row.summaryUrl, Tooltip: "View on WSL Website" };
+            }
+        });
+
+        // 5. Trigger the download
+        XLSX.writeFile(workbook, "LegiTile_Phrase_Report.xlsx");
     }
 </script>
 </body>
