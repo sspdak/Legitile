@@ -23,16 +23,15 @@
             <div>
                 <h1 class="text-2xl font-black text-gray-800 uppercase tracking-tight">Phrase Report Generator</h1>
             </div>
-<button id="exportBtn" onclick="exportToExcel()" class="hidden bg-green-600 hover:bg-green-700 text-white text-[10px] font-black uppercase px-4 py-2 rounded shadow-sm transition">
-    Download Excel (.xlsx)
-</button>
+            <button id="exportBtn" onclick="exportToExcel()" class="hidden bg-green-600 hover:bg-green-700 text-white text-[10px] font-black uppercase px-4 py-2 rounded shadow-sm transition">
+                Download Excel (.xlsx)
+            </button>
         </header>
 
         <main class="flex-1 overflow-y-auto p-6 md:p-10 scroll-smooth">
             <div class="bg-white p-6 rounded-xl shadow-sm mb-6 border border-gray-100 max-w-7xl mx-auto">
                 
                 <div class="flex flex-col md:flex-row gap-3 w-full mb-3">
-                    
                     <div class="flex items-center gap-2 md:w-56">
                         <select id="reportBiennium" class="bg-gray-50 border-2 border-gray-200 text-gray-800 font-black uppercase text-[10px] rounded-lg px-4 py-3 outline-none focus:border-[#002e5d] transition cursor-pointer flex-1">
                             <option value="2025-26">Loading...</option>
@@ -58,9 +57,7 @@
 
             <div class="max-w-7xl mx-auto">
                 <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                    
                     <div id="reportStats" class="px-6 py-4 text-sm font-bold text-gray-700 bg-gray-50 border-b border-gray-200 hidden"></div>
-                    
                     <div class="overflow-x-auto">
                         <table class="w-full text-left border-collapse" id="reportTable">
                             <thead>
@@ -142,7 +139,6 @@
     async function addNewSession() {
         const newSession = prompt("Enter the biennium to track (e.g., 2019-20, 2021-22):");
         if (!newSession) return;
-        
         if (!/^\d{4}-\d{2}$/.test(newSession.trim())) {
             alert("Invalid format. Please use YYYY-YY (e.g., 2019-20).");
             return;
@@ -161,7 +157,6 @@
                 body: JSON.stringify({ biennium: sessionClean })
             });
             const data = await res.json();
-            
             if (data.success) {
                 alert(`Successfully queued ${data.total_files_queued} files for the ${sessionClean} session.`);
                 await loadBienniums(); 
@@ -216,7 +211,6 @@
     function getBillStage(url) {
         if (!url) return "Unknown";
         const fileName = url.split('/').pop().toUpperCase();
-        
         if (fileName.includes(".PL") || fileName.includes(".SL")) return "Passed Legislature";
         if (fileName.includes(".E")) {
             if (fileName.includes("-S")) return "Engrossed Substitute";
@@ -238,7 +232,7 @@
         return 1;
     }
 
-function extractLocation(fullText, phrase) {
+    function extractLocation(fullText, phrase) {
         const lowerText = fullText.toLowerCase();
         const lowerPhrase = phrase.toLowerCase();
         const index = lowerText.indexOf(lowerPhrase);
@@ -249,14 +243,10 @@ function extractLocation(fullText, phrase) {
         const matches = [...textBefore.matchAll(sectionRegex)];
         const section = matches.length > 0 ? matches[matches.length - 1][0] : "Intro/Preamble";
         
-        // INCREASED LOOK-BACK: Changed 40 to 60 for better context
-        // INCREASED LOOK-AHEAD: Changed 40 to 55 to balance the longer snippet
         const start = Math.max(0, index - 60);
         const end = Math.min(fullText.length, index + phrase.length + 55);
-        
         let snippet = fullText.substring(start, end).replace(/\n/g, ' ').trim();
         
-        // Add ellipses if we aren't at the very start of the bill
         if (start > 0) snippet = "..." + snippet;
         if (end < fullText.length) snippet = snippet + "...";
 
@@ -292,7 +282,6 @@ function extractLocation(fullText, phrase) {
         const statsDiv = document.getElementById('reportStats');
 
         if (!rawQuery) return;
-
         const phrases = rawQuery.split(',').map(p => p.trim()).filter(p => p.length > 0);
 
         generateBtn.innerText = "Processing...";
@@ -316,7 +305,6 @@ function extractLocation(fullText, phrase) {
             for (const phrase of phrases) {
                 const res = await fetch(`${searchApiUrl}/generate-report?q=${encodeURIComponent(phrase)}&biennium=${encodeURIComponent(biennium)}`);
                 const data = await res.json();
-
                 if (data.error) throw new Error(data.error);
                 
                 if (data.length > 0) {
@@ -332,10 +320,8 @@ function extractLocation(fullText, phrase) {
                                 latestLocation: null
                             };
                         }
-
                         const stage = getBillStage(item.url);
                         const rank = getStageRank(item.url);
-
                         groupedBills[item.bill_number].stagesFound.add(stage);
 
                         if (rank >= groupedBills[item.bill_number].highestRankFound) {
@@ -350,17 +336,14 @@ function extractLocation(fullText, phrase) {
             }
 
             const uniqueBillNumbers = Object.keys(groupedBills);
-
             if (uniqueBillNumbers.length === 0) {
                 reportGrid.innerHTML = '<tr><td colspan="7" class="p-8 text-center text-gray-500 font-bold">No bills contain the requested phrases.</td></tr>';
             } else {
-                
                 for (const billNum of uniqueBillNumbers) {
                     const rollup = groupedBills[billNum];
                     const details = await fetchBillDetails(billNum, biennium);
-                    
                     let maxOverallRank = 0;
-                    let currentForm = "Introduced"; // Default fallback
+                    let currentForm = "Introduced";
 
                     if (allDatabaseUrls[billNum]) {
                         allDatabaseUrls[billNum].forEach(url => {
@@ -372,14 +355,13 @@ function extractLocation(fullText, phrase) {
                         });
                     }
                     
-                   const isHistoricalOnly = maxOverallRank > rollup.highestRankFound;
-const matchStatusText = isHistoricalOnly ? "Amended Out" : "Active";
-const matchStatusBadge = isHistoricalOnly 
-    ? `<span class="bg-orange-50 text-orange-700 text-[10px] font-black uppercase px-2 py-1 rounded border border-orange-200 whitespace-nowrap">🟠 Removed</span>`
-    : `<span class="bg-green-50 text-green-700 text-[10px] font-black uppercase px-2 py-1 rounded border border-green-200 whitespace-nowrap">🟢 Active Match</span>`;
+                    const isHistoricalOnly = maxOverallRank > rollup.highestRankFound;
+                    const matchStatusText = isHistoricalOnly ? "Amended Out" : "Active";
+                    const matchStatusBadge = isHistoricalOnly 
+                        ? `<span class="bg-orange-50 text-orange-700 text-[10px] font-black uppercase px-2 py-1 rounded border border-orange-200 whitespace-nowrap">🟠 Removed</span>`
+                        : `<span class="bg-green-50 text-green-700 text-[10px] font-black uppercase px-2 py-1 rounded border border-green-200 whitespace-nowrap">🟢 Active Match</span>`;
 
                     const stageString = Array.from(rollup.stagesFound).join(', ');
-                    
                     const year = biennium.split('-')[0];
                     const cleanBillNum = billNum.replace(/\D/g, '');
                     const summaryUrl = `https://app.leg.wa.gov/billsummary/?BillNumber=${cleanBillNum}&Year=${year}&Initiative=false`;
@@ -397,8 +379,8 @@ const matchStatusBadge = isHistoricalOnly
                         highlightedSnippet: rollup.latestSnippet,  
                         sponsor: details.sponsor,
                         status: details.status,
-                        introDate: details.introDate,          // NEW
-                        lastUpdated: details.lastUpdated       // ADDED THIS BACK TO THE OBJECT
+                        introDate: details.introDate,
+                        lastUpdated: details.lastUpdated
                     });
                 }
 
@@ -408,7 +390,7 @@ const matchStatusBadge = isHistoricalOnly
                     return numA - numB;
                 });
 
-                statsDiv.innerHTML = `Searched <strong>${totalBillsSearched}</strong> total bills. Found <span class="text-[#002e5d] font-black">${currentReportData.length}</span> matching bills (with all versions rolled up).`;
+                statsDiv.innerHTML = `Searched <strong>${totalBillsSearched}</strong> total bills. Found <span class="text-[#002e5d] font-black">${currentReportData.length}</span> matching bills.`;
                 statsDiv.classList.remove('hidden');
 
                 reportGrid.innerHTML = currentReportData.map(item => `
@@ -434,22 +416,17 @@ const matchStatusBadge = isHistoricalOnly
                         <td class="p-4 text-xs text-gray-600 italic leading-relaxed align-top">${item.highlightedSnippet}</td>
                     </tr>
                 `).join('');
-                
                 exportBtn.classList.remove('hidden');
             }
-
         } catch (e) {
             reportGrid.innerHTML = `<tr><td colspan="7" class="p-8 text-center text-red-500 font-bold">Error: ${e.message}</td></tr>`;
         }
-
         generateBtn.innerText = "Generate";
         generateBtn.disabled = false;
     }
 
     function exportToExcel() {
         if (currentReportData.length === 0) return;
-
-        // 1. Prepare the data for SheetJS
         const worksheetData = currentReportData.map(row => ({
             "Bill Number": row.bill_number,
             "Sponsor": row.sponsor,
@@ -464,37 +441,22 @@ const matchStatusBadge = isHistoricalOnly
             "Context Snippet": row.snippet
         }));
 
-        // 2. Create a new workbook and worksheet
         const worksheet = XLSX.utils.json_to_sheet(worksheetData);
         const workbook = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(workbook, worksheet, "Phrase Report");
 
-        // 3. Fix Column Widths (Optional but makes it look professional)
         const wscols = [
-            {wch: 12}, // Bill Number
-            {wch: 15}, // Sponsor
-            {wch: 40}, // Title
-            {wch: 12}, // Introduced
-            {wch: 12}, // Last Updated
-            {wch: 18}, // Match Status
-            {wch: 25}, // Current WSL Status
-            {wch: 20}, // Current Bill Form
-            {wch: 25}, // Found in Stage
-            {wch: 15}, // Location
-            {wch: 60}  // Context Snippet
+            {wch: 12}, {wch: 15}, {wch: 40}, {wch: 12}, {wch: 12},
+            {wch: 18}, {wch: 25}, {wch: 20}, {wch: 25}, {wch: 15}, {wch: 60}
         ];
         worksheet['!cols'] = wscols;
 
-        // 4. Handle Hyperlinks for Bill Numbers
-        // SheetJS allows us to turn the Bill Number column into clickable links
         currentReportData.forEach((row, index) => {
-            const cellAddress = XLSX.utils.encode_cell({c: 0, r: index + 1}); // Column 0 (A), Row index+1
+            const cellAddress = XLSX.utils.encode_cell({c: 0, r: index + 1});
             if (worksheet[cellAddress]) {
                 worksheet[cellAddress].l = { Target: row.summaryUrl, Tooltip: "View on WSL Website" };
             }
         });
-
-        // 5. Trigger the download
         XLSX.writeFile(workbook, "LegiTile_Phrase_Report.xlsx");
     }
 </script>
