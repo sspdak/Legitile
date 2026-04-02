@@ -364,11 +364,11 @@
                         });
                     }
                     
-                    const isHistoricalOnly = maxOverallRank > rollup.highestRankFound;
-                    const matchStatusText = isHistoricalOnly ? "Historical Only" : "Active";
-                    const matchStatusBadge = isHistoricalOnly 
-                        ? `<span class="bg-orange-50 text-orange-700 text-[10px] font-black uppercase px-2 py-1 rounded border border-orange-200 whitespace-nowrap">🟠 Historical Only</span>`
-                        : `<span class="bg-green-50 text-green-700 text-[10px] font-black uppercase px-2 py-1 rounded border border-green-200 whitespace-nowrap">🟢 Active Match</span>`;
+                   const isHistoricalOnly = maxOverallRank > rollup.highestRankFound;
+const matchStatusText = isHistoricalOnly ? "Amended Out" : "Active";
+const matchStatusBadge = isHistoricalOnly 
+    ? `<span class="bg-orange-50 text-orange-700 text-[10px] font-black uppercase px-2 py-1 rounded border border-orange-200 whitespace-nowrap">🟠 Removed</span>`
+    : `<span class="bg-green-50 text-green-700 text-[10px] font-black uppercase px-2 py-1 rounded border border-green-200 whitespace-nowrap">🟢 Active Match</span>`;
 
                     const stageString = Array.from(rollup.stagesFound).join(', ');
                     
