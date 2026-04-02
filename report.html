@@ -394,27 +394,51 @@
         generateBtn.innerText = "Generate"; generateBtn.disabled = false;
     }
 
-    function exportToCSV() {
+function exportToCSV() {
         if (currentReportData.length === 0) return;
-        const headers = ["Bill Number", "Sponsor", "Title", "Match Status", "Current WSL Status", "Current Bill Form", "Found in Stage", "Location", "Context Snippet", "Introduced", "Last Updated"];
-        const rows = currentReportData.map(row => [
-            `"=HYPERLINK(""${row.summaryUrl}"", ""${row.bill_number}"")"`,
-            `"${row.sponsor}"`,
-            `"${row.title.replace(/"/g, '""')}"`,
-            `"${row.matchStatusText}"`,
-            `"${row.status}"`,
-            `"${row.currentForm}"`,
-            `"${row.stagesFound}"`,
-            `"${row.section}"`,
-            `"${row.snippet.replace(/"/g, '""')}"`,
-            `"${row.introDate}"`,
-            `"${row.lastUpdated}"`
-        ]);
+        
+        // Updated header order
+        const headers = [
+            "Bill Number", 
+            "Sponsor", 
+            "Title", 
+            "Introduced", 
+            "Last Updated", 
+            "Current WSL Status", 
+            "Current Bill Form", 
+            "Found in Stage", 
+            "Match Status", 
+            "Location", 
+            "Context Snippet"
+        ];
+        
+        const rows = currentReportData.map(row => {
+            // Strip any letters (like HB or SB) to leave just the digits
+            const numericBill = row.bill_number.replace(/\D/g, '');
+            
+            return [
+                // Notice there are no quotes around ${numericBill} below, forcing Excel to read it as a number
+                `"=HYPERLINK(""${row.summaryUrl}"", ${numericBill})"`,
+                `"${row.sponsor}"`,
+                `"${row.title.replace(/"/g, '""')}"`,
+                `"${row.introDate}"`,
+                `"${row.lastUpdated}"`,
+                `"${row.status}"`,
+                `"${row.currentForm}"`,
+                `"${row.stagesFound}"`,
+                `"${row.matchStatusText}"`,
+                `"${row.section}"`,
+                `"${row.snippet.replace(/"/g, '""')}"`
+            ];
+        });
+        
         const csvContent = "data:text/csv;charset=utf-8," + headers.join(",") + "\n" + rows.map(e => e.join(",")).join("\n");
         const link = document.createElement("a");
         link.setAttribute("href", encodeURI(csvContent));
         link.setAttribute("download", "legitile_phrase_report.csv");
-        document.body.appendChild(link); link.click(); document.body.removeChild(link);
+        document.body.appendChild(link); 
+        link.click(); 
+        document.body.removeChild(link);
     }
 </script>
 </body>
