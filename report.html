@@ -237,7 +237,7 @@
         return 1;
     }
 
-    function extractLocation(fullText, phrase) {
+function extractLocation(fullText, phrase) {
         const lowerText = fullText.toLowerCase();
         const lowerPhrase = phrase.toLowerCase();
         const index = lowerText.indexOf(lowerPhrase);
@@ -248,9 +248,16 @@
         const matches = [...textBefore.matchAll(sectionRegex)];
         const section = matches.length > 0 ? matches[matches.length - 1][0] : "Intro/Preamble";
         
-        const start = Math.max(0, index - 40);
-        const end = Math.min(fullText.length, index + phrase.length + 40);
-        const snippet = "..." + fullText.substring(start, end).replace(/\n/g, ' ').trim() + "...";
+        // INCREASED LOOK-BACK: Changed 40 to 60 for better context
+        // INCREASED LOOK-AHEAD: Changed 40 to 55 to balance the longer snippet
+        const start = Math.max(0, index - 60);
+        const end = Math.min(fullText.length, index + phrase.length + 55);
+        
+        let snippet = fullText.substring(start, end).replace(/\n/g, ' ').trim();
+        
+        // Add ellipses if we aren't at the very start of the bill
+        if (start > 0) snippet = "..." + snippet;
+        if (end < fullText.length) snippet = snippet + "...";
 
         const regex = new RegExp(`(${phrase})`, "gi");
         const highlightedSnippet = snippet.replace(regex, '<mark class="bg-yellow-200 font-bold px-1 rounded">$1</mark>');
