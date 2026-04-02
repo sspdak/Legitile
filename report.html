@@ -67,6 +67,7 @@
                                     <th class="p-4">Bill</th>
                                     <th class="p-4">Title & Info</th>
                                     <th class="p-4">Match Status</th>
+                                    <th class="p-4">Timeline</th>
                                     <th class="p-4">Stage(s) with Phrase</th>
                                     <th class="p-4">Location</th>
                                     <th class="p-4 w-1/3">Context Snippet</th>
@@ -74,7 +75,7 @@
                             </thead>
                             <tbody id="reportGrid" class="text-sm divide-y divide-gray-100">
                                 <tr>
-                                    <td colspan="6" class="p-8 text-center text-gray-400 font-bold italic">Enter phrases above to generate the report.</td>
+                                    <td colspan="7" class="p-8 text-center text-gray-400 font-bold italic">Enter phrases above to generate the report.</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -290,7 +291,7 @@
         generateBtn.disabled = true;
         exportBtn.classList.add('hidden');
         statsDiv.classList.add('hidden');
-        reportGrid.innerHTML = '<tr><td colspan="6" class="p-8 text-center text-blue-500 font-bold animate-pulse">Scanning database and rolling up history...</td></tr>';
+        reportGrid.innerHTML = '<tr><td colspan="7" class="p-8 text-center text-blue-500 font-bold animate-pulse">Scanning database and rolling up history...</td></tr>';
         
         currentReportData = [];
         let groupedBills = {};
@@ -343,7 +344,7 @@
             const uniqueBillNumbers = Object.keys(groupedBills);
 
             if (uniqueBillNumbers.length === 0) {
-                reportGrid.innerHTML = '<tr><td colspan="6" class="p-8 text-center text-gray-500 font-bold">No bills contain the requested phrases.</td></tr>';
+                reportGrid.innerHTML = '<tr><td colspan="7" class="p-8 text-center text-gray-500 font-bold">No bills contain the requested phrases.</td></tr>';
             } else {
                 
                 for (const billNum of uniqueBillNumbers) {
@@ -388,7 +389,8 @@
                         highlightedSnippet: rollup.latestSnippet,  
                         sponsor: details.sponsor,
                         status: details.status,
-                        lastUpdated: details.lastUpdated
+                        introDate: details.introDate,          // NEW
+                        lastUpdated: details.lastUpdated       // ADDED THIS BACK TO THE OBJECT
                     });
                 }
 
@@ -409,10 +411,13 @@
                             <div class="flex flex-wrap gap-2 text-[10px] font-bold text-gray-500">
                                 <span class="bg-gray-100 px-2 py-0.5 rounded text-gray-700 border border-gray-200">${item.status}</span>
                                 <span>Sponsor: ${item.sponsor}</span>
-                                <span>Updated: ${item.lastUpdated}</span>
                             </div>
                         </td>
                         <td class="p-4 align-top pt-5">${item.matchStatusBadge}</td>
+                        <td class="p-4 align-top pt-4">
+                            <div class="text-[10px] font-black uppercase tracking-wider mb-1"><span class="text-gray-400">Introduced:</span> <br><span class="text-gray-700">${item.introDate}</span></div>
+                            <div class="text-[10px] font-black uppercase tracking-wider mt-2 pt-2 border-t border-gray-200"><span class="text-gray-400">Updated:</span> <br><span class="text-gray-700">${item.lastUpdated}</span></div>
+                        </td>
                         <td class="p-4 align-top pt-4">
                             <div class="text-[10px] font-black uppercase text-gray-800 tracking-wider mb-1"><span class="text-gray-400">Found In:</span> <br>${item.stagesFound}</div>
                             <div class="text-[10px] font-black uppercase tracking-wider mt-2 pt-2 border-t border-gray-200"><span class="text-gray-400">Current Form:</span> <br><span class="text-[#002e5d]">${item.currentForm}</span></div>
@@ -426,21 +431,22 @@
             }
 
         } catch (e) {
-            reportGrid.innerHTML = `<tr><td colspan="6" class="p-8 text-center text-red-500 font-bold">Error: ${e.message}</td></tr>`;
+            reportGrid.innerHTML = `<tr><td colspan="7" class="p-8 text-center text-red-500 font-bold">Error: ${e.message}</td></tr>`;
         }
 
         generateBtn.innerText = "Generate";
         generateBtn.disabled = false;
     }
 
-function exportToCSV() {
+    function exportToCSV() {
         if (currentReportData.length === 0) return;
         
-        // Updated Headers Order
         const headers = [
             "Bill Number", 
             "Sponsor", 
             "Title", 
+            "Introduced", 
+            "Last Updated", 
             "Match Status", 
             "Current WSL Status", 
             "Current Bill Form", 
@@ -449,11 +455,12 @@ function exportToCSV() {
             "Context Snippet"
         ];
         
-        // Mapped to match the new headers order
         const rows = currentReportData.map(row => [
             `"=HYPERLINK(""${row.summaryUrl}"", ""${row.bill_number}"")"`,
             `"${row.sponsor}"`,
             `"${row.title.replace(/"/g, '""')}"`,
+            `"${row.introDate}"`,
+            `"${row.lastUpdated}"`,
             `"${row.matchStatusText}"`,
             `"${row.status}"`,
             `"${row.currentForm}"`,
