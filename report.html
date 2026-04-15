@@ -157,20 +157,62 @@
         btn.disabled = false;
     }
 
+    async function updateSavedQueriesDropdown() {
+        const dropdown = document.getElementById('savedQueriesDropdown');
+        dropdown.innerHTML = '<option value="">-- Loading... --</option>';
+        try {
+            const res = await fetch(`${searchApiUrl}/saved-queries`);
+            const saved = await res.json();
+            
+            // NEW: Catch backend errors directly and show them in the dropdown
+            if (saved.error) {
+                console.error("Backend Error:", saved.error);
+                dropdown.innerHTML = `<option value="">-- Error: ${saved.error} --</option>`;
+                return;
+            }
+
+            dropdown.innerHTML = '<option value="">-- Select a saved search --</option>';
+            if (Array.isArray(saved)) {
+                saved.forEach(q => {
+                    const opt = document.createElement('option');
+                    opt.value = q;
+                    opt.innerText = q.length > 50 ? q.substring(0, 50) + '...' : q;
+                    dropdown.appendChild(opt);
+                });
+            }
+        } catch (error) { 
+            dropdown.innerHTML = '<option value="">-- Network/CORS Error --</option>'; 
+        }
+    }
+
     async function saveCurrentQuery() {
         const query = document.getElementById('reportInput').value.trim();
         if (!query) return;
+        
         const saveBtn = document.querySelector('button[title="Save this search"]');
         const originalText = saveBtn.innerText;
         saveBtn.innerText = "Saving...";
+        
         try {
-            await fetch(`${searchApiUrl}/saved-queries`, {
+            const res = await fetch(`${searchApiUrl}/saved-queries`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ action: "save", query: query })
             });
+            
+            const data = await res.json();
+            
+            // NEW: Yell loudly if the backend fails
+            if (!res.ok || data.error) {
+                alert(`Backend Error: ${data.error || res.statusText}`);
+            }
+            
             await updateSavedQueriesDropdown();
-        } catch (error) { console.error("Failed to save query:", error); }
+        } catch (error) { 
+            console.error("Failed to save query:", error);
+            alert("Network/CORS error: The request was blocked before reaching the server.");
+        }
+        
         saveBtn.innerText = originalText;
     }
 
