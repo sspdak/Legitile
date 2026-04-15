@@ -34,6 +34,18 @@
 
                 <div class="lg:col-span-1 flex flex-col gap-6">
 
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col overflow-hidden flex-1 min-h-[350px]">
+                        <div class="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50 shrink-0">
+                            <span class="text-[10px] font-black uppercase tracking-widest text-gray-400">Tracked Bills</span>
+                            <a href="tracker.html" class="text-[9px] font-black uppercase text-[#002e5d] hover:text-blue-700 bg-blue-50 px-2 py-1 rounded transition border border-blue-100">Workspace ➔</a>
+                        </div>
+                        <div class="p-4 overflow-y-auto flex-1">
+                            <div class="flex flex-col gap-3" id="recentUpdatesGrid">
+                                <div class="text-sm font-bold text-gray-400 italic">Loading radar items...</div>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="bg-[#002e5d] rounded-xl shadow-md border border-[#001f3f] p-6 flex flex-col justify-center items-center text-center relative overflow-hidden shrink-0 group">
                         <div class="absolute -top-10 -right-10 w-32 h-32 bg-white opacity-5 rounded-full blur-2xl"></div>
                         
@@ -46,34 +58,22 @@
                         <span class="text-xs font-bold text-blue-200 mt-1 z-10">Days Remaining</span>
                     </div>
 
-                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 flex flex-col flex-1 min-h-[350px] relative group overflow-hidden">
+                </div>
+
+                <div class="lg:col-span-2 flex flex-col gap-6">
+                    
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col flex-1 min-h-[350px] relative group overflow-hidden shrink-0">
                         
                         <button onclick="openMeetingSettings()" class="absolute top-4 right-4 text-gray-300 hover:text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity duration-200 focus:outline-none z-20" title="Meeting Filter Settings">
                             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"></circle><circle cx="12" cy="5" r="1"></circle><circle cx="12" cy="19" r="1"></circle></svg>
                         </button>
 
-                        <div class="flex justify-between items-center mb-3 pr-6 shrink-0">
-                            <span class="text-[10px] font-black uppercase tracking-widest text-gray-400">Upcoming Meetings</span>
-                            <span class="text-[9px] font-bold text-blue-500 animate-pulse">30-DAY WINDOW</span>
-                        </div>
-                        <div class="space-y-3 overflow-y-auto pr-2 flex-1" id="meetingList">
-                            <span class="text-xs font-bold text-gray-400 italic">Scanning biennium records...</span>
-                        </div>
-                    </div>
-
-                </div>
-
-                <div class="lg:col-span-2 flex flex-col gap-6">
-                    
-                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col overflow-hidden max-h-[400px] shrink-0">
                         <div class="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50 shrink-0">
-                            <span class="text-[10px] font-black uppercase tracking-widest text-gray-400">Tracked Bills Updates</span>
-                            <a href="tracker.html" class="text-[10px] font-black uppercase text-[#002e5d] hover:text-blue-700 bg-blue-50 px-3 py-1.5 rounded transition border border-blue-100">Go to Workspace ➔</a>
+                            <span class="text-[10px] font-black uppercase tracking-widest text-gray-400">Upcoming Meetings</span>
+                            <span class="text-[9px] font-bold text-blue-500 animate-pulse mr-6">30-DAY WINDOW</span>
                         </div>
-                        <div class="p-6 overflow-y-auto flex-1">
-                            <div class="flex flex-col gap-3" id="recentUpdatesGrid">
-                                <div class="text-sm font-bold text-gray-400 italic">Loading radar items...</div>
-                            </div>
+                        <div class="p-6 space-y-3 overflow-y-auto flex-1" id="meetingList">
+                            <span class="text-xs font-bold text-gray-400 italic">Scanning biennium records...</span>
                         </div>
                     </div>
 
@@ -223,7 +223,6 @@
                 const userData = await resMe.json();
                 mySavedCommittees = userData.committees || [];
                 
-                // Set the greeting dynamically
                 if (userData.name) {
                     const firstName = userData.name.split(' ')[0];
                     document.getElementById('greeting').innerText = `Welcome back, ${firstName}.`;
@@ -380,18 +379,18 @@
                 const dot = `<div class="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-white animate-pulse"></div>`;
 
                 grid.innerHTML += `
-                    <div class="relative border border-red-200 bg-red-50 rounded-lg p-4 shadow-sm hover:shadow-md transition cursor-pointer flex flex-col sm:flex-row sm:items-center gap-4 group" onclick="goToTracker(event, ${item.id})">
+                    <div class="relative border border-red-200 bg-red-50 rounded-lg p-3 shadow-sm hover:shadow-md transition cursor-pointer flex flex-col group" onclick="goToTracker(event, ${item.id})">
                         ${dot}
                         
                         <button onclick="dismissAlert(event, ${item.id})" class="absolute top-2 right-2 text-red-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition focus:outline-none z-10" title="Dismiss Alert">
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                         </button>
 
-                        <div class="w-24 shrink-0">
-                            <span class="text-lg font-black text-[#002e5d] block leading-tight">${item.bill_number}</span>
-                            <span class="text-[9px] font-black uppercase px-2 py-0.5 rounded ${isDead ? 'bg-gray-200 text-gray-600' : 'bg-orange-100 text-orange-800'} inline-block mt-1">${item.status}</span>
+                        <div class="flex justify-between items-start mb-2">
+                            <span class="text-base font-black text-[#002e5d] leading-tight">${item.bill_number}</span>
+                            <span class="text-[9px] font-black uppercase px-2 py-0.5 rounded ${isDead ? 'bg-gray-200 text-gray-600' : 'bg-orange-100 text-orange-800'}">${item.status}</span>
                         </div>
-                        <div class="flex-1 pr-6">${content}</div>
+                        <div class="pr-4">${content}</div>
                     </div>`;
             });
             
@@ -462,7 +461,7 @@
             const allItems = [...cm, ...fa];
 
             if (allItems.length === 0) {
-                list.innerHTML = '<div class="text-xs font-bold text-gray-400 italic">No meetings scheduled.</div>';
+                list.innerHTML = '<div class="text-xs font-bold text-gray-400 italic mt-2">No meetings scheduled.</div>';
                 return;
             }
 
@@ -541,7 +540,6 @@
         }
     }
 
-    // --- NEW: TASKS LOGIC ---
     async function fetchTodos() {
         try {
             const res = await fetch(`${workerBaseUrl}/todos`, { headers: authHeaders });
@@ -587,7 +585,6 @@
         });
     }
 
-    // --- NEW: OVERTIME LOGIC ---
     async function fetchOvertime() {
         try {
             const res = await fetch(`${workerBaseUrl}/overtime`, { headers: authHeaders });
