@@ -27,65 +27,87 @@
         </header>
 
         <main class="flex-1 overflow-y-auto p-6 md:p-10 scroll-smooth">
-            <div class="max-w-6xl mx-auto space-y-6">
+            <div class="max-w-7xl mx-auto space-y-6">
                 
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex items-center justify-between">
-                        <div>
-                            <div class="text-[10px] font-black uppercase text-gray-400 tracking-wider mb-1">Active Bills</div>
-                            <div id="statBills" class="text-3xl font-black text-[#002e5d]">-</div>
+                    
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex flex-col justify-center relative overflow-hidden">
+                        <div class="relative z-10">
+                            <div class="text-[10px] font-black uppercase text-gray-400 tracking-wider mb-1" id="countdownLabel">Days to Sine Die</div>
+                            <div class="flex items-baseline gap-2">
+                                <div id="dashCountdown" class="text-4xl font-black text-[#002e5d]">-</div>
+                                <div class="text-sm font-bold text-gray-500 uppercase tracking-wider">Days</div>
+                            </div>
                         </div>
-                        <div class="text-4xl opacity-20">📑</div>
+                        <div class="absolute right-[-10px] bottom-[-20px] text-8xl opacity-5 z-0">⏳</div>
                     </div>
-                    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex items-center justify-between">
-                        <div>
-                            <div class="text-[10px] font-black uppercase text-gray-400 tracking-wider mb-1">Pending Tasks</div>
-                            <div id="statTasks" class="text-3xl font-black text-orange-500">-</div>
+
+                    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200">
+                        <div class="text-[10px] font-black uppercase text-gray-400 tracking-wider mb-3">Bill Activity</div>
+                        <div class="grid grid-cols-2 gap-4" id="dashActivity">
+                            <div>
+                                <div class="text-2xl font-black text-gray-800" id="actTotal">-</div>
+                                <div class="text-[9px] font-bold uppercase text-gray-400">Tracking Total</div>
+                            </div>
+                            <div>
+                                <div class="text-2xl font-black text-blue-600" id="actActive">-</div>
+                                <div class="text-[9px] font-bold uppercase text-gray-400">Moving</div>
+                            </div>
                         </div>
-                        <div class="text-4xl opacity-20">✅</div>
                     </div>
-                    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-200 flex items-center justify-between">
-                        <div>
-                            <div class="text-[10px] font-black uppercase text-gray-400 tracking-wider mb-1">Overtime Logged</div>
-                            <div id="statOvertime" class="text-3xl font-black text-green-600">- <span class="text-sm text-gray-400">hrs</span></div>
+
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col row-span-2">
+                        <div class="p-5 border-b border-gray-100 flex justify-between items-start bg-gray-50/50">
+                            <div>
+                                <h2 class="text-sm font-black uppercase tracking-wider text-gray-700">Overtime Log</h2>
+                                <a href="overtime.html" class="text-[9px] font-bold uppercase text-blue-500 hover:text-blue-700 transition">View Full History &rarr;</a>
+                            </div>
+                            <div class="text-right">
+                                <div class="text-2xl font-black text-green-600 leading-none" id="dashOtTotal">-</div>
+                                <div class="text-[9px] font-black uppercase text-gray-400 tracking-wider">Total Hrs</div>
+                            </div>
                         </div>
-                        <div class="text-4xl opacity-20">⏱️</div>
+                        <div class="p-4 border-b border-gray-100 shrink-0 bg-white">
+                            <div class="flex gap-2 mb-2">
+                                <input type="date" id="dashOtDate" class="w-1/2 bg-gray-50 border border-gray-200 p-2 rounded-lg text-xs font-bold text-gray-700 outline-none focus:border-[#002e5d]">
+                                <input type="number" step="0.25" min="0" id="dashOtHours" placeholder="Hours" class="w-1/2 bg-gray-50 border border-gray-200 p-2 rounded-lg text-xs font-bold text-gray-700 outline-none focus:border-[#002e5d]">
+                            </div>
+                            <div class="flex gap-2">
+                                <input type="text" id="dashOtDesc" placeholder="Description (e.g. Floor debate)..." class="flex-1 bg-gray-50 border border-gray-200 p-2 rounded-lg text-xs font-bold text-gray-700 outline-none focus:border-[#002e5d]" onkeypress="if(event.key === 'Enter') quickLogOvertime()">
+                                <button onclick="quickLogOvertime()" class="bg-[#002e5d] hover:bg-[#001f3f] text-white text-[10px] font-black uppercase px-4 py-2 rounded-lg transition">Log</button>
+                            </div>
+                        </div>
+                        <div class="p-0 overflow-y-auto max-h-[220px]">
+                            <table class="w-full text-left border-collapse">
+                                <tbody id="dashOtRecent" class="text-sm divide-y divide-gray-50">
+                                    <tr><td class="p-5 text-center text-gray-400 text-xs font-bold italic">Loading recent logs...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
+
                 </div>
 
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                     
-                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden flex flex-col h-[450px]">
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden flex flex-col md:col-span-2 h-[350px]">
                         <div class="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 shrink-0">
                             <h2 class="text-sm font-black uppercase tracking-wider text-gray-700">Priority Tasks</h2>
-                            <a href="todo.html" class="text-[10px] font-bold uppercase text-blue-500 hover:text-blue-700 transition">View All &rarr;</a>
+                            <a href="todo.html" class="text-[10px] font-bold uppercase text-blue-500 hover:text-blue-700 transition">Manage All Tasks &rarr;</a>
                         </div>
                         <div class="p-5 overflow-y-auto flex-1" id="dashTodos">
                             <div class="text-center text-gray-400 text-sm font-bold italic py-10 animate-pulse">Loading tasks...</div>
                         </div>
                     </div>
 
-                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden flex flex-col h-[450px]">
-                        <div class="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 shrink-0">
-                            <h2 class="text-sm font-black uppercase tracking-wider text-gray-700">Quick Log Overtime</h2>
-                            <a href="overtime.html" class="text-[10px] font-bold uppercase text-blue-500 hover:text-blue-700 transition">Full Log &rarr;</a>
-                        </div>
-                        <div class="p-5 border-b border-gray-100 shrink-0 bg-white">
-                            <div class="flex gap-2 mb-2">
-                                <input type="date" id="dashOtDate" class="w-1/2 bg-gray-50 border border-gray-200 p-2 rounded-lg text-xs font-bold text-gray-700 outline-none focus:border-[#002e5d]">
-                                <input type="number" step="0.25" min="0" id="dashOtHours" placeholder="Hours" class="w-1/2 bg-gray-50 border border-gray-200 p-2 rounded-lg text-xs font-bold text-gray-700 outline-none focus:border-[#002e5d]">
-                            </div>
-                            <div class="flex gap-2">
-                                <input type="text" id="dashOtDesc" placeholder="Description..." class="flex-1 bg-gray-50 border border-gray-200 p-2 rounded-lg text-xs font-bold text-gray-700 outline-none focus:border-[#002e5d]" onkeypress="if(event.key === 'Enter') quickLogOvertime()">
-                                <button onclick="quickLogOvertime()" class="bg-[#002e5d] hover:bg-[#001f3f] text-white text-[10px] font-black uppercase px-4 py-2 rounded-lg transition">Log</button>
-                            </div>
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden flex flex-col h-[350px]">
+                        <div class="p-5 border-b border-gray-100 bg-gray-50/50 shrink-0">
+                            <h2 class="text-sm font-black uppercase tracking-wider text-gray-700">Upcoming Meetings</h2>
                         </div>
                         <div class="p-0 overflow-y-auto flex-1">
-                            <table class="w-full text-left border-collapse">
-                                <tbody id="dashOtRecent" class="text-sm divide-y divide-gray-50">
-                                    <tr><td class="p-5 text-center text-gray-400 text-xs font-bold italic">Loading recent logs...</td></tr>
-                                </tbody>
-                            </table>
+                            <div id="dashMeetings" class="divide-y divide-gray-50">
+                                <div class="p-5 text-center text-gray-400 text-xs font-bold italic">Scanning bill tracker...</div>
+                            </div>
                         </div>
                     </div>
 
@@ -116,12 +138,6 @@
             if (response.ok) {
                 document.getElementById('sidebar-container').innerHTML = await response.text();
                 
-                const userEmail = localStorage.getItem('user_email') || '';
-                if (userEmail) {
-                    document.getElementById('userEmailDisplay').innerText = userEmail;
-                    document.getElementById('greeting').innerText = `Welcome back, ${userEmail.split('@')[0]}.`;
-                }
-
                 const path = window.location.pathname;
                 document.querySelectorAll('.nav-item').forEach(item => {
                     if (path.includes(item.getAttribute('href'))) {
@@ -135,34 +151,125 @@
 
     async function fetchDashboardData() {
         try {
-            // Fetch all data in parallel for speed
-            const [billsRes, todosRes, otRes] = await Promise.all([
+            const [billsRes, todosRes, otRes, prefsRes, meRes] = await Promise.all([
                 fetch(`${workerBaseUrl}/my-workspace`, { headers: authHeaders }),
                 fetch(`${workerBaseUrl}/todos`, { headers: authHeaders }),
-                fetch(`${workerBaseUrl}/overtime`, { headers: authHeaders })
+                fetch(`${workerBaseUrl}/overtime`, { headers: authHeaders }),
+                fetch(`${workerBaseUrl}/preferences`, { headers: authHeaders }),
+                fetch(`${workerBaseUrl}/me`, { headers: authHeaders })
             ]);
 
             const bills = billsRes.ok ? await billsRes.json() : [];
             const todos = todosRes.ok ? await todosRes.json() : [];
             const overtime = otRes.ok ? await otRes.json() : [];
+            const prefs = prefsRes.ok ? await prefsRes.json() : { cd_date: '2026-03-12' };
+            const me = meRes.ok ? await meRes.json() : null;
 
-            // 1. Process Bills
-            document.getElementById('statBills').innerText = bills.length;
+            // 1. Process Greeting
+            if (me && me.name) {
+                const firstName = me.name.split(' ')[0];
+                document.getElementById('greeting').innerText = `Welcome back, ${firstName}.`;
+            } else if (me && me.email) {
+                const emailFirst = me.email.split('@')[0].split('.')[0];
+                const capEmail = emailFirst.charAt(0).toUpperCase() + emailFirst.slice(1);
+                document.getElementById('greeting').innerText = `Welcome back, ${capEmail}.`;
+            }
 
-            // 2. Process Todos
+            // 2. Process Countdown
+            renderCountdown(prefs.cd_date);
+
+            // 3. Process Bill Activity
+            renderBillActivity(bills);
+
+            // 4. Process Upcoming Meetings
+            renderUpcomingMeetings(bills);
+
+            // 5. Process Todos
             const pendingTodos = todos.filter(t => !t.completed);
-            document.getElementById('statTasks').innerText = pendingTodos.length;
             renderTodosWidget(pendingTodos);
 
-            // 3. Process Overtime
-            let totalHrs = 0;
-            overtime.forEach(r => totalHrs += parseFloat(r.hours || 0));
-            document.getElementById('statOvertime').innerHTML = `${totalHrs.toFixed(2)} <span class="text-sm text-gray-400">hrs</span>`;
+            // 6. Process Overtime
             renderOvertimeWidget(overtime);
 
         } catch (error) {
             console.error("Error loading dashboard data:", error);
         }
+    }
+
+    function renderCountdown(targetDateStr) {
+        if (!targetDateStr) return;
+        const target = new Date(targetDateStr);
+        target.setHours(23, 59, 59, 999);
+        const today = new Date();
+        const diffTime = target - today;
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        
+        const display = document.getElementById('dashCountdown');
+        const label = document.getElementById('countdownLabel');
+
+        if (diffDays > 0) {
+            display.innerText = diffDays;
+            display.className = "text-4xl font-black text-[#002e5d]";
+            label.innerText = "Days to Sine Die";
+        } else if (diffDays === 0) {
+            display.innerText = "TODAY";
+            display.className = "text-3xl font-black text-red-600";
+            label.innerText = "Sine Die is";
+        } else {
+            display.innerText = Math.abs(diffDays);
+            display.className = "text-4xl font-black text-gray-400";
+            label.innerText = "Days Since Sine Die";
+        }
+    }
+
+    function renderBillActivity(bills) {
+        const liveBills = bills.filter(b => b.type === 'live');
+        document.getElementById('actTotal').innerText = liveBills.length;
+        
+        const movingBills = liveBills.filter(b => {
+            const status = (b.tracking_status || '').toLowerCase();
+            return status.includes('committee') || status.includes('floor') || status.includes('rules');
+        });
+        document.getElementById('actActive').innerText = movingBills.length;
+    }
+
+    function renderUpcomingMeetings(bills) {
+        const container = document.getElementById('dashMeetings');
+        const today = new Date();
+        today.setHours(0,0,0,0);
+
+        let meetings = [];
+
+        bills.forEach(bill => {
+            if (bill.hearing_date) {
+                const hd = new Date(bill.hearing_date);
+                if (hd >= today) meetings.push({ date: hd, type: 'Hearing', bill: bill.bill_number });
+            }
+            if (bill.exec_date) {
+                const ed = new Date(bill.exec_date);
+                if (ed >= today) meetings.push({ date: ed, type: 'Exec', bill: bill.bill_number });
+            }
+        });
+
+        meetings.sort((a, b) => a.date - b.date);
+
+        if (meetings.length === 0) {
+            container.innerHTML = `<div class="p-5 text-center text-gray-400 text-xs font-bold italic">No upcoming meetings scheduled.</div>`;
+            return;
+        }
+
+        const options = { month: 'short', day: 'numeric' };
+        container.innerHTML = meetings.slice(0, 5).map(m => `
+            <div class="p-4 hover:bg-gray-50 transition flex justify-between items-center">
+                <div>
+                    <div class="text-xs font-black text-gray-800">${m.bill}</div>
+                    <div class="text-[10px] font-bold text-gray-500 uppercase">${m.type}</div>
+                </div>
+                <div class="bg-blue-50 text-blue-700 text-[10px] font-black uppercase px-2 py-1 rounded border border-blue-200">
+                    ${m.date.toLocaleDateString('en-US', options)}
+                </div>
+            </div>
+        `).join('');
     }
 
     function renderTodosWidget(pendingTodos) {
@@ -173,7 +280,6 @@
             return;
         }
 
-        // Show only top 5 pending
         const displayTodos = pendingTodos.slice(0, 5);
         
         container.innerHTML = displayTodos.map(todo => {
@@ -196,9 +302,7 @@
     }
 
     async function toggleTodo(id, isCompleted) {
-        // Optimistically update UI by hiding it immediately on dashboard
         fetchDashboardData(); 
-        
         await fetch(`${workerBaseUrl}/todos`, {
             method: 'POST',
             headers: authHeaders,
@@ -207,6 +311,10 @@
     }
 
     function renderOvertimeWidget(overtime) {
+        let totalHrs = 0;
+        overtime.forEach(r => totalHrs += parseFloat(r.hours || 0));
+        document.getElementById('dashOtTotal').innerText = totalHrs.toFixed(2);
+
         const tbody = document.getElementById('dashOtRecent');
         
         if (overtime.length === 0) {
@@ -214,7 +322,6 @@
             return;
         }
 
-        // Show only 4 most recent
         const recentLogs = overtime.slice(0, 4);
         
         tbody.innerHTML = recentLogs.map(record => {
@@ -227,9 +334,9 @@
 
             return `
                 <tr class="hover:bg-gray-50 transition">
-                    <td class="p-4 w-24 text-xs font-bold text-gray-500">${formattedDate}</td>
-                    <td class="p-4 w-16 text-sm font-black text-[#002e5d]">${parseFloat(record.hours).toFixed(2)}</td>
-                    <td class="p-4 text-xs text-gray-600 truncate max-w-[150px]">${record.description || '<span class="italic opacity-50">No description</span>'}</td>
+                    <td class="p-3 w-16 text-[10px] font-bold text-gray-500 whitespace-nowrap">${formattedDate}</td>
+                    <td class="p-3 w-12 text-xs font-black text-[#002e5d]">${parseFloat(record.hours).toFixed(2)}</td>
+                    <td class="p-3 text-[10px] font-bold text-gray-600 truncate max-w-[120px]">${record.description || '<span class="italic opacity-50">No desc</span>'}</td>
                 </tr>
             `;
         }).join('');
@@ -265,14 +372,12 @@
             })
         });
 
-        // Clear inputs
         document.getElementById('dashOtHours').value = '';
         document.getElementById('dashOtDesc').value = '';
         
         btn.innerText = originalText;
         btn.disabled = false;
 
-        // Refresh dashboard data
         fetchDashboardData();
     }
 
