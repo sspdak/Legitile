@@ -3,11 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Legitile | General To-Do</title>
+    <title>Legitile | Tasks</title>
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgcng9IjIwIiBmaWxsPSIjMDAyZTVkIi8+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCUiIHkxPSIwJSIgeDI9IjEwMCUiIHkyPSIxMDAlIj48c3RvcCBvZmZzZXQ9IjAlIiBzdG9wLWNvbG9yPSIjZmI5MjNjIi8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjZmZmZmZmIi8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHRleHQgeD0iNTAiIHk9Ijc1IiBmb250LWZhbWlseT0ic2VyaWYiIGZvbnQtc3R5bGU9Iml0YWxpYyIgZm9udC13ZWlnaHQ9IjkwMCIgZm9udC1zaXplPSI3NSIgZmlsbD0idXJsKCNnKSIgdGV4dC1hbmNob3I9Im1pZGRsZSI+TDwvdGV4dD48L3N2Zz4=">
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
     <style>
         .leg-navy { background-color: #002e5d; }
+        /* Styling for the task being dragged */
+        .sortable-ghost { opacity: 0.4; background-color: #eff6ff; }
     </style>
 </head>
 <body class="bg-gray-100 h-screen font-sans text-gray-900 overflow-hidden flex flex-col md:flex-row">
@@ -54,7 +57,7 @@
     </div>
 
     <script>
-       if (!localStorage.getItem('jwt_token')) window.location.href = 'index.html';
+        if (!localStorage.getItem('jwt_token')) window.location.href = 'index.html';
 
         const workerBaseUrl = "https://misty-credit-9e6a.ewing-jacob.workers.dev";
         const authHeaders = { 
@@ -63,6 +66,7 @@
         };
         
         let tasks = [];
+        let sortableInstance = null;
 
         async function loadSidebar() {
             try {
@@ -114,10 +118,21 @@
 
             tasks.forEach(task => {
                 const li = document.createElement('li');
+                li.setAttribute('data-id', task.id); // Crucial for drag and drop to know which task moved
+                
                 const isCompleted = task.completed === 1;
                 
                 const bgClass = isCompleted ? 'bg-gray-50 opacity-60' : 'bg-white';
                 const textClass = isCompleted ? 'line-through text-gray-400' : 'text-gray-800';
+                
+                // Only show drag handle if task is NOT completed
+                const dragHandleHtml = isCompleted ? `<div class="w-6 shrink-0"></div>` : `
+                    <div class="drag-handle cursor-grab hover:text-[#002e5d] text-gray-300 pt-1.5 px-1 transition-colors">
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 16 16">
+                            <path d="M4 4h2v2H4zm0 5h2v2H4zm0 5h2v2H4zm5-10h2v2H9zm0 5h2v2H9zm0 5h2v2H9z"/>
+                        </svg>
+                    </div>
+                `;
                 
                 let dueDateHtml = '';
                 if (task.due_date) {
@@ -132,7 +147,7 @@
 
                 let subtasksHtml = '';
                 if (task.subtasks && task.subtasks.length > 0) {
-                    subtasksHtml = `<ul class="space-y-2 mt-3 w-full pl-9">` + task.subtasks.map(sub => `
+                    subtasksHtml = `<ul class="space-y-2 mt-3 w-full pl-12">` + task.subtasks.map(sub => `
                         <li class="flex items-center gap-3 group">
                             <input type="checkbox" ${sub.completed ? 'checked' : ''} onchange="toggleSubtask('${task.id}', '${sub.id}')" class="h-4 w-4 text-[#002e5d] rounded border-gray-300 cursor-pointer">
                             <span class="text-sm font-bold flex-1 ${sub.completed ? 'text-gray-400 line-through' : 'text-gray-600'}">${sub.text}</span>
@@ -141,9 +156,8 @@
                     `).join('') + `</ul>`;
                 }
 
-                // The input container is now hidden by default
                 const subtaskInputHtml = `
-                    <div id="subtaskInputContainer_${task.id}" class="hidden pl-9 mt-3 pt-3 border-t border-gray-100 w-full">
+                    <div id="subtaskInputContainer_${task.id}" class="hidden pl-12 mt-3 pt-3 border-t border-gray-100 w-full">
                         <div class="flex gap-2 w-full">
                             <input type="text" id="subtaskInput_${task.id}" placeholder="Add subtask..." class="text-xs font-bold text-gray-600 p-2 border border-gray-200 rounded flex-1 outline-none focus:border-[#002e5d]" onkeypress="if(event.key === 'Enter') addSubtask('${task.id}')">
                             <button onclick="addSubtask('${task.id}')" class="bg-gray-100 hover:bg-gray-200 border border-gray-200 text-gray-600 px-4 py-1.5 rounded text-[10px] uppercase font-black transition outline-none">Add</button>
@@ -152,15 +166,17 @@
                 `;
 
                 li.className = `flex flex-col p-4 border border-gray-200 rounded-xl shadow-sm transition-all duration-200 ${bgClass}`;
+                if (isCompleted) li.classList.add('ignore-drag'); // Tell SortableJS not to drag this
                 
                 li.innerHTML = `
                     <div class="flex items-start justify-between w-full">
-                        <div class="flex items-start gap-4 flex-1">
+                        <div class="flex items-start gap-3 flex-1">
+                            ${dragHandleHtml}
                             <input 
                                 type="checkbox" 
                                 ${isCompleted ? 'checked' : ''} 
                                 onchange="toggleTask('${task.id}', ${isCompleted})" 
-                                class="mt-1 w-5 h-5 text-[#002e5d] bg-gray-100 border-gray-300 rounded cursor-pointer transition"
+                                class="mt-1.5 w-5 h-5 text-[#002e5d] bg-gray-100 border-gray-300 rounded cursor-pointer transition shrink-0"
                             >
                             <div class="flex-1 pt-0.5">
                                 <div class="font-bold text-[15px] ${textClass}">
@@ -169,7 +185,7 @@
                                 ${createdHtml}
                             </div>
                         </div>
-                        <div class="flex items-center gap-1 ml-4">
+                        <div class="flex items-center gap-1 ml-4 shrink-0">
                             <button onclick="toggleSubtaskInput('${task.id}')" class="text-[9px] font-black uppercase text-gray-400 hover:text-[#002e5d] bg-transparent hover:bg-blue-50 transition px-3 py-1.5 rounded border border-transparent hover:border-blue-100">
                                 + Subtask
                             </button>
@@ -186,6 +202,37 @@
                     ${subtaskInputHtml}
                 `;
                 list.appendChild(li);
+            });
+
+            // Re-initialize SortableJS after rendering
+            initSortable();
+        }
+
+        function initSortable() {
+            const list = document.getElementById('taskList');
+            if (sortableInstance) {
+                sortableInstance.destroy();
+            }
+            sortableInstance = new Sortable(list, {
+                handle: '.drag-handle', // Only grab via the icon
+                animation: 150,
+                ghostClass: 'sortable-ghost',
+                filter: '.ignore-drag', // Don't allow completed items to be dragged
+                onEnd: async function () {
+                    // Extract the new order of IDs from the DOM
+                    const listItems = Array.from(list.children);
+                    const newOrderIds = listItems.map(li => li.getAttribute('data-id')).filter(id => id !== null);
+
+                    // Re-sort the local array silently
+                    tasks.sort((a, b) => newOrderIds.indexOf(a.id) - newOrderIds.indexOf(b.id));
+
+                    // Send the new sequence to the database
+                    await fetch(`${workerBaseUrl}/todos`, {
+                        method: 'POST',
+                        headers: authHeaders,
+                        body: JSON.stringify({ action: 'reorder', taskIds: newOrderIds })
+                    });
+                }
             });
         }
 
@@ -227,6 +274,7 @@
             
             if (taskIndex > -1) {
                 tasks[taskIndex].completed = newStatus;
+                // Re-sort so completed items drop to the bottom naturally
                 tasks.sort((a, b) => a.completed - b.completed || b.id - a.id);
                 renderTasks();
             }
@@ -279,7 +327,6 @@
             
             renderTasks();
             
-            // Re-open the input and focus it so you can add multiple subtasks quickly
             const container = document.getElementById(`subtaskInputContainer_${taskId}`);
             container.classList.remove('hidden');
             document.getElementById(`subtaskInput_${taskId}`).focus();
