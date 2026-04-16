@@ -105,24 +105,46 @@
         } catch (error) { console.error("Sidebar failed to load."); }
     }
 
-    async function updateSavedQueriesDropdown() {
+async function updateSavedQueriesDropdown() {
         const dropdown = document.getElementById('savedQueriesDropdown');
         dropdown.innerHTML = '<option value="">-- Loading... --</option>';
         try {
-            const res = await fetch(`${workerBaseUrl}/saved-queries`, { headers: authHeaders });
+            // CACHE BUSTER: Appending ?t=timestamp forces the browser to ignore cache
+            const timestamp = Date.now();
+            const res = await fetch(`${workerBaseUrl}/saved-queries?t=${timestamp}`, { 
+                headers: authHeaders,
+                cache: 'no-store' // Extra instruction to prevent caching
+            });
+            
+            if (!res.ok) {
+                const err = await res.text();
+                dropdown.innerHTML = `<option value="">-- Load Error --</option>`;
+                alert(`Fetch Error: ${res.status} - ${err}`);
+                return;
+            }
+
             const saved = await res.json();
             
-            dropdown.innerHTML = '<option value="">-- Select a saved search --</option>';
-            if (Array.isArray(saved)) {
+            if (saved.error) {
+                dropdown.innerHTML = `<option value="">-- Backend Error --</option>`;
+                alert(`Backend Error: ${saved.error}`);
+                return;
+            }
+
+            if (Array.isArray(saved) && saved.length > 0) {
+                dropdown.innerHTML = '<option value="">-- Select a saved search --</option>';
                 saved.forEach(q => {
                     const opt = document.createElement('option');
                     opt.value = q;
                     opt.innerText = q.length > 50 ? q.substring(0, 50) + '...' : q;
                     dropdown.appendChild(opt);
                 });
+            } else {
+                dropdown.innerHTML = '<option value="">-- No saved searches --</option>';
             }
         } catch (error) { 
-            dropdown.innerHTML = '<option value="">-- Error loading --</option>'; 
+            console.error(error);
+            dropdown.innerHTML = '<option value="">-- Network Error --</option>'; 
         }
     }
 
@@ -184,7 +206,6 @@ async function saveCurrentQuery() {
                 body: JSON.stringify({ action: "save", query: query })
             });
             
-            // This is the new loud error checker
             if (!res.ok) {
                 const errorText = await res.text();
                 alert(`Server Error (${res.status}): ${errorText}`);
@@ -192,6 +213,14 @@ async function saveCurrentQuery() {
                 return;
             }
 
+            const data = await res.json();
+            if (data.error) {
+                alert(`Database Error: ${data.error}`);
+                saveBtn.innerText = originalText;
+                return;
+            }
+
+            // It successfully saved! Force the dropdown to rebuild.
             await updateSavedQueriesDropdown();
         } catch (error) { 
             console.error("Failed to save query:", error);
@@ -205,16 +234,25 @@ async function saveCurrentQuery() {
         if (dropdown.value) document.getElementById('reportInput').value = dropdown.value;
     }
 
-    async function clearSavedQueries() {
+   async function clearSavedQueries() {
         if (!confirm("Are you sure you want to delete all saved searches?")) return;
         try {
-            await fetch(`${workerBaseUrl}/saved-queries`, {
+            const res = await fetch(`${workerBaseUrl}/saved-queries`, {
                 method: 'POST',
                 headers: authHeaders,
                 body: JSON.stringify({ action: "clear" })
             });
+            
+            if(!res.ok) {
+                alert(`Failed to clear: ${await res.text()}`);
+                return;
+            }
+            
             await updateSavedQueriesDropdown();
-        } catch (error) { console.error("Failed to clear queries:", error); }
+        } catch (error) { 
+            console.error("Failed to clear queries:", error); 
+            alert("Network error while trying to clear searches.");
+        }
     }
 
     window.onload = () => {
