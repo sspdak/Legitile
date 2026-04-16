@@ -292,16 +292,18 @@
     }
 
     // Modal logic for Editing Drafts
-    function openEditDraftModal(id) {
+function openEditDraftModal(id) {
         const item = workspaceItems.find(i => i.id === id);
         if (!item) return;
         
+        // Clear the form FIRST
+        showScreen('editDraftForm');
+        
+        // THEN populate the data
         document.getElementById('editDraftId').value = item.id;
         document.getElementById('editDraftTitle').value = item.bill_number || "";
         document.getElementById('editDraftCompanion').value = item.companion || "";
         document.getElementById('editDraftBlurb').value = item.short_desc || "";
-        
-        showScreen('editDraftForm');
     }
 
     async function saveDraftEdits() {
