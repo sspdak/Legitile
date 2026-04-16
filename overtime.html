@@ -19,9 +19,8 @@
             <div>
                 <h1 class="text-2xl font-black text-gray-800 uppercase tracking-tight">Overtime Tracker</h1>
                 <p class="text-xs text-gray-500 font-bold mt-1 mb-3">Log and monitor your extra session hours.</p>
-                <select onchange="setBiennium(this.value)" id="bienniumSelect" class="bg-white border border-gray-200 text-gray-700 font-black uppercase text-[10px] rounded-lg px-3 py-2 outline-none focus:border-blue-500 transition shadow-sm cursor-pointer hover:bg-gray-50">
-                    <option value="">Loading Sessions...</option>
-                </select>
+                <select onchange="setYear(this.value)" id="yearSelect" class="bg-white border border-gray-200 text-gray-700 font-black uppercase text-[10px] rounded-lg px-3 py-2 outline-none focus:border-blue-500 transition shadow-sm cursor-pointer hover:bg-gray-50">
+                    </select>
             </div>
             <div class="text-left sm:text-right">
                 <div class="text-[10px] uppercase font-black text-gray-400 tracking-wider">Session Total</div>
@@ -82,8 +81,7 @@
         };
         
         let otRecords = [];
-        let availableBienniums = [];
-        let currentBiennium = null;
+        let currentYear = new Date().getFullYear().toString();
 
         async function loadSidebar() {
             try {
@@ -107,40 +105,29 @@
             } catch (error) { console.error("Sidebar failed to load."); }
         }
 
-        async function fetchBienniums() {
-            try {
-                const res = await fetch(`${workerBaseUrl}/bienniums`, { headers: authHeaders });
-                availableBienniums = await res.json();
-                
-                const select = document.getElementById('bienniumSelect');
-                select.innerHTML = availableBienniums.map(b => 
-                    `<option value="${b.name}">${b.name} ${b.is_active === 1 ? 'Session' : '(Archived)'}</option>`
-                ).join('');
-
-                if (!currentBiennium) {
-                    let active = availableBienniums.find(b => b.is_active === 1);
-                    currentBiennium = active ? active.name : availableBienniums[0].name;
-                } else if (!availableBienniums.find(b => b.name === currentBiennium)) {
-                    let active = availableBienniums.find(b => b.is_active === 1);
-                    currentBiennium = active ? active.name : availableBienniums[0].name;
-                }
-
-                select.value = currentBiennium;
-            } catch (e) { console.error("Failed to load sessions."); }
+        function populateYears() {
+            const select = document.getElementById('yearSelect');
+            const startYear = 2025; 
+            const current = new Date().getFullYear();
+            const maxYear = Math.max(current, parseInt(currentYear)) + 1; // Always show up to next year
+            
+            let html = '';
+            for(let y = maxYear; y >= startYear; y--) {
+                html += `<option value="${y}" ${y.toString() === currentYear ? 'selected' : ''}>${y} Session</option>`;
+            }
+            select.innerHTML = html;
         }
 
-        function setBiennium(val) {
-            currentBiennium = val;
-            fetchOvertime(); // Refresh data when session changes
+        function setYear(val) {
+            currentYear = val;
+            fetchOvertime(); 
         }
 
         document.getElementById('otDate').valueAsDate = new Date();
 
         async function fetchOvertime() {
-            if (!currentBiennium) return;
-            
             try {
-                const res = await fetch(`${workerBaseUrl}/overtime?biennium=${currentBiennium}`, { headers: authHeaders });
+                const res = await fetch(`${workerBaseUrl}/overtime?year=${currentYear}`, { headers: authHeaders });
                 if (!res.ok) throw new Error("Failed to fetch data.");
                 otRecords = await res.json();
                 renderOvertime();
@@ -157,7 +144,7 @@
             let totalHours = 0;
 
             if (otRecords.length === 0) {
-                grid.innerHTML = `<tr><td colspan="4" class="text-center text-gray-400 text-sm font-bold italic py-10">No overtime logged for this session.</td></tr>`;
+                grid.innerHTML = `<tr><td colspan="4" class="text-center text-gray-400 text-sm font-bold italic py-10">No overtime logged for the ${currentYear} session.</td></tr>`;
                 totalDisplay.innerHTML = `0.0 <span class="text-sm text-gray-500">hrs</span>`;
                 return;
             }
@@ -200,10 +187,6 @@
                 alert("Please enter a valid date and hours.");
                 return;
             }
-            if (!currentBiennium) {
-                alert("No session selected.");
-                return;
-            }
             
             const now = new Date();
             const recordId = Date.now().toString();
@@ -213,14 +196,20 @@
                 work_date: dateInput,
                 hours: parseFloat(hoursInput),
                 description: descInput,
-                created_at: now.toISOString(),
-                biennium: currentBiennium
+                created_at: now.toISOString()
             };
 
-            // Optimistic UI update
-            otRecords.unshift(newRecord);
-            otRecords.sort((a, b) => new Date(b.work_date) - new Date(a.work_date));
-            renderOvertime();
+            // Check if the newly added record belongs to the currently viewed year
+            const recordYear = dateInput.substring(0, 4);
+            if (recordYear === currentYear) {
+                otRecords.unshift(newRecord);
+                otRecords.sort((a, b) => new Date(b.work_date) - new Date(a.work_date));
+                renderOvertime();
+            } else {
+                // If they log a date for a different year, jump to that year to show them it saved
+                setYear(recordYear);
+                document.getElementById('yearSelect').value = recordYear;
+            }
 
             // Clear inputs
             document.getElementById('otHours').value = '';
@@ -237,8 +226,7 @@
                     work_date: newRecord.work_date, 
                     hours: newRecord.hours, 
                     description: newRecord.description, 
-                    created_at: newRecord.created_at,
-                    biennium: newRecord.biennium
+                    created_at: newRecord.created_at
                 })
             });
         }
@@ -258,7 +246,7 @@
 
         window.onload = async () => {
             loadSidebar();
-            await fetchBienniums();
+            populateYears();
             fetchOvertime();
         };
     </script>
