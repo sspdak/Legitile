@@ -15,13 +15,16 @@
     <div id="sidebar-container" class="flex-shrink-0 w-full md:w-28 md:h-full z-50"></div>
 
     <div class="flex-1 flex flex-col h-full overflow-hidden relative">
-        <header class="shrink-0 pt-8 pb-4 px-6 md:px-10 z-40 bg-gray-100 border-b border-gray-200 flex justify-between items-end">
+        <header class="shrink-0 pt-8 pb-4 px-6 md:px-10 z-40 bg-gray-100 border-b border-gray-200 flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
             <div>
                 <h1 class="text-2xl font-black text-gray-800 uppercase tracking-tight">Overtime Tracker</h1>
-                <p class="text-xs text-gray-500 font-bold mt-1">Log and monitor your extra session hours.</p>
+                <p class="text-xs text-gray-500 font-bold mt-1 mb-3">Log and monitor your extra session hours.</p>
+                <select onchange="setBiennium(this.value)" id="bienniumSelect" class="bg-white border border-gray-200 text-gray-700 font-black uppercase text-[10px] rounded-lg px-3 py-2 outline-none focus:border-blue-500 transition shadow-sm cursor-pointer hover:bg-gray-50">
+                    <option value="">Loading Sessions...</option>
+                </select>
             </div>
-            <div class="text-right">
-                <div class="text-[10px] uppercase font-black text-gray-400 tracking-wider">Total Accumulated</div>
+            <div class="text-left sm:text-right">
+                <div class="text-[10px] uppercase font-black text-gray-400 tracking-wider">Session Total</div>
                 <div id="totalHoursDisplay" class="text-3xl font-black text-[#002e5d]">0.0 <span class="text-sm text-gray-500">hrs</span></div>
             </div>
         </header>
@@ -79,6 +82,8 @@
         };
         
         let otRecords = [];
+        let availableBienniums = [];
+        let currentBiennium = null;
 
         async function loadSidebar() {
             try {
@@ -91,7 +96,6 @@
                         emailDisplay.innerText = localStorage.getItem('user_email') || 'Unknown User';
                     }
 
-                    // Highlight the current nav item if you add it to the sidebar later
                     const path = window.location.pathname;
                     document.querySelectorAll('.nav-item').forEach(item => {
                         if (path.includes(item.getAttribute('href'))) {
@@ -103,12 +107,40 @@
             } catch (error) { console.error("Sidebar failed to load."); }
         }
 
-        // Set default date to today
+        async function fetchBienniums() {
+            try {
+                const res = await fetch(`${workerBaseUrl}/bienniums`, { headers: authHeaders });
+                availableBienniums = await res.json();
+                
+                const select = document.getElementById('bienniumSelect');
+                select.innerHTML = availableBienniums.map(b => 
+                    `<option value="${b.name}">${b.name} ${b.is_active === 1 ? 'Session' : '(Archived)'}</option>`
+                ).join('');
+
+                if (!currentBiennium) {
+                    let active = availableBienniums.find(b => b.is_active === 1);
+                    currentBiennium = active ? active.name : availableBienniums[0].name;
+                } else if (!availableBienniums.find(b => b.name === currentBiennium)) {
+                    let active = availableBienniums.find(b => b.is_active === 1);
+                    currentBiennium = active ? active.name : availableBienniums[0].name;
+                }
+
+                select.value = currentBiennium;
+            } catch (e) { console.error("Failed to load sessions."); }
+        }
+
+        function setBiennium(val) {
+            currentBiennium = val;
+            fetchOvertime(); // Refresh data when session changes
+        }
+
         document.getElementById('otDate').valueAsDate = new Date();
 
         async function fetchOvertime() {
+            if (!currentBiennium) return;
+            
             try {
-                const res = await fetch(`${workerBaseUrl}/overtime`, { headers: authHeaders });
+                const res = await fetch(`${workerBaseUrl}/overtime?biennium=${currentBiennium}`, { headers: authHeaders });
                 if (!res.ok) throw new Error("Failed to fetch data.");
                 otRecords = await res.json();
                 renderOvertime();
@@ -125,7 +157,7 @@
             let totalHours = 0;
 
             if (otRecords.length === 0) {
-                grid.innerHTML = `<tr><td colspan="4" class="text-center text-gray-400 text-sm font-bold italic py-10">No overtime logged yet.</td></tr>`;
+                grid.innerHTML = `<tr><td colspan="4" class="text-center text-gray-400 text-sm font-bold italic py-10">No overtime logged for this session.</td></tr>`;
                 totalDisplay.innerHTML = `0.0 <span class="text-sm text-gray-500">hrs</span>`;
                 return;
             }
@@ -136,7 +168,6 @@
                 const tr = document.createElement('tr');
                 tr.className = "hover:bg-gray-50 transition";
                 
-                // Format the date nicely
                 let formattedDate = record.work_date;
                 if (record.work_date) {
                     const dateParts = record.work_date.split('-');
@@ -169,6 +200,10 @@
                 alert("Please enter a valid date and hours.");
                 return;
             }
+            if (!currentBiennium) {
+                alert("No session selected.");
+                return;
+            }
             
             const now = new Date();
             const recordId = Date.now().toString();
@@ -178,12 +213,12 @@
                 work_date: dateInput,
                 hours: parseFloat(hoursInput),
                 description: descInput,
-                created_at: now.toISOString()
+                created_at: now.toISOString(),
+                biennium: currentBiennium
             };
 
             // Optimistic UI update
             otRecords.unshift(newRecord);
-            // Re-sort by date descending
             otRecords.sort((a, b) => new Date(b.work_date) - new Date(a.work_date));
             renderOvertime();
 
@@ -202,7 +237,8 @@
                     work_date: newRecord.work_date, 
                     hours: newRecord.hours, 
                     description: newRecord.description, 
-                    created_at: newRecord.created_at 
+                    created_at: newRecord.created_at,
+                    biennium: newRecord.biennium
                 })
             });
         }
@@ -220,8 +256,9 @@
             });
         }
 
-        window.onload = () => {
+        window.onload = async () => {
             loadSidebar();
+            await fetchBienniums();
             fetchOvertime();
         };
     </script>
