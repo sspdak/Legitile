@@ -45,7 +45,7 @@
                 <div class="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 w-full">
                     <div class="flex flex-wrap gap-2 w-full xl:w-auto items-center">
                         <select onchange="setBiennium(this.value)" id="bienniumSelect" class="bg-gray-50 border border-gray-200 text-gray-700 font-black uppercase text-[10px] rounded-lg px-2 py-1.5 outline-none focus:border-blue-500 transition shadow-sm cursor-pointer hover:bg-gray-100">
-                            <option value="2025-26" selected>2025-26 Session</option>
+                            <option value="">Loading Sessions...</option>
                         </select>
                         <select onchange="setCommittee(this.value)" id="committeeSelect" class="bg-gray-50 border border-gray-200 text-gray-700 font-black uppercase text-[10px] rounded-lg px-2 py-1.5 outline-none focus:border-blue-500 transition shadow-sm cursor-pointer hover:bg-gray-100">
                             <option value="All">All Committees</option>
@@ -198,7 +198,7 @@
     let userProfileCommittees = []; 
 
     let availableBienniums = [];
-    let currentBiennium = '2025-26';
+    let currentBiennium = null;
     let currentCommittee = 'All';
     let currentType = 'All';
     let currentStatus = 'All';
@@ -277,10 +277,16 @@
                 `<option value="${b.name}">${b.name} ${b.is_active === 1 ? 'Session' : '(Archived)'}</option>`
             ).join('');
 
-            if (!availableBienniums.find(b => b.name === currentBiennium)) {
+            // If it's the first load, automatically pick the most recent active session
+            if (!currentBiennium) {
+                let active = availableBienniums.find(b => b.is_active === 1);
+                currentBiennium = active ? active.name : availableBienniums[0].name;
+            } else if (!availableBienniums.find(b => b.name === currentBiennium)) {
+                // Fallback in case the selected session was deleted or no longer exists
                 let active = availableBienniums.find(b => b.is_active === 1);
                 currentBiennium = active ? active.name : availableBienniums[0].name;
             }
+
             select.value = currentBiennium;
             updateUIMode();
         } catch (e) { console.error("Failed to load sessions."); }
