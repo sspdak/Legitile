@@ -2,7 +2,7 @@
   "name": "LegiTile Tracker",
   "short_name": "LegiTile",
   "description": "Washington State Legislative Tracking Workspace",
-  "start_url": "/tracker.html",
+ "start_url": "/home.html",
   "display": "standalone",
   "background_color": "#f3f4f6",
   "theme_color": "#002e5d",
