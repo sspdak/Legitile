@@ -15,6 +15,9 @@
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
         .details-hidden { display: none; }
     </style>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#002e5d">
+    <link rel="apple-touch-icon" href="icon-192.png">
 </head>
 <body class="bg-gray-100 h-screen font-sans text-gray-900 overflow-hidden flex flex-col md:flex-row">
 
@@ -660,5 +663,14 @@
         fetchOvertime();
     }
 </script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(reg => console.log('Service Worker registered'))
+                    .catch(err => console.log('Service Worker registration failed: ', err));
+            });
+        }
+    </script>
 </body>
 </html>
