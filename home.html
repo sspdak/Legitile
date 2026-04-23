@@ -8,12 +8,9 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         .leg-navy { background-color: #002e5d; }
-        .live-border { border-left: 8px solid #002e5d; }
-        .dead-border { border-left: 8px solid #64748b; opacity: 0.8; }
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-        .details-hidden { display: none; }
     </style>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#002e5d">
@@ -33,11 +30,11 @@
         </header>
 
         <main class="flex-1 overflow-y-auto p-6 md:p-10 scroll-smooth">
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full min-h-max">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 h-full min-h-max">
 
-                <div class="lg:col-span-1 flex flex-col gap-6">
+                <div class="flex flex-col gap-6">
 
-                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col overflow-hidden flex-1 min-h-[350px]">
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col overflow-hidden flex-1 min-h-[400px]">
                         <div class="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50 shrink-0">
                             <span class="text-[10px] font-black uppercase tracking-widest text-gray-400">Tracked Bills</span>
                             <a href="tracker.html" class="text-[9px] font-black uppercase text-[#002e5d] hover:text-blue-700 bg-blue-50 px-2 py-1 rounded transition border border-blue-100">Workspace ➔</a>
@@ -63,65 +60,46 @@
 
                 </div>
 
-                <div class="lg:col-span-2 flex flex-col gap-6">
+                <div class="flex flex-col gap-6">
                     
-                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col flex-1 min-h-[350px] relative group overflow-hidden shrink-0">
-                        
-                        <button onclick="openMeetingSettings()" class="absolute top-4 right-4 text-gray-300 hover:text-gray-500 opacity-0 group-hover:opacity-100 transition-opacity duration-200 focus:outline-none z-20" title="Meeting Filter Settings">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"></circle><circle cx="12" cy="5" r="1"></circle><circle cx="12" cy="19" r="1"></circle></svg>
-                        </button>
-
-                        <div class="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50 shrink-0">
-                            <span class="text-[10px] font-black uppercase tracking-widest text-gray-400">Upcoming Meetings</span>
-                            <span class="text-[9px] font-bold text-blue-500 animate-pulse mr-6">30-DAY WINDOW</span>
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col overflow-hidden shrink-0 min-h-[250px]">
+                        <div class="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50 shrink-0">
+                            <span class="text-[10px] font-black uppercase tracking-widest text-gray-400">Priority Tasks</span>
+                            <a href="todo.html" class="text-[9px] font-bold uppercase text-blue-500 hover:text-blue-700 transition">View All &rarr;</a>
                         </div>
-                        <div class="p-6 space-y-3 overflow-y-auto flex-1" id="meetingList">
-                            <span class="text-xs font-bold text-gray-400 italic">Scanning biennium records...</span>
+                        <div class="p-4 overflow-y-auto flex-1" id="dashTodos">
+                            <div class="text-center text-gray-400 text-xs font-bold italic py-10 animate-pulse">Loading tasks...</div>
                         </div>
                     </div>
 
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 flex-1 min-h-[350px]">
-                        
-                        <div class="bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col overflow-hidden h-full">
-                            <div class="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50 shrink-0">
-                                <span class="text-[10px] font-black uppercase tracking-widest text-gray-400">Priority Tasks</span>
-                                <a href="todo.html" class="text-[9px] font-bold uppercase text-blue-500 hover:text-blue-700 transition">View All &rarr;</a>
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col overflow-hidden flex-1 min-h-[350px]">
+                        <div class="p-4 border-b border-gray-100 flex justify-between items-start bg-gray-50 shrink-0">
+                            <div>
+                                <span class="text-[10px] font-black uppercase tracking-widest text-gray-400">Overtime Log</span>
+                                <a href="overtime.html" class="block text-[9px] font-bold uppercase text-blue-500 hover:text-blue-700 mt-1 transition">Full History &rarr;</a>
                             </div>
-                            <div class="p-4 overflow-y-auto flex-1" id="dashTodos">
-                                <div class="text-center text-gray-400 text-xs font-bold italic py-10 animate-pulse">Loading tasks...</div>
-                            </div>
-                        </div>
-
-                        <div class="bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col overflow-hidden h-full">
-                            <div class="p-4 border-b border-gray-100 flex justify-between items-start bg-gray-50 shrink-0">
-                                <div>
-                                    <span class="text-[10px] font-black uppercase tracking-widest text-gray-400">Overtime Log</span>
-                                    <a href="overtime.html" class="block text-[9px] font-bold uppercase text-blue-500 hover:text-blue-700 mt-1 transition">Full History &rarr;</a>
-                                </div>
-                                <div class="text-right">
-                                    <div class="text-2xl font-black text-green-600 leading-none" id="dashOtTotal">-</div>
-                                    <div class="text-[8px] font-black uppercase tracking-widest text-gray-400 mt-1">Total Hrs</div>
-                                </div>
-                            </div>
-                            <div class="p-3 border-b border-gray-100 shrink-0 bg-white">
-                                <div class="flex gap-2 mb-2">
-                                    <input type="date" id="dashOtDate" class="w-1/2 bg-gray-50 border border-gray-200 p-2 rounded-lg text-xs font-bold text-gray-700 outline-none focus:border-[#002e5d] cursor-pointer">
-                                    <input type="number" step="0.25" min="0" id="dashOtHours" placeholder="Hours" class="w-1/2 bg-gray-50 border border-gray-200 p-2 rounded-lg text-xs font-bold text-gray-700 outline-none focus:border-[#002e5d]">
-                                </div>
-                                <div class="flex gap-2">
-                                    <input type="text" id="dashOtDesc" placeholder="Description..." class="flex-1 bg-gray-50 border border-gray-200 p-2 rounded-lg text-xs font-bold text-gray-700 outline-none focus:border-[#002e5d]" onkeypress="if(event.key === 'Enter') quickLogOvertime()">
-                                    <button onclick="quickLogOvertime()" class="bg-[#002e5d] hover:bg-[#001f3f] text-white text-[10px] font-black uppercase px-4 py-2 rounded-lg transition">Log</button>
-                                </div>
-                            </div>
-                            <div class="p-0 overflow-y-auto flex-1">
-                                <table class="w-full text-left border-collapse">
-                                    <tbody id="dashOtRecent" class="text-sm divide-y divide-gray-50">
-                                        <tr><td class="p-5 text-center text-gray-400 text-xs font-bold italic">Loading recent logs...</td></tr>
-                                    </tbody>
-                                </table>
+                            <div class="text-right">
+                                <div class="text-2xl font-black text-green-600 leading-none" id="dashOtTotal">-</div>
+                                <div class="text-[8px] font-black uppercase tracking-widest text-gray-400 mt-1">Total Hrs</div>
                             </div>
                         </div>
-
+                        <div class="p-3 border-b border-gray-100 shrink-0 bg-white">
+                            <div class="flex gap-2 mb-2">
+                                <input type="date" id="dashOtDate" class="w-1/2 bg-gray-50 border border-gray-200 p-2 rounded-lg text-xs font-bold text-gray-700 outline-none focus:border-[#002e5d] cursor-pointer">
+                                <input type="number" step="0.25" min="0" id="dashOtHours" placeholder="Hours" class="w-1/2 bg-gray-50 border border-gray-200 p-2 rounded-lg text-xs font-bold text-gray-700 outline-none focus:border-[#002e5d]">
+                            </div>
+                            <div class="flex gap-2">
+                                <input type="text" id="dashOtDesc" placeholder="Description..." class="flex-1 bg-gray-50 border border-gray-200 p-2 rounded-lg text-xs font-bold text-gray-700 outline-none focus:border-[#002e5d]" onkeypress="if(event.key === 'Enter') quickLogOvertime()">
+                                <button onclick="quickLogOvertime()" class="bg-[#002e5d] hover:bg-[#001f3f] text-white text-[10px] font-black uppercase px-4 py-2 rounded-lg transition">Log</button>
+                            </div>
+                        </div>
+                        <div class="p-0 overflow-y-auto flex-1">
+                            <table class="w-full text-left border-collapse">
+                                <tbody id="dashOtRecent" class="text-sm divide-y divide-gray-50">
+                                    <tr><td class="p-5 text-center text-gray-400 text-xs font-bold italic">Loading recent logs...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
 
                 </div>
@@ -156,30 +134,6 @@
         </div>
     </div>
 
-    <div id="meetingSettingsForm" style="display: none;" class="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4 backdrop-blur-sm">
-        <div class="bg-white p-8 rounded-xl shadow-2xl max-w-md w-full border-t-8 border-blue-500">
-            <h2 class="text-2xl font-bold mb-4 text-blue-600 uppercase">Meeting Filter</h2>
-            
-            <div class="space-y-4">
-                <div>
-                    <label class="block text-xs font-black text-gray-400 uppercase tracking-widest mb-1">Show Meetings For:</label>
-                    <select id="meetingFilterMode" class="w-full border-2 border-gray-200 p-3 rounded-lg outline-none focus:border-blue-500 font-bold text-gray-700">
-                        <option value="all">All Scheduled Meetings</option>
-                        <option value="my_committees">My Saved Committees Only</option>
-                        <option value="house">House Committees Only</option>
-                        <option value="senate">Senate Committees Only</option>
-                        <option value="floor">Floor Sessions Only</option>
-                    </select>
-                </div>
-                
-                <div class="flex gap-2 pt-4">
-                    <button onclick="saveMeetingSettings(this)" class="bg-blue-600 text-white font-bold px-6 py-3 rounded-lg flex-1 uppercase hover:bg-blue-700 transition">Save Filter</button>
-                    <button onclick="closeModal('meetingSettingsForm')" class="bg-gray-200 py-3 px-4 rounded-lg font-bold uppercase text-gray-600 hover:bg-gray-300 transition">Cancel</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
 <script>
     if (!localStorage.getItem('jwt_token')) window.location.href = 'index.html';
 
@@ -188,8 +142,6 @@
 
     let currentCdMode = 'sinedie';
     let currentCdDate = '2026-03-12';
-    let currentMeetingFilter = 'all';
-    let mySavedCommittees = [];
     let radarBills = []; 
 
     // Header Date Setup
@@ -224,8 +176,6 @@
             const resMe = await fetch(`${workerBaseUrl}/me`, { headers: authHeaders });
             if (resMe.ok) {
                 const userData = await resMe.json();
-                mySavedCommittees = userData.committees || [];
-                
                 if (userData.name) {
                     const firstName = userData.name.split(' ')[0];
                     document.getElementById('greeting').innerText = `Welcome back, ${firstName}.`;
@@ -249,7 +199,6 @@
     async function refreshDashboard() {
         await fetchPreferences();
         fetchRadar();
-        fetchMeetings();
         fetchTodos();
         fetchOvertime();
     }
@@ -261,7 +210,6 @@
                 const data = await res.json();
                 currentCdMode = data.cd_mode || 'sinedie';
                 currentCdDate = data.cd_date || '2026-03-12';
-                currentMeetingFilter = data.meeting_filter || 'all';
             }
         } catch(e) { console.warn("Could not load preferences, using defaults"); }
         calculateCountdown();
@@ -286,11 +234,6 @@
         document.getElementById('countdownForm').style.display = 'flex';
     }
 
-    function openMeetingSettings() {
-        document.getElementById('meetingFilterMode').value = currentMeetingFilter;
-        document.getElementById('meetingSettingsForm').style.display = 'flex';
-    }
-
     function closeModal(id) {
         document.getElementById(id).style.display = 'none';
     }
@@ -307,7 +250,7 @@
             await fetch(`${workerBaseUrl}/preferences`, {
                 method: 'POST',
                 headers: authHeaders,
-                body: JSON.stringify({ cd_mode: currentCdMode, cd_date: currentCdDate, meeting_filter: currentMeetingFilter })
+                body: JSON.stringify({ cd_mode: currentCdMode, cd_date: currentCdDate })
             });
         } catch(e) { alert("Failed to save settings to database."); }
 
@@ -315,29 +258,6 @@
         btn.disabled = false;
         closeModal('countdownForm');
         calculateCountdown();
-    }
-
-    async function saveMeetingSettings(btn) {
-        const originalText = btn.innerText;
-        btn.innerText = "Saving...";
-        btn.disabled = true;
-
-        currentMeetingFilter = document.getElementById('meetingFilterMode').value;
-
-        try {
-            await fetch(`${workerBaseUrl}/preferences`, {
-                method: 'POST',
-                headers: authHeaders,
-                body: JSON.stringify({ cd_mode: currentCdMode, cd_date: currentCdDate, meeting_filter: currentMeetingFilter })
-            });
-        } catch(e) { alert("Failed to save settings to database."); }
-
-        btn.innerText = originalText;
-        btn.disabled = false;
-        closeModal('meetingSettingsForm');
-        
-        document.getElementById('meetingList').innerHTML = '<span class="text-xs font-bold text-gray-400 italic">Applying filter...</span>';
-        fetchMeetings();
     }
 
     function safeJSONParse(str, fallback) {
@@ -445,101 +365,6 @@
             window.location.href = `tracker.html?autosearch=${item.bill_number.replace(/\D/g, '')}`;
         } else {
             window.location.href = 'tracker.html';
-        }
-    }
-
-    async function fetchMeetings() {
-        const list = document.getElementById('meetingList');
-        const now = new Date();
-        const fortyFiveDaysFromNow = new Date();
-        fortyFiveDaysFromNow.setDate(now.getDate() + 45);
-
-        try {
-            const res = await fetch(`${workerBaseUrl}/upcoming-meetings`, { headers: authHeaders });
-            const xmlText = await res.text();
-            const xmlDoc = new DOMParser().parseFromString(xmlText, "text/xml");
-
-            const cm = Array.from(xmlDoc.querySelectorAll('CommitteeMeeting'));
-            const fa = Array.from(xmlDoc.querySelectorAll('FloorAction'));
-            const allItems = [...cm, ...fa];
-
-            if (allItems.length === 0) {
-                list.innerHTML = '<div class="text-xs font-bold text-gray-400 italic mt-2">No meetings scheduled.</div>';
-                return;
-            }
-
-            const seen = new Set();
-            const filteredItems = allItems.map(node => {
-                const get = (t) => node.querySelector(t)?.textContent.trim() || "";
-                return {
-                    agency: get("Agency"),
-                    name: get("Name") || get("LongName"),
-                    date: new Date(get("Date")),
-                    room: get("Room") || "Chamber Floor",
-                    key: `${get("Agency")}-${get("Name")}-${get("Date")}`
-                };
-            }).filter(item => {
-                const isUpcoming = item.date >= now && item.date <= fortyFiveDaysFromNow;
-                if (!isUpcoming || seen.has(item.key)) return false;
-                
-                const safeName = item.name.toLowerCase();
-                const safeAgency = item.agency.toLowerCase();
-                
-                if (currentMeetingFilter === 'floor') {
-                    if (!safeName.includes("convened") && !safeName.includes("floor session")) return false;
-                } else if (currentMeetingFilter === 'house') {
-                    if (!safeAgency.includes("house")) return false;
-                } else if (currentMeetingFilter === 'senate') {
-                    if (!safeAgency.includes("senate")) return false;
-                } else if (currentMeetingFilter === 'my_committees') {
-                    const isFloor = safeName.includes("convened") || safeName.includes("floor session");
-                    const isMyComm = mySavedCommittees.some(myC => safeName.includes(myC.toLowerCase()));
-                    if (!isMyComm && !isFloor) return false;
-                }
-
-                seen.add(item.key);
-                return true;
-            }).sort((a, b) => a.date - b.date);
-
-            list.innerHTML = '';
-            
-            if (filteredItems.length === 0) {
-                list.innerHTML = '<div class="text-xs font-bold text-gray-400 italic mt-2">No meetings match your filter.</div>';
-                return;
-            }
-
-            let lastDateLabel = "";
-
-            filteredItems.forEach(item => {
-                const dateLabel = item.date.toLocaleDateString([], { month: 'long', day: 'numeric' }).toUpperCase();
-                if (dateLabel !== lastDateLabel) {
-                    list.innerHTML += `<div class="text-[9px] font-black text-gray-400 tracking-widest mt-4 mb-2 border-b border-gray-100 pb-1">${dateLabel}</div>`;
-                    lastDateLabel = dateLabel;
-                }
-
-                const timeStr = item.date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                let color = "bg-gray-400";
-                const ag = item.agency.toLowerCase();
-                const nm = item.name.toLowerCase();
-
-                if (ag.includes("senate")) color = "bg-red-500";
-                else if (ag.includes("house")) color = "bg-green-500";
-                else if (ag.includes("joint") || nm.includes("jlarc")) color = "bg-blue-600";
-
-                let displayName = item.name;
-                if (displayName.includes("Convened")) displayName = "Floor Session";
-
-                list.innerHTML += `
-                    <div class="flex items-center gap-3 py-2 pr-2">
-                        <div class="w-2 h-2 rounded-full ${color} shrink-0"></div>
-                        <div class="flex-1 min-w-0">
-                            <div class="text-[11px] font-black text-[#002e5d] truncate uppercase">${item.agency} ${displayName}</div>
-                            <div class="text-[9px] font-bold text-gray-500 truncate mt-0.5">${timeStr} • ${item.room}</div>
-                        </div>
-                    </div>`;
-            });
-        } catch (e) {
-            list.innerHTML = '<div class="text-xs font-bold text-red-400">Failed to sync schedule.</div>';
         }
     }
 
