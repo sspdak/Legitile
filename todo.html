@@ -328,6 +328,9 @@
                 completed: false
             });
             
+            // Instantly sort so the new item doesn't get buried under completed subtasks
+            task.subtasks.sort((a, b) => a.completed - b.completed);
+            
             renderTasks();
             
             const container = document.getElementById(`subtaskInputContainer_${taskId}`);
@@ -341,6 +344,9 @@
             const task = tasks.find(t => t.id === taskId);
             const subtask = task.subtasks.find(s => s.id === subtaskId);
             subtask.completed = !subtask.completed;
+            
+            // Push completed items to the bottom
+            task.subtasks.sort((a, b) => a.completed - b.completed);
             
             renderTasks();
             await syncSubtasks(taskId);
