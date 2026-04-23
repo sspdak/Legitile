@@ -187,14 +187,31 @@
             }
         } catch (e) { console.error("Could not fetch user profile.", e); }
     }
+    
+let refreshTimer;
 
     window.onload = async () => {
         document.getElementById('dashOtDate').valueAsDate = new Date();
         await loadSidebar(); 
         await fetchUserProfile();
         refreshDashboard();
-        setInterval(refreshDashboard, 300000);
+        
+        // Start the normal 5-minute interval
+        refreshTimer = setInterval(refreshDashboard, 300000);
     };
+
+    // Listen for the app being backgrounded or resumed
+    document.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "visible") {
+            // The app just woke up! Clear the old timer and run a fresh sync immediately.
+            clearInterval(refreshTimer);
+            refreshDashboard();
+            refreshTimer = setInterval(refreshDashboard, 300000);
+        } else {
+            // The app was minimized. Pause the timer to save battery and prevent error pileups.
+            clearInterval(refreshTimer);
+        }
+    });
 
     async function refreshDashboard() {
         await fetchPreferences();
