@@ -29,10 +29,10 @@
             <p class="text-xs text-gray-500 font-bold mt-1">General action items and daily planning.</p>
         </header>
 
-        <main class="flex-1 overflow-hidden p-6 md:p-10">
-            <div class="flex flex-col xl:flex-row gap-8 max-w-[1600px] mx-auto h-full">
+        <main class="flex-1 overflow-y-auto xl:overflow-hidden p-4 md:p-6 lg:p-10">
+            <div class="flex flex-col xl:flex-row gap-6 xl:gap-8 max-w-[1600px] mx-auto min-h-max xl:h-full">
                 
-                <div class="w-full xl:w-1/2 flex flex-col h-full bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                <div class="w-full xl:w-1/2 flex flex-col h-[600px] xl:h-full bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden shrink-0">
                     <div class="p-4 border-b border-gray-100 bg-gray-50 flex justify-between items-center shrink-0">
                         <h2 class="text-[10px] font-black uppercase tracking-widest text-gray-400">Today's Schedule</h2>
                         <span class="text-xs font-bold text-[#002e5d]" id="scheduleDateLabel"></span>
@@ -41,7 +41,7 @@
                         </div>
                 </div>
 
-                <div class="w-full xl:w-1/2 flex flex-col h-full">
+                <div class="w-full xl:w-1/2 flex flex-col h-[700px] xl:h-full shrink-0">
                     
                     <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-200 mb-6 shrink-0 flex flex-col sm:flex-row gap-3">
                         <input 
@@ -71,9 +71,9 @@
                             <h2 class="text-[10px] font-black uppercase tracking-widest text-gray-400">Unscheduled Tasks</h2>
                         </div>
                         <div class="flex-1 overflow-y-auto p-4">
-                            <ul id="taskList" class="space-y-4 min-h-[100px] pb-10">
+                            <div id="taskList" class="space-y-4 min-h-[100px] pb-10">
                                 <div class="text-center text-gray-400 text-sm font-bold italic py-10 animate-pulse">Loading tasks from database...</div>
-                            </ul>
+                            </div>
                         </div>
                     </div>
 
@@ -161,7 +161,6 @@
             const list = document.getElementById('taskList');
             list.innerHTML = '';
             
-            // Clear all timeline blocks
             document.querySelectorAll('.time-block-zone').forEach(zone => zone.innerHTML = '');
 
             if (tasks.length === 0) {
@@ -174,10 +173,24 @@
             let todaySchedule = schedule[todayStr] || {};
 
             tasks.forEach(task => {
-                const li = document.createElement('li');
-                li.setAttribute('data-id', task.id);
-                
+                const isTaskScheduled = !!todaySchedule[task.id];
+                const blockElement = document.getElementById(`block-${todaySchedule[task.id]}`);
                 const isCompleted = task.completed === 1;
+                
+                // Separate subtasks into scheduled vs unscheduled
+                const scheduledSubtasks = [];
+                const unscheduledSubtasks = [];
+
+                if (task.subtasks) {
+                    task.subtasks.forEach(sub => {
+                        if (todaySchedule[sub.id] && !sub.completed && document.getElementById(`block-${todaySchedule[sub.id]}`)) {
+                            scheduledSubtasks.push(sub);
+                        } else {
+                            unscheduledSubtasks.push(sub);
+                        }
+                    });
+                }
+
                 const bgClass = isCompleted ? 'bg-gray-50 opacity-60' : 'bg-white';
                 const textClass = isCompleted ? 'line-through text-gray-400' : 'text-gray-800';
                 
@@ -198,21 +211,22 @@
                     dueDateHtml = `<span class="ml-3 text-[10px] font-black uppercase tracking-wide px-2 py-0.5 rounded ${badgeColor}">Due: ${shortDate}</span>`;
                 }
 
-                const createdHtml = `<div class="text-[10px] text-gray-400 font-bold mt-1">Created: ${task.created_at}</div>`;
-
-                let subtasksHtml = '';
-                if (task.subtasks && task.subtasks.length > 0) {
-                    subtasksHtml = `<ul class="space-y-2 mt-3 w-full pl-12">` + task.subtasks.map(sub => `
-                        <li class="flex items-center gap-3 group">
+                // Render Unscheduled Subtasks inside the main task
+                let subtasksHtml = `<div class="space-y-2 mt-3 w-full pl-12 subtask-list-zone min-h-[20px] pb-2" data-parent-id="${task.id}">`;
+                if (unscheduledSubtasks.length > 0) {
+                    subtasksHtml += unscheduledSubtasks.map(sub => `
+                        <div class="flex items-center gap-3 group bg-white border border-gray-100 p-2 rounded shadow-sm" data-id="${sub.id}" data-is-subtask="true" data-parent-id="${task.id}">
+                            ${sub.completed ? '<div class="w-4 shrink-0"></div>' : '<div class="drag-handle cursor-grab text-gray-300 hover:text-gray-500"><svg class="w-4 h-4" fill="currentColor" viewBox="0 0 16 16"><path d="M4 4h2v2H4zm0 5h2v2H4zm0 5h2v2H4zm5-10h2v2H9zm0 5h2v2H9zm0 5h2v2H9z"/></svg></div>'}
                             <input type="checkbox" ${sub.completed ? 'checked' : ''} onchange="toggleSubtask('${task.id}', '${sub.id}')" class="h-4 w-4 text-[#002e5d] rounded border-gray-300 cursor-pointer">
                             <span class="text-sm font-bold flex-1 ${sub.completed ? 'text-gray-400 line-through' : 'text-gray-600'}">${sub.text}</span>
                             <button onclick="deleteSubtask('${task.id}', '${sub.id}')" class="text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition px-2">×</button>
-                        </li>
-                    `).join('') + `</ul>`;
+                        </div>
+                    `).join('');
                 }
+                subtasksHtml += `</div>`;
 
                 const subtaskInputHtml = `
-                    <div id="subtaskInputContainer_${task.id}" class="hidden pl-12 mt-3 pt-3 border-t border-gray-100 w-full">
+                    <div id="subtaskInputContainer_${task.id}" class="hidden pl-12 mt-1 pt-3 border-t border-gray-100 w-full">
                         <div class="flex gap-2 w-full">
                             <input type="text" id="subtaskInput_${task.id}" placeholder="Add subtask..." class="text-xs font-bold text-gray-600 p-2 border border-gray-200 rounded flex-1 outline-none focus:border-[#002e5d]" onkeypress="if(event.key === 'Enter') addSubtask('${task.id}')">
                             <button onclick="addSubtask('${task.id}')" class="bg-gray-100 hover:bg-gray-200 border border-gray-200 text-gray-600 px-4 py-1.5 rounded text-[10px] uppercase font-black transition outline-none">Add</button>
@@ -220,10 +234,14 @@
                     </div>
                 `;
 
-                li.className = `flex flex-col p-4 border border-gray-200 rounded-xl shadow-sm transition-all duration-200 ${bgClass}`;
-                if (isCompleted) li.classList.add('ignore-drag'); 
+                // Render the Main Task Wrapper
+                const taskDiv = document.createElement('div');
+                taskDiv.setAttribute('data-id', task.id);
+                taskDiv.setAttribute('data-is-subtask', 'false');
+                taskDiv.className = `flex flex-col p-4 border border-gray-200 rounded-xl shadow-sm transition-all duration-200 ${bgClass}`;
+                if (isCompleted) taskDiv.classList.add('ignore-drag'); 
                 
-                li.innerHTML = `
+                taskDiv.innerHTML = `
                     <div class="flex items-start justify-between w-full">
                         <div class="flex items-start gap-3 flex-1">
                             ${dragHandleHtml}
@@ -237,18 +255,14 @@
                                 <div class="font-bold text-[15px] ${textClass}">
                                     ${task.text} ${dueDateHtml}
                                 </div>
-                                ${createdHtml}
+                                <div class="text-[10px] text-gray-400 font-bold mt-1">Created: ${task.created_at}</div>
                             </div>
                         </div>
                         <div class="flex items-center gap-1 ml-4 shrink-0">
                             <button onclick="toggleSubtaskInput('${task.id}')" class="text-[9px] font-black uppercase text-gray-400 hover:text-[#002e5d] bg-transparent hover:bg-blue-50 transition px-3 py-1.5 rounded border border-transparent hover:border-blue-100">
                                 + Subtask
                             </button>
-                            <button 
-                                onclick="deleteTask('${task.id}')" 
-                                class="text-gray-300 hover:text-red-500 p-1.5 rounded transition-colors"
-                                title="Delete task"
-                            >
+                            <button onclick="deleteTask('${task.id}')" class="text-gray-300 hover:text-red-500 p-1.5 rounded transition-colors" title="Delete task">
                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
                             </button>
                         </div>
@@ -257,71 +271,121 @@
                     ${subtaskInputHtml}
                 `;
                 
-                const scheduledTime = todaySchedule[task.id];
-                const blockElement = document.getElementById(`block-${scheduledTime}`);
-                
                 // Route task to the timeline or the main list
-                if (scheduledTime && blockElement && !isCompleted) {
-                    blockElement.appendChild(li);
+                if (isTaskScheduled && blockElement && !isCompleted) {
+                    blockElement.appendChild(taskDiv);
                 } else {
-                    list.appendChild(li);
+                    list.appendChild(taskDiv);
                 }
+
+                // Render Scheduled Subtasks directly into the timeline blocks
+                scheduledSubtasks.forEach(sub => {
+                    const subDiv = document.createElement('div');
+                    subDiv.setAttribute('data-id', sub.id);
+                    subDiv.setAttribute('data-is-subtask', 'true');
+                    subDiv.setAttribute('data-parent-id', task.id);
+                    subDiv.className = `flex items-center gap-3 group bg-white border border-gray-200 p-2 rounded shadow-sm border-l-4 border-l-[#002e5d]`;
+                    
+                    subDiv.innerHTML = `
+                        <div class="drag-handle cursor-grab text-gray-300 hover:text-[#002e5d]">
+                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 16 16"><path d="M4 4h2v2H4zm0 5h2v2H4zm0 5h2v2H4zm5-10h2v2H9zm0 5h2v2H9zm0 5h2v2H9z"/></svg>
+                        </div>
+                        <input type="checkbox" onchange="toggleSubtask('${task.id}', '${sub.id}')" class="h-4 w-4 text-[#002e5d] rounded border-gray-300 cursor-pointer">
+                        <div class="flex-1 flex flex-col">
+                            <span class="text-[9px] font-black uppercase text-gray-400 tracking-widest leading-none mb-0.5">Subtask of: ${task.text.substring(0,25)}${task.text.length > 25 ? '...' : ''}</span>
+                            <span class="text-sm font-bold text-gray-800 leading-tight">${sub.text}</span>
+                        </div>
+                        <button onclick="deleteSubtask('${task.id}', '${sub.id}')" class="text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition px-2">×</button>
+                    `;
+                    document.getElementById(`block-${todaySchedule[sub.id]}`).appendChild(subDiv);
+                });
             });
 
             initSortable();
         }
 
         function initSortable() {
-            // Destroy all existing sortable instances to prevent memory leaks/duplicates
             sortables.forEach(s => s.destroy());
             sortables = [];
 
-            const sharedOptions = {
-                group: 'tasks',
-                handle: '.drag-handle',
+            const commonOptions = {
                 animation: 150,
                 ghostClass: 'sortable-ghost',
                 filter: '.ignore-drag',
+                handle: '.drag-handle',
                 onEnd: async function (evt) {
-                    const taskId = evt.item.getAttribute('data-id');
+                    const el = evt.item;
                     const toEl = evt.to;
-                    
+                    const id = el.getAttribute('data-id');
+                    const isSubtask = el.getAttribute('data-is-subtask') === 'true';
+
                     const todayStr = new Date().toISOString().split('T')[0];
                     let schedule = JSON.parse(localStorage.getItem('legitile_schedule') || '{}');
                     if (!schedule[todayStr]) schedule[todayStr] = {};
 
                     if (toEl.classList.contains('time-block-zone')) {
-                        // Dropped into the timeline
-                        const timeKey = toEl.getAttribute('data-time');
-                        schedule[todayStr][taskId] = timeKey;
-                    } else if (toEl.id === 'taskList') {
-                        // Dropped back into the unscheduled list
-                        delete schedule[todayStr][taskId];
-                        
-                        // Sync reordering for the main list
-                        const listItems = Array.from(document.getElementById('taskList').children);
-                        const newOrderIds = listItems.map(li => li.getAttribute('data-id')).filter(id => id !== null);
-                        tasks.sort((a, b) => newOrderIds.indexOf(a.id) - newOrderIds.indexOf(b.id));
+                        schedule[todayStr][id] = toEl.getAttribute('data-time');
+                        localStorage.setItem('legitile_schedule', JSON.stringify(schedule));
+                    } else {
+                        if (schedule[todayStr][id]) {
+                            delete schedule[todayStr][id];
+                            localStorage.setItem('legitile_schedule', JSON.stringify(schedule));
+                        }
 
-                        await fetch(`${workerBaseUrl}/todos`, {
-                            method: 'POST',
-                            headers: authHeaders,
-                            body: JSON.stringify({ action: 'reorder', taskIds: newOrderIds })
-                        });
+                        // Reorder main tasks if dropped in main list
+                        if (!isSubtask && toEl.id === 'taskList') {
+                            const listItems = Array.from(toEl.children);
+                            const newOrderIds = listItems.map(li => li.getAttribute('data-id')).filter(i => i !== null);
+                            tasks.sort((a, b) => newOrderIds.indexOf(a.id) - newOrderIds.indexOf(b.id));
+
+                            await fetch(`${workerBaseUrl}/todos`, {
+                                method: 'POST',
+                                headers: authHeaders,
+                                body: JSON.stringify({ action: 'reorder', taskIds: newOrderIds })
+                            });
+                        }
+
+                        // Reorder subtasks if dropped back into their parent's list
+                        if (isSubtask && toEl.classList.contains('subtask-list-zone')) {
+                            const parentId = toEl.getAttribute('data-parent-id');
+                            const parentTask = tasks.find(t => t.id === parentId);
+                            const listItems = Array.from(toEl.children);
+                            const newOrderIds = listItems.map(li => li.getAttribute('data-id')).filter(i => i !== null);
+                            
+                            parentTask.subtasks.sort((a, b) => newOrderIds.indexOf(a.id) - newOrderIds.indexOf(b.id));
+                            await syncSubtasks(parentId);
+                        }
                     }
-                    
-                    // Save local schedule layout
-                    localStorage.setItem('legitile_schedule', JSON.stringify(schedule));
+                    renderTasks();
                 }
             };
 
-            // Bind to main list
+            // Main Task List Rules (Only accept main tasks)
             const mainList = document.getElementById('taskList');
-            sortables.push(new Sortable(mainList, sharedOptions));
+            if (mainList) {
+                sortables.push(new Sortable(mainList, {
+                    ...commonOptions,
+                    group: { name: 'tasks', put: (to, from, dragEl) => dragEl.getAttribute('data-is-subtask') === 'false' }
+                }));
+            }
 
-            // Bind to all time block zones
+            // Timeline Block Rules (Accept both main and subtasks)
             document.querySelectorAll('.time-block-zone').forEach(zone => {
-                sortables.push(new Sortable(zone, sharedOptions));
+                sortables.push(new Sortable(zone, {
+                    ...commonOptions,
+                    group: { name: 'timeline', put: true }
+                }));
+            });
+
+            // Subtask Parent Zone Rules (Only accept their own specific subtasks)
+            document.querySelectorAll('.subtask-list-zone').forEach(zone => {
+                sortables.push(new Sortable(zone, {
+                    ...commonOptions,
+                    group: { 
+                        name: 'subtasks', 
+                        put: (to, from, dragEl) => dragEl.getAttribute('data-is-subtask') === 'true' && dragEl.getAttribute('data-parent-id') === to.el.getAttribute('data-parent-id')
+                    }
+                }));
             });
         }
 
@@ -364,7 +428,6 @@
             if (taskIndex > -1) {
                 tasks[taskIndex].completed = newStatus;
                 
-                // If marked complete, remove it from the timeline view visually
                 if (newStatus === 1) {
                     const todayStr = new Date().toISOString().split('T')[0];
                     let schedule = JSON.parse(localStorage.getItem('legitile_schedule') || '{}');
@@ -448,8 +511,16 @@
             const subtask = task.subtasks.find(s => s.id === subtaskId);
             subtask.completed = !subtask.completed;
             
+            if (subtask.completed) {
+                const todayStr = new Date().toISOString().split('T')[0];
+                let schedule = JSON.parse(localStorage.getItem('legitile_schedule') || '{}');
+                if (schedule[todayStr] && schedule[todayStr][subtaskId]) {
+                    delete schedule[todayStr][subtaskId];
+                    localStorage.setItem('legitile_schedule', JSON.stringify(schedule));
+                }
+            }
+
             task.subtasks.sort((a, b) => a.completed - b.completed);
-            
             renderTasks();
             await syncSubtasks(taskId);
         }
@@ -458,6 +529,13 @@
             const task = tasks.find(t => t.id === taskId);
             task.subtasks = task.subtasks.filter(s => s.id !== subtaskId);
             
+            const todayStr = new Date().toISOString().split('T')[0];
+            let schedule = JSON.parse(localStorage.getItem('legitile_schedule') || '{}');
+            if (schedule[todayStr] && schedule[todayStr][subtaskId]) {
+                delete schedule[todayStr][subtaskId];
+                localStorage.setItem('legitile_schedule', JSON.stringify(schedule));
+            }
+
             renderTasks();
             await syncSubtasks(taskId);
         }
