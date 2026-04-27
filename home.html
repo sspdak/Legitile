@@ -31,12 +31,12 @@
             <div class="text-[10px] font-black uppercase text-gray-400 tracking-wider" id="currentDateDisplay"></div>
         </header>
 
-        <main class="flex-1 overflow-y-auto p-6 md:p-10 scroll-smooth">
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 h-full min-h-max">
+        <main class="flex-1 overflow-y-auto p-4 md:p-8 lg:p-10 scroll-smooth">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:h-full">
 
-                <div class="flex flex-col gap-6">
+                <div class="flex flex-col gap-6 lg:h-full lg:min-h-0">
 
-                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col overflow-hidden flex-1 min-h-[300px]">
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col overflow-hidden flex-1 min-h-[250px] lg:min-h-0">
                         <div class="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50 shrink-0">
                             <span class="text-[10px] font-black uppercase tracking-widest text-gray-400">Tracked Bills</span>
                             <a href="tracker.html" class="text-[9px] font-black uppercase text-[#002e5d] hover:text-blue-700 bg-blue-50 px-2 py-1 rounded transition border border-blue-100">Workspace ➔</a>
@@ -48,7 +48,7 @@
                         </div>
                     </div>
 
-                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col overflow-hidden shrink-0 min-h-[220px]">
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col overflow-hidden shrink-0">
                         <div class="p-3 border-b border-gray-100 flex justify-between items-start bg-gray-50 shrink-0">
                             <div>
                                 <span class="text-[10px] font-black uppercase tracking-widest text-gray-400">Overtime Log</span>
@@ -67,7 +67,7 @@
                                 <button onclick="quickLogOvertime()" class="bg-[#002e5d] hover:bg-[#001f3f] text-white text-[10px] font-black uppercase px-3 py-1.5 rounded transition">Log</button>
                             </div>
                         </div>
-                        <div class="p-0 overflow-y-auto h-[100px]">
+                        <div class="p-0 overflow-y-auto max-h-[140px] lg:max-h-none">
                             <table class="w-full text-left border-collapse">
                                 <tbody id="dashOtRecent" class="text-sm divide-y divide-gray-50">
                                     <tr><td class="p-5 text-center text-gray-400 text-xs font-bold italic">Loading recent logs...</td></tr>
@@ -90,9 +90,9 @@
 
                 </div>
 
-                <div class="flex flex-col gap-6">
+                <div class="flex flex-col gap-6 lg:h-full lg:min-h-0">
 
-                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col overflow-hidden flex-1 min-h-[450px]">
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col overflow-hidden flex-[3] min-h-[300px] lg:min-h-0">
                         <div class="p-3 border-b border-gray-100 flex justify-between items-center bg-gray-50 shrink-0">
                             <span class="text-[10px] font-black uppercase tracking-widest text-gray-400">Today's Schedule</span>
                             <span class="text-[9px] font-bold text-gray-400" id="scheduleDateLabel"></span>
@@ -101,7 +101,7 @@
                             </div>
                     </div>
                     
-                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col overflow-hidden shrink-0 h-[250px]">
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col overflow-hidden flex-[2] min-h-[250px] lg:min-h-0">
                         <div class="p-3 border-b border-gray-100 flex justify-between items-center bg-gray-50 shrink-0">
                             <span class="text-[10px] font-black uppercase tracking-widest text-gray-400">Unscheduled Tasks</span>
                             <a href="todo.html" class="text-[9px] font-bold uppercase text-blue-500 hover:text-blue-700 transition">Manage All &rarr;</a>
