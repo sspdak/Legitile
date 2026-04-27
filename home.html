@@ -430,11 +430,17 @@ let refreshTimer;
         });
     }
 
-    async function fetchOvertime() {
+async function fetchOvertime() {
         try {
-            const res = await fetch(`${workerBaseUrl}/overtime`, { headers: authHeaders });
+            // Calculate current session year dynamically
+            const today = new Date();
+            const currentSession = today.getMonth() >= 9 ? today.getFullYear() + 1 : today.getFullYear();
+            
+            // Pass it to the worker
+            const res = await fetch(`${workerBaseUrl}/overtime?session_year=${currentSession}`, { headers: authHeaders });
             if (!res.ok) throw new Error();
-            const overtime = await res.json();
+            
+            // ... rest of the function stays the same
             
             let totalHrs = 0;
             overtime.forEach(r => totalHrs += parseFloat(r.hours || 0));
