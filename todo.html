@@ -66,7 +66,7 @@
                         </div>
                     </div>
 
-                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col overflow-hidden flex-1">
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col overflow-hidden flex-1 mb-6">
                         <div class="p-4 border-b border-gray-100 bg-gray-50 shrink-0">
                             <h2 class="text-[10px] font-black uppercase tracking-widest text-gray-400">Unscheduled Tasks</h2>
                         </div>
@@ -75,6 +75,15 @@
                                 <div class="text-center text-gray-400 text-sm font-bold italic py-10 animate-pulse">Loading tasks from database...</div>
                             </div>
                         </div>
+                    </div>
+
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col overflow-hidden shrink-0">
+                        <button onclick="toggleCompletedTile()" class="p-4 bg-gray-50 flex justify-between items-center w-full focus:outline-none hover:bg-gray-100 transition">
+                            <span class="text-[10px] font-black uppercase tracking-widest text-gray-400">Completed Tasks</span>
+                            <span id="completedTileIcon" class="text-[10px] font-bold text-gray-400 transition-transform duration-200">▼</span>
+                        </button>
+                        <div id="completedTileContent" class="hidden p-4 overflow-y-auto max-h-[300px] bg-gray-50/50 space-y-3 border-t border-gray-100">
+                            </div>
                     </div>
 
                 </div>
@@ -141,6 +150,18 @@
             }
         }
 
+        function toggleCompletedTile() {
+            const content = document.getElementById('completedTileContent');
+            const icon = document.getElementById('completedTileIcon');
+            if (content.classList.contains('hidden')) {
+                content.classList.remove('hidden');
+                icon.style.transform = 'rotate(180deg)';
+            } else {
+                content.classList.add('hidden');
+                icon.style.transform = 'rotate(0deg)';
+            }
+        }
+
         async function fetchTasks() {
             try {
                 const res = await fetch(`${workerBaseUrl}/todos`, { headers: authHeaders });
@@ -169,14 +190,22 @@
         }
 
         function renderTasks() {
-            const list = document.getElementById('taskList');
-            list.innerHTML = '';
+            const pendingContainer = document.getElementById('taskList');
+            const completedContainer = document.getElementById('completedTileContent');
             
+            pendingContainer.innerHTML = '';
+            completedContainer.innerHTML = '';
             document.querySelectorAll('.time-block-zone').forEach(zone => zone.innerHTML = '');
 
-            if (tasks.length === 0) {
-                list.innerHTML = `<div class="text-center text-gray-400 text-sm font-bold italic py-10">All caught up! No active tasks.</div>`;
-                return;
+            const pendingTasks = tasks.filter(t => t.completed !== 1);
+            const completedTasks = tasks.filter(t => t.completed === 1);
+
+            if (pendingTasks.length === 0) {
+                pendingContainer.innerHTML = `<div class="text-center text-gray-400 text-sm font-bold italic py-10">All caught up! No active tasks.</div>`;
+            }
+
+            if (completedTasks.length === 0) {
+                completedContainer.innerHTML = `<div class="text-center text-gray-400 text-xs font-bold italic py-4">No completed tasks yet.</div>`;
             }
 
             const todayStr = new Date().toISOString().split('T')[0];
@@ -292,10 +321,12 @@
                     ${subtaskInputHtml}
                 `;
                 
-                if (isTaskScheduled && blockElement && !isCompleted) {
+                if (isCompleted) {
+                    completedContainer.appendChild(taskDiv);
+                } else if (isTaskScheduled && blockElement) {
                     blockElement.appendChild(taskDiv);
                 } else {
-                    list.appendChild(taskDiv);
+                    pendingContainer.appendChild(taskDiv);
                 }
 
                 scheduledSubtasks.forEach(sub => {
