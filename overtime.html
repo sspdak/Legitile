@@ -84,7 +84,16 @@
         };
         
         let otRecords = [];
-        let currentYear = new Date().getFullYear().toString();
+        let currentYear = getSessionYear(new Date().toISOString().split('T')[0]);
+
+        // Helper to determine the session year based on Q4 start
+        function getSessionYear(dateString) {
+            const parts = dateString.split('-');
+            const year = parseInt(parts[0]);
+            const month = parseInt(parts[1]);
+            // If Oct, Nov, Dec, it counts toward next year's session
+            return month >= 10 ? (year + 1).toString() : year.toString();
+        }
 
         async function loadSidebar() {
             try {
@@ -111,8 +120,7 @@
         function populateYears() {
             const select = document.getElementById('yearSelect');
             const startYear = 2025; 
-            const current = new Date().getFullYear();
-            const maxYear = Math.max(current, parseInt(currentYear)) + 1; // Always show up to next year
+            const maxYear = Math.max(parseInt(getSessionYear(new Date().toISOString().split('T')[0])), parseInt(currentYear)) + 1;
             
             let html = '';
             for(let y = maxYear; y >= startYear; y--) {
@@ -130,7 +138,8 @@
 
         async function fetchOvertime() {
             try {
-                const res = await fetch(`${workerBaseUrl}/overtime?year=${currentYear}`, { headers: authHeaders });
+                // Changed parameter to 'session_year' to distinguish backend logic
+                const res = await fetch(`${workerBaseUrl}/overtime?session_year=${currentYear}`, { headers: authHeaders });
                 if (!res.ok) throw new Error("Failed to fetch data.");
                 otRecords = await res.json();
                 renderOvertime();
@@ -202,24 +211,20 @@
                 created_at: now.toISOString()
             };
 
-            // Check if the newly added record belongs to the currently viewed year
-            const recordYear = dateInput.substring(0, 4);
-            if (recordYear === currentYear) {
+            const recordSession = getSessionYear(dateInput);
+            if (recordSession === currentYear) {
                 otRecords.unshift(newRecord);
                 otRecords.sort((a, b) => new Date(b.work_date) - new Date(a.work_date));
                 renderOvertime();
             } else {
-                // If they log a date for a different year, jump to that year to show them it saved
-                setYear(recordYear);
-                document.getElementById('yearSelect').value = recordYear;
+                setYear(recordSession);
+                document.getElementById('yearSelect').value = recordSession;
             }
 
-            // Clear inputs
             document.getElementById('otHours').value = '';
             document.getElementById('otDesc').value = '';
             document.getElementById('otDate').focus();
 
-            // Send to database
             await fetch(`${workerBaseUrl}/overtime`, {
                 method: 'POST',
                 headers: authHeaders,
