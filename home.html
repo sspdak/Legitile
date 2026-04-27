@@ -6,11 +6,13 @@
     <title>LegiTile | Dashboard</title>
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMDAgMTAwIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgcng9IjIwIiBmaWxsPSIjMDAyZTVkIi8+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCUiIHkxPSIwJSIgeDI9IjEwMCUiIHkyPSIxMDAlIj48c3RvcCBvZmZzZXQ9IjAlIiBzdG9wLWNvbG9yPSIjZmI5MjNjIi8+PHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjZmZmZmZmIi8+PC9saW5lYXJHcmFkaWVudD48L2RlZnM+PHRleHQgeD0iNTAiIHk9Ijc1IiBmb250LWZhbWlseT0ic2VyaWYiIGZvbnQtc3R5bGU9Iml0YWxpYyIgZm9udC13ZWlnaHQ9IjkwMCIgZm9udC1zaXplPSI3NSIgZmlsbD0idXJsKCNnKSIgdGV4dC1hbmNob3I9Im1pZGRsZSI+TDwvdGV4dD48L3N2Zz4=">
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
     <style>
         .leg-navy { background-color: #002e5d; }
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        .dash-time-block-zone { min-height: 40px; }
     </style>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#002e5d">
@@ -62,35 +64,41 @@
 
                 <div class="flex flex-col gap-6">
                     
-                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col overflow-hidden shrink-0 min-h-[250px]">
-                        <div class="p-4 border-b border-gray-100 flex justify-between items-center bg-gray-50 shrink-0">
-                            <span class="text-[10px] font-black uppercase tracking-widest text-gray-400">Priority Tasks</span>
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col overflow-hidden shrink-0 h-[200px]">
+                        <div class="p-3 border-b border-gray-100 flex justify-between items-center bg-gray-50 shrink-0">
+                            <span class="text-[10px] font-black uppercase tracking-widest text-gray-400">Unscheduled Tasks</span>
                             <a href="todo.html" class="text-[9px] font-bold uppercase text-blue-500 hover:text-blue-700 transition">View All &rarr;</a>
                         </div>
-                        <div class="p-4 overflow-y-auto flex-1" id="dashTodos">
-                            <div class="text-center text-gray-400 text-xs font-bold italic py-10 animate-pulse">Loading tasks...</div>
+                        <div class="p-3 overflow-y-auto flex-1 bg-gray-50/50" id="dashTodos">
+                            <div class="text-center text-gray-400 text-xs font-bold italic py-8 animate-pulse">Loading tasks...</div>
                         </div>
                     </div>
 
-                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col overflow-hidden flex-1 min-h-[350px]">
-                        <div class="p-4 border-b border-gray-100 flex justify-between items-start bg-gray-50 shrink-0">
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col overflow-hidden shrink-0 h-[300px]">
+                        <div class="p-3 border-b border-gray-100 flex justify-between items-center bg-gray-50 shrink-0">
+                            <span class="text-[10px] font-black uppercase tracking-widest text-gray-400">Today's Schedule</span>
+                        </div>
+                        <div class="flex-1 overflow-y-auto p-3 space-y-2 bg-gray-50" id="dashTimelineContainer">
+                            </div>
+                    </div>
+
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col overflow-hidden flex-1 min-h-[220px]">
+                        <div class="p-3 border-b border-gray-100 flex justify-between items-start bg-gray-50 shrink-0">
                             <div>
                                 <span class="text-[10px] font-black uppercase tracking-widest text-gray-400">Overtime Log</span>
-                                <a href="overtime.html" class="block text-[9px] font-bold uppercase text-blue-500 hover:text-blue-700 mt-1 transition">Full History &rarr;</a>
+                                <a href="overtime.html" class="block text-[9px] font-bold uppercase text-blue-500 hover:text-blue-700 mt-0.5 transition">Full History &rarr;</a>
                             </div>
                             <div class="text-right">
-                                <div class="text-2xl font-black text-green-600 leading-none" id="dashOtTotal">-</div>
+                                <div class="text-xl font-black text-green-600 leading-none" id="dashOtTotal">-</div>
                                 <div class="text-[8px] font-black uppercase tracking-widest text-gray-400 mt-1">Total Hrs</div>
                             </div>
                         </div>
-                        <div class="p-3 border-b border-gray-100 shrink-0 bg-white">
-                            <div class="flex gap-2 mb-2">
-                                <input type="date" id="dashOtDate" class="w-1/2 bg-gray-50 border border-gray-200 p-2 rounded-lg text-xs font-bold text-gray-700 outline-none focus:border-[#002e5d] cursor-pointer">
-                                <input type="number" step="0.25" min="0" id="dashOtHours" placeholder="Hours" class="w-1/2 bg-gray-50 border border-gray-200 p-2 rounded-lg text-xs font-bold text-gray-700 outline-none focus:border-[#002e5d]">
-                            </div>
+                        <div class="p-2 border-b border-gray-100 shrink-0 bg-white">
                             <div class="flex gap-2">
-                                <input type="text" id="dashOtDesc" placeholder="Description..." class="flex-1 bg-gray-50 border border-gray-200 p-2 rounded-lg text-xs font-bold text-gray-700 outline-none focus:border-[#002e5d]" onkeypress="if(event.key === 'Enter') quickLogOvertime()">
-                                <button onclick="quickLogOvertime()" class="bg-[#002e5d] hover:bg-[#001f3f] text-white text-[10px] font-black uppercase px-4 py-2 rounded-lg transition">Log</button>
+                                <input type="date" id="dashOtDate" class="w-1/3 bg-gray-50 border border-gray-200 p-1.5 rounded text-[10px] font-bold text-gray-700 outline-none focus:border-[#002e5d] cursor-pointer">
+                                <input type="number" step="0.25" min="0" id="dashOtHours" placeholder="Hrs" class="w-1/4 bg-gray-50 border border-gray-200 p-1.5 rounded text-[10px] font-bold text-gray-700 outline-none focus:border-[#002e5d]">
+                                <input type="text" id="dashOtDesc" placeholder="Desc..." class="flex-1 bg-gray-50 border border-gray-200 p-1.5 rounded text-[10px] font-bold text-gray-700 outline-none focus:border-[#002e5d]" onkeypress="if(event.key === 'Enter') quickLogOvertime()">
+                                <button onclick="quickLogOvertime()" class="bg-[#002e5d] hover:bg-[#001f3f] text-white text-[10px] font-black uppercase px-3 py-1.5 rounded transition">Log</button>
                             </div>
                         </div>
                         <div class="p-0 overflow-y-auto flex-1">
@@ -143,6 +151,7 @@
     let currentCdMode = 'sinedie';
     let currentCdDate = '2026-03-12';
     let radarBills = []; 
+    let dashSortables = [];
 
     // Header Date Setup
     const dateOptions = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
@@ -192,6 +201,7 @@
 
     window.onload = async () => {
         document.getElementById('dashOtDate').valueAsDate = new Date();
+        buildDashboardTimeline();
         await loadSidebar(); 
         await fetchUserProfile();
         refreshDashboard();
@@ -381,50 +391,154 @@
         }
     }
 
+    // --- TIMELINE & TASKS DASHBOARD LOGIC ---
+
+    function buildDashboardTimeline() {
+        const timeline = document.getElementById('dashTimelineContainer');
+        timeline.innerHTML = '';
+
+        for(let hour = 7; hour <= 18; hour++) {
+            const displayHour = hour > 12 ? hour - 12 : hour;
+            const ampm = hour >= 12 ? 'PM' : 'AM';
+            const timeStr = `${displayHour} ${ampm}`;
+            const timeKey = `${hour.toString().padStart(2, '0')}:00`;
+
+            timeline.innerHTML += `
+                <div class="flex border border-gray-200 rounded flex-col sm:flex-row bg-white overflow-hidden shadow-sm">
+                    <div class="bg-gray-100 sm:w-16 flex-shrink-0 flex items-center justify-center border-b sm:border-b-0 sm:border-r border-gray-200 text-[10px] font-black text-gray-500 uppercase tracking-wider py-1 sm:py-0">
+                        ${timeStr}
+                    </div>
+                    <div class="flex-1 p-1 dash-time-block-zone space-y-1 bg-white transition-colors" data-time="${timeKey}" id="dash-block-${timeKey}">
+                    </div>
+                </div>
+            `;
+        }
+    }
+
     async function fetchTodos() {
         try {
             const res = await fetch(`${workerBaseUrl}/todos`, { headers: authHeaders });
             if (!res.ok) throw new Error();
             const todos = await res.json();
-            const pendingTodos = todos.filter(t => !t.completed).slice(0, 5);
-            renderTodosWidget(pendingTodos);
+            renderTodosWidget(todos);
         } catch (e) {
             document.getElementById('dashTodos').innerHTML = '<div class="text-center text-red-400 text-xs font-bold py-5">Failed to load tasks.</div>';
         }
     }
 
-    function renderTodosWidget(pendingTodos) {
+    function renderTodosWidget(todos) {
         const container = document.getElementById('dashTodos');
+        const todayStr = new Date().toISOString().split('T')[0];
+        let schedule = JSON.parse(localStorage.getItem('legitile_schedule') || '{}');
+        let todaySchedule = schedule[todayStr] || {};
+
+        document.querySelectorAll('.dash-time-block-zone').forEach(zone => zone.innerHTML = '');
+        container.innerHTML = '';
+
+        const pendingTodos = todos.filter(t => !t.completed);
+
         if (pendingTodos.length === 0) {
-            container.innerHTML = `<div class="text-center text-gray-400 text-xs font-bold italic py-10">You're all caught up!</div>`;
+            container.innerHTML = `<div class="text-center text-gray-400 text-xs font-bold italic py-8">You're all caught up!</div>`;
             return;
         }
 
-        container.innerHTML = pendingTodos.map(todo => {
+        let unscheduledCount = 0;
+
+        pendingTodos.forEach(todo => {
             let dueBadge = '';
             if (todo.due_date) {
                 const isOverdue = new Date(todo.due_date) < new Date(new Date().setHours(0,0,0,0));
-                dueBadge = `<span class="text-[9px] font-black uppercase px-2 py-0.5 rounded ${isOverdue ? 'bg-red-50 text-red-600' : 'bg-gray-100 text-gray-500'}">${todo.due_date}</span>`;
+                dueBadge = `<span class="text-[9px] font-black uppercase px-1.5 py-0.5 rounded ${isOverdue ? 'bg-red-50 text-red-600' : 'bg-gray-100 text-gray-500'}">${todo.due_date}</span>`;
             }
-            return `
-                <div class="flex items-start gap-3 p-3 hover:bg-gray-50 rounded-lg transition border border-transparent hover:border-gray-100 mb-2 group">
-                    <input type="checkbox" onchange="toggleTodo('${todo.id}', this.checked)" class="mt-1 w-4 h-4 cursor-pointer accent-[#002e5d]">
+
+            const html = `
+                <div class="flex items-start gap-2 p-2 bg-white hover:bg-gray-50 rounded border border-gray-200 shadow-sm mb-2 group cursor-grab drag-handle" data-id="${todo.id}">
+                    <input type="checkbox" onchange="toggleTodo('${todo.id}', this.checked)" class="mt-0.5 w-3.5 h-3.5 cursor-pointer accent-[#002e5d] shrink-0">
                     <div class="flex-1 min-w-0">
-                        <div class="text-sm font-bold text-gray-700 leading-tight">${todo.text}</div>
-                        ${dueBadge ? `<div class="mt-1">${dueBadge}</div>` : ''}
+                        <div class="text-xs font-bold text-gray-700 leading-tight truncate" title="${todo.text}">${todo.text}</div>
+                        ${dueBadge ? `<div class="mt-0.5">${dueBadge}</div>` : ''}
                     </div>
                 </div>`;
-        }).join('');
+
+            if (todaySchedule[todo.id]) {
+                const block = document.getElementById(`dash-block-${todaySchedule[todo.id]}`);
+                if (block) block.innerHTML += html;
+            } else {
+                if (unscheduledCount < 15) { // Cap unscheduled view to keep dashboard clean
+                    container.innerHTML += html;
+                    unscheduledCount++;
+                }
+            }
+        });
+
+        if (unscheduledCount === 0 && pendingTodos.length > 0) {
+             container.innerHTML = `<div class="text-center text-gray-400 text-xs font-bold italic py-8">All current tasks are scheduled!</div>`;
+        }
+
+        initDashSortable();
+    }
+
+    function initDashSortable() {
+        dashSortables.forEach(s => s.destroy());
+        dashSortables = [];
+
+        const commonOptions = {
+            group: 'dash-tasks',
+            animation: 150,
+            ghostClass: 'opacity-50',
+            handle: '.drag-handle',
+            onEnd: function (evt) {
+                const el = evt.item;
+                const toEl = evt.to;
+                const id = el.getAttribute('data-id');
+
+                const todayStr = new Date().toISOString().split('T')[0];
+                let schedule = JSON.parse(localStorage.getItem('legitile_schedule') || '{}');
+                if (!schedule[todayStr]) schedule[todayStr] = {};
+
+                if (toEl.classList.contains('dash-time-block-zone')) {
+                    schedule[todayStr][id] = toEl.getAttribute('data-time');
+                } else {
+                    delete schedule[todayStr][id];
+                }
+                
+                localStorage.setItem('legitile_schedule', JSON.stringify(schedule));
+                // Note: We don't trigger a DB reorder from the dashboard to keep this widget lightweight. 
+                // It solely manages the local daily schedule.
+            }
+        };
+
+        const mainList = document.getElementById('dashTodos');
+        if (mainList) dashSortables.push(new Sortable(mainList, commonOptions));
+
+        document.querySelectorAll('.dash-time-block-zone').forEach(zone => {
+            dashSortables.push(new Sortable(zone, commonOptions));
+        });
     }
 
     async function toggleTodo(id, isCompleted) {
-        fetchTodos(); 
+        // Optimistically hide it
+        const el = document.querySelector(`div[data-id="${id}"]`);
+        if (el) el.style.display = 'none';
+
+        if (isCompleted) {
+            const todayStr = new Date().toISOString().split('T')[0];
+            let schedule = JSON.parse(localStorage.getItem('legitile_schedule') || '{}');
+            if (schedule[todayStr] && schedule[todayStr][id]) {
+                delete schedule[todayStr][id];
+                localStorage.setItem('legitile_schedule', JSON.stringify(schedule));
+            }
+        }
+
         await fetch(`${workerBaseUrl}/todos`, {
             method: 'POST',
             headers: authHeaders,
             body: JSON.stringify({ action: 'toggle', id: id, completed: isCompleted })
         });
+        fetchTodos(); 
     }
+
+    // --- OVERTIME DASHBOARD LOGIC ---
 
     async function fetchOvertime() {
         try {
@@ -446,7 +560,7 @@
                 return;
             }
 
-            const recentLogs = overtime.slice(0, 4);
+            const recentLogs = overtime.slice(0, 3); // Reduced to 3 to save vertical space
             tbody.innerHTML = recentLogs.map(record => {
                 let formattedDate = record.work_date;
                 if (record.work_date) {
@@ -456,9 +570,9 @@
                 }
                 return `
                     <tr class="hover:bg-gray-50 transition">
-                        <td class="p-3 w-16 text-[10px] font-bold text-gray-500 whitespace-nowrap">${formattedDate}</td>
-                        <td class="p-3 w-12 text-xs font-black text-[#002e5d]">${parseFloat(record.hours).toFixed(2)}</td>
-                        <td class="p-3 text-[10px] font-bold text-gray-600 truncate max-w-[120px]">${record.description || '<span class="italic opacity-50">No desc</span>'}</td>
+                        <td class="p-2.5 w-14 text-[9px] font-bold text-gray-500 whitespace-nowrap border-b border-gray-50">${formattedDate}</td>
+                        <td class="p-2.5 w-10 text-xs font-black text-[#002e5d] border-b border-gray-50">${parseFloat(record.hours).toFixed(2)}</td>
+                        <td class="p-2.5 text-[10px] font-bold text-gray-600 truncate max-w-[100px] border-b border-gray-50">${record.description || '<span class="italic opacity-50">No desc</span>'}</td>
                     </tr>`;
             }).join('');
         } catch (e) {
