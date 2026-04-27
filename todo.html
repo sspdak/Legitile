@@ -9,8 +9,10 @@
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
     <style>
         .leg-navy { background-color: #002e5d; }
-        /* Styling for the task being dragged */
         .sortable-ghost { opacity: 0.4; background-color: #eff6ff; }
+        /* Hide scrollbar for calendar task lists */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#002e5d">
@@ -21,15 +23,21 @@
     <div id="sidebar-container" class="flex-shrink-0 w-full md:w-28 md:h-full z-50"></div>
 
     <div class="flex-1 flex flex-col h-full overflow-hidden relative">
-        <header class="shrink-0 pt-8 pb-4 px-6 md:px-10 z-40 bg-gray-100 border-b border-gray-200">
-            <h1 class="text-2xl font-black text-gray-800 uppercase tracking-tight">Tasks</h1>
-            <p class="text-xs text-gray-500 font-bold mt-1">General action items and reminders.</p>
+        <header class="shrink-0 pt-8 pb-4 px-6 md:px-10 z-40 bg-gray-100 border-b border-gray-200 flex justify-between items-end">
+            <div>
+                <h1 class="text-2xl font-black text-gray-800 uppercase tracking-tight">Tasks</h1>
+                <p class="text-xs text-gray-500 font-bold mt-1">General action items and reminders.</p>
+            </div>
+            <div class="flex gap-2">
+                <button onclick="setView('list')" id="btnList" class="bg-[#002e5d] text-white px-4 py-2 rounded-lg text-[10px] font-black uppercase shadow-sm transition">List</button>
+                <button onclick="setView('calendar')" id="btnCal" class="bg-gray-200 text-gray-600 px-4 py-2 rounded-lg text-[10px] font-black uppercase hover:bg-gray-300 shadow-sm transition">Calendar</button>
+            </div>
         </header>
 
         <main class="flex-1 overflow-y-auto p-6 md:p-10 scroll-smooth">
             <div class="max-w-4xl mx-auto">
                 
-                <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-200 mb-8 flex flex-col sm:flex-row gap-3">
+                <div id="taskInputContainer" class="bg-white p-4 rounded-xl shadow-sm border border-gray-200 mb-8 flex flex-col sm:flex-row gap-3">
                     <input 
                         type="text" 
                         id="taskInput" 
@@ -55,6 +63,17 @@
                 <ul id="taskList" class="space-y-4 pb-20">
                     <div class="text-center text-gray-400 text-sm font-bold italic py-10 animate-pulse">Loading tasks from database...</div>
                 </ul>
+
+                <div id="calendarContainer" class="hidden flex-col gap-4 mb-8 pb-20">
+                    <div class="flex justify-between items-center bg-white p-4 rounded-xl shadow-sm border border-gray-200">
+                        <button onclick="changeMonth(-1)" class="text-xs font-black uppercase tracking-widest text-gray-500 hover:text-[#002e5d] px-4 py-2 rounded hover:bg-gray-50 transition">&larr; Prev</button>
+                        <h2 id="monthLabel" class="text-lg font-black text-[#002e5d] uppercase tracking-tight">Month Year</h2>
+                        <button onclick="changeMonth(1)" class="text-xs font-black uppercase tracking-widest text-gray-500 hover:text-[#002e5d] px-4 py-2 rounded hover:bg-gray-50 transition">Next &rarr;</button>
+                    </div>
+                    <div class="grid grid-cols-7 gap-1 sm:gap-2" id="calendarGrid">
+                        </div>
+                </div>
+
             </div>
         </main>
     </div>
@@ -70,6 +89,7 @@
         
         let tasks = [];
         let sortableInstance = null;
+        let calendarDate = new Date(); // Tracks the currently viewed month
 
         async function loadSidebar() {
             try {
@@ -93,6 +113,90 @@
             } catch (error) { console.error("Sidebar failed to load."); }
         }
 
+        // --- View Logic ---
+        function setView(view) {
+            const listBtn = document.getElementById('btnList');
+            const calBtn = document.getElementById('btnCal');
+            const listUI = document.getElementById('taskList');
+            const calUI = document.getElementById('calendarContainer');
+
+            if (view === 'list') {
+                listUI.classList.remove('hidden');
+                calUI.classList.add('hidden');
+                
+                listBtn.className = "bg-[#002e5d] text-white px-4 py-2 rounded-lg text-[10px] font-black uppercase shadow-sm transition";
+                calBtn.className = "bg-gray-200 text-gray-600 px-4 py-2 rounded-lg text-[10px] font-black uppercase hover:bg-gray-300 shadow-sm transition";
+            } else {
+                listUI.classList.add('hidden');
+                calUI.classList.remove('hidden');
+                
+                calBtn.className = "bg-[#002e5d] text-white px-4 py-2 rounded-lg text-[10px] font-black uppercase shadow-sm transition";
+                listBtn.className = "bg-gray-200 text-gray-600 px-4 py-2 rounded-lg text-[10px] font-black uppercase hover:bg-gray-300 shadow-sm transition";
+                
+                renderCalendar();
+            }
+        }
+
+        // --- Calendar Logic ---
+        function changeMonth(dir) {
+            calendarDate.setMonth(calendarDate.getMonth() + dir);
+            renderCalendar();
+        }
+
+        function renderCalendar() {
+            const grid = document.getElementById('calendarGrid');
+            const label = document.getElementById('monthLabel');
+            grid.innerHTML = '';
+            
+            const year = calendarDate.getFullYear();
+            const month = calendarDate.getMonth();
+            
+            label.innerText = new Date(year, month).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+            
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+            const firstDayIndex = new Date(year, month, 1).getDay();
+            
+            const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+            daysOfWeek.forEach(day => {
+                grid.innerHTML += `<div class="text-center text-[10px] font-black text-gray-400 uppercase py-2">${day}</div>`;
+            });
+            
+            for (let i = 0; i < firstDayIndex; i++) {
+                grid.innerHTML += `<div class="p-2 min-h-[80px] sm:min-h-[100px] bg-transparent rounded-lg border border-transparent"></div>`;
+            }
+            
+            for (let i = 1; i <= daysInMonth; i++) {
+                const mStr = String(month + 1).padStart(2, '0');
+                const dStr = String(i).padStart(2, '0');
+                const dateStr = `${year}-${mStr}-${dStr}`; // Format matches input type="date"
+                
+                // Fetch tasks for this specific day
+                const dayTasks = tasks.filter(t => t.due_date === dateStr);
+                
+                let tasksHtml = '';
+                dayTasks.forEach(t => {
+                    const bg = t.completed 
+                        ? 'bg-gray-100 text-gray-400 line-through border border-gray-200' 
+                        : 'bg-orange-50 text-orange-800 border border-orange-200 hover:bg-orange-100';
+                    tasksHtml += `<div onclick="toggleTask('${t.id}', ${t.completed}); event.stopPropagation();" class="text-[9px] sm:text-[10px] font-bold p-1 sm:p-1.5 mt-1 rounded truncate cursor-pointer transition ${bg}" title="${t.text}">${t.text}</div>`;
+                });
+                
+                const isToday = new Date().toDateString() === new Date(year, month, i).toDateString();
+                const dayStyle = isToday ? 'bg-blue-50 border-blue-200 shadow-sm' : 'bg-white border-gray-200 shadow-sm';
+                const numStyle = isToday ? 'text-[#002e5d] bg-blue-100 rounded px-1.5 py-0.5 inline-block' : 'text-gray-500';
+
+                grid.innerHTML += `
+                    <div class="p-1.5 sm:p-2 min-h-[80px] sm:min-h-[100px] rounded-lg border ${dayStyle} flex flex-col">
+                        <div class="text-[10px] sm:text-xs font-black ${numStyle} self-end">${i}</div>
+                        <div class="flex-1 mt-1 flex flex-col gap-0.5 overflow-y-auto no-scrollbar">
+                            ${tasksHtml}
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        // --- Core Task Fetching ---
         async function fetchTasks() {
             try {
                 const res = await fetch(`${workerBaseUrl}/todos`, { headers: authHeaders });
@@ -116,120 +220,117 @@
 
             if (tasks.length === 0) {
                 list.innerHTML = `<div class="text-center text-gray-400 text-sm font-bold italic py-10">All caught up! No active tasks.</div>`;
-                return;
-            }
-
-            tasks.forEach(task => {
-                const li = document.createElement('li');
-                li.setAttribute('data-id', task.id); // Crucial for drag and drop to know which task moved
-                
-                const isCompleted = task.completed === 1;
-                
-                const bgClass = isCompleted ? 'bg-gray-50 opacity-60' : 'bg-white';
-                const textClass = isCompleted ? 'line-through text-gray-400' : 'text-gray-800';
-                
-                // Only show drag handle if task is NOT completed
-                const dragHandleHtml = isCompleted ? `<div class="w-6 shrink-0"></div>` : `
-                    <div class="drag-handle cursor-grab hover:text-[#002e5d] text-gray-300 pt-1.5 px-1 transition-colors">
-                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 16 16">
-                            <path d="M4 4h2v2H4zm0 5h2v2H4zm0 5h2v2H4zm5-10h2v2H9zm0 5h2v2H9zm0 5h2v2H9z"/>
-                        </svg>
-                    </div>
-                `;
-                
-                let dueDateHtml = '';
-                if (task.due_date) {
-                    const dateParts = task.due_date.split('-');
-                    const dateObj = new Date(dateParts[0], dateParts[1] - 1, dateParts[2]); 
-                    const shortDate = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-                    const badgeColor = isCompleted ? 'bg-gray-200 text-gray-500' : 'bg-orange-100 text-orange-700 border border-orange-200';
-                    dueDateHtml = `<span class="ml-3 text-[10px] font-black uppercase tracking-wide px-2 py-0.5 rounded ${badgeColor}">Due: ${shortDate}</span>`;
-                }
-
-                const createdHtml = `<div class="text-[10px] text-gray-400 font-bold mt-1">Created: ${task.created_at}</div>`;
-
-                let subtasksHtml = '';
-                if (task.subtasks && task.subtasks.length > 0) {
-                    subtasksHtml = `<ul class="space-y-2 mt-3 w-full pl-12">` + task.subtasks.map(sub => `
-                        <li class="flex items-center gap-3 group">
-                            <input type="checkbox" ${sub.completed ? 'checked' : ''} onchange="toggleSubtask('${task.id}', '${sub.id}')" class="h-4 w-4 text-[#002e5d] rounded border-gray-300 cursor-pointer">
-                            <span class="text-sm font-bold flex-1 ${sub.completed ? 'text-gray-400 line-through' : 'text-gray-600'}">${sub.text}</span>
-                            <button onclick="deleteSubtask('${task.id}', '${sub.id}')" class="text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition px-2">×</button>
-                        </li>
-                    `).join('') + `</ul>`;
-                }
-
-                const subtaskInputHtml = `
-                    <div id="subtaskInputContainer_${task.id}" class="hidden pl-12 mt-3 pt-3 border-t border-gray-100 w-full">
-                        <div class="flex gap-2 w-full">
-                            <input type="text" id="subtaskInput_${task.id}" placeholder="Add subtask..." class="text-xs font-bold text-gray-600 p-2 border border-gray-200 rounded flex-1 outline-none focus:border-[#002e5d]" onkeypress="if(event.key === 'Enter') addSubtask('${task.id}')">
-                            <button onclick="addSubtask('${task.id}')" class="bg-gray-100 hover:bg-gray-200 border border-gray-200 text-gray-600 px-4 py-1.5 rounded text-[10px] uppercase font-black transition outline-none">Add</button>
+            } else {
+                tasks.forEach(task => {
+                    const li = document.createElement('li');
+                    li.setAttribute('data-id', task.id);
+                    
+                    const isCompleted = task.completed === 1;
+                    const bgClass = isCompleted ? 'bg-gray-50 opacity-60' : 'bg-white';
+                    const textClass = isCompleted ? 'line-through text-gray-400' : 'text-gray-800';
+                    
+                    const dragHandleHtml = isCompleted ? `<div class="w-6 shrink-0"></div>` : `
+                        <div class="drag-handle cursor-grab hover:text-[#002e5d] text-gray-300 pt-1.5 px-1 transition-colors">
+                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 16 16">
+                                <path d="M4 4h2v2H4zm0 5h2v2H4zm0 5h2v2H4zm5-10h2v2H9zm0 5h2v2H9zm0 5h2v2H9z"/>
+                            </svg>
                         </div>
-                    </div>
-                `;
+                    `;
+                    
+                    let dueDateHtml = '';
+                    if (task.due_date) {
+                        const dateParts = task.due_date.split('-');
+                        const dateObj = new Date(dateParts[0], dateParts[1] - 1, dateParts[2]); 
+                        const shortDate = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                        const badgeColor = isCompleted ? 'bg-gray-200 text-gray-500' : 'bg-orange-100 text-orange-700 border border-orange-200';
+                        dueDateHtml = `<span class="ml-3 text-[10px] font-black uppercase tracking-wide px-2 py-0.5 rounded ${badgeColor}">Due: ${shortDate}</span>`;
+                    }
 
-                li.className = `flex flex-col p-4 border border-gray-200 rounded-xl shadow-sm transition-all duration-200 ${bgClass}`;
-                if (isCompleted) li.classList.add('ignore-drag'); // Tell SortableJS not to drag this
-                
-                li.innerHTML = `
-                    <div class="flex items-start justify-between w-full">
-                        <div class="flex items-start gap-3 flex-1">
-                            ${dragHandleHtml}
-                            <input 
-                                type="checkbox" 
-                                ${isCompleted ? 'checked' : ''} 
-                                onchange="toggleTask('${task.id}', ${isCompleted})" 
-                                class="mt-1.5 w-5 h-5 text-[#002e5d] bg-gray-100 border-gray-300 rounded cursor-pointer transition shrink-0"
-                            >
-                            <div class="flex-1 pt-0.5">
-                                <div class="font-bold text-[15px] ${textClass}">
-                                    ${task.text} ${dueDateHtml}
-                                </div>
-                                ${createdHtml}
+                    const createdHtml = `<div class="text-[10px] text-gray-400 font-bold mt-1">Created: ${task.created_at}</div>`;
+
+                    let subtasksHtml = '';
+                    if (task.subtasks && task.subtasks.length > 0) {
+                        subtasksHtml = `<ul class="space-y-2 mt-3 w-full pl-12">` + task.subtasks.map(sub => `
+                            <li class="flex items-center gap-3 group">
+                                <input type="checkbox" ${sub.completed ? 'checked' : ''} onchange="toggleSubtask('${task.id}', '${sub.id}')" class="h-4 w-4 text-[#002e5d] rounded border-gray-300 cursor-pointer">
+                                <span class="text-sm font-bold flex-1 ${sub.completed ? 'text-gray-400 line-through' : 'text-gray-600'}">${sub.text}</span>
+                                <button onclick="deleteSubtask('${task.id}', '${sub.id}')" class="text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition px-2">×</button>
+                            </li>
+                        `).join('') + `</ul>`;
+                    }
+
+                    const subtaskInputHtml = `
+                        <div id="subtaskInputContainer_${task.id}" class="hidden pl-12 mt-3 pt-3 border-t border-gray-100 w-full">
+                            <div class="flex gap-2 w-full">
+                                <input type="text" id="subtaskInput_${task.id}" placeholder="Add subtask..." class="text-xs font-bold text-gray-600 p-2 border border-gray-200 rounded flex-1 outline-none focus:border-[#002e5d]" onkeypress="if(event.key === 'Enter') addSubtask('${task.id}')">
+                                <button onclick="addSubtask('${task.id}')" class="bg-gray-100 hover:bg-gray-200 border border-gray-200 text-gray-600 px-4 py-1.5 rounded text-[10px] uppercase font-black transition outline-none">Add</button>
                             </div>
                         </div>
-                        <div class="flex items-center gap-1 ml-4 shrink-0">
-                            <button onclick="toggleSubtaskInput('${task.id}')" class="text-[9px] font-black uppercase text-gray-400 hover:text-[#002e5d] bg-transparent hover:bg-blue-50 transition px-3 py-1.5 rounded border border-transparent hover:border-blue-100">
-                                + Subtask
-                            </button>
-                            <button 
-                                onclick="deleteTask('${task.id}')" 
-                                class="text-gray-300 hover:text-red-500 p-1.5 rounded transition-colors"
-                                title="Delete task"
-                            >
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                            </button>
-                        </div>
-                    </div>
-                    ${subtasksHtml}
-                    ${subtaskInputHtml}
-                `;
-                list.appendChild(li);
-            });
+                    `;
 
-            // Re-initialize SortableJS after rendering
-            initSortable();
+                    li.className = `flex flex-col p-4 border border-gray-200 rounded-xl shadow-sm transition-all duration-200 ${bgClass}`;
+                    if (isCompleted) li.classList.add('ignore-drag'); 
+                    
+                    li.innerHTML = `
+                        <div class="flex items-start justify-between w-full">
+                            <div class="flex items-start gap-3 flex-1">
+                                ${dragHandleHtml}
+                                <input 
+                                    type="checkbox" 
+                                    ${isCompleted ? 'checked' : ''} 
+                                    onchange="toggleTask('${task.id}', ${isCompleted})" 
+                                    class="mt-1.5 w-5 h-5 text-[#002e5d] bg-gray-100 border-gray-300 rounded cursor-pointer transition shrink-0"
+                                >
+                                <div class="flex-1 pt-0.5">
+                                    <div class="font-bold text-[15px] ${textClass}">
+                                        ${task.text} ${dueDateHtml}
+                                    </div>
+                                    ${createdHtml}
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-1 ml-4 shrink-0">
+                                <button onclick="toggleSubtaskInput('${task.id}')" class="text-[9px] font-black uppercase text-gray-400 hover:text-[#002e5d] bg-transparent hover:bg-blue-50 transition px-3 py-1.5 rounded border border-transparent hover:border-blue-100">
+                                    + Subtask
+                                </button>
+                                <button 
+                                    onclick="deleteTask('${task.id}')" 
+                                    class="text-gray-300 hover:text-red-500 p-1.5 rounded transition-colors"
+                                    title="Delete task"
+                                >
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                </button>
+                            </div>
+                        </div>
+                        ${subtasksHtml}
+                        ${subtaskInputHtml}
+                    `;
+                    list.appendChild(li);
+                });
+
+                initSortable();
+            }
+
+            // Sync the calendar view if it is currently visible
+            if (!document.getElementById('calendarContainer').classList.contains('hidden')) {
+                renderCalendar();
+            }
         }
 
         function initSortable() {
             const list = document.getElementById('taskList');
-            if (sortableInstance) {
-                sortableInstance.destroy();
-            }
+            if (sortableInstance) sortableInstance.destroy();
+            
             sortableInstance = new Sortable(list, {
-                handle: '.drag-handle', // Only grab via the icon
+                handle: '.drag-handle',
                 animation: 150,
                 ghostClass: 'sortable-ghost',
-                filter: '.ignore-drag', // Don't allow completed items to be dragged
+                filter: '.ignore-drag',
                 onEnd: async function () {
-                    // Extract the new order of IDs from the DOM
                     const listItems = Array.from(list.children);
                     const newOrderIds = listItems.map(li => li.getAttribute('data-id')).filter(id => id !== null);
 
-                    // Re-sort the local array silently
                     tasks.sort((a, b) => newOrderIds.indexOf(a.id) - newOrderIds.indexOf(b.id));
 
-                    // Send the new sequence to the database
                     await fetch(`${workerBaseUrl}/todos`, {
                         method: 'POST',
                         headers: authHeaders,
@@ -277,7 +378,6 @@
             
             if (taskIndex > -1) {
                 tasks[taskIndex].completed = newStatus;
-                // Re-sort so completed items drop to the bottom naturally
                 tasks.sort((a, b) => a.completed - b.completed || b.id - a.id);
                 renderTasks();
             }
@@ -328,7 +428,6 @@
                 completed: false
             });
             
-            // Instantly sort so the new item doesn't get buried under completed subtasks
             task.subtasks.sort((a, b) => a.completed - b.completed);
             
             renderTasks();
@@ -345,7 +444,6 @@
             const subtask = task.subtasks.find(s => s.id === subtaskId);
             subtask.completed = !subtask.completed;
             
-            // Push completed items to the bottom
             task.subtasks.sort((a, b) => a.completed - b.completed);
             
             renderTasks();
