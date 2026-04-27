@@ -91,8 +91,17 @@
                 </div>
 
                 <div class="flex flex-col gap-6">
+
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col overflow-hidden flex-1 min-h-[450px]">
+                        <div class="p-3 border-b border-gray-100 flex justify-between items-center bg-gray-50 shrink-0">
+                            <span class="text-[10px] font-black uppercase tracking-widest text-gray-400">Today's Schedule</span>
+                            <span class="text-[9px] font-bold text-gray-400" id="scheduleDateLabel"></span>
+                        </div>
+                        <div class="flex-1 overflow-y-auto p-3 space-y-2 bg-gray-50/50" id="dashTimelineContainer">
+                            </div>
+                    </div>
                     
-                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col overflow-hidden flex-1 min-h-[300px]">
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col overflow-hidden shrink-0 h-[250px]">
                         <div class="p-3 border-b border-gray-100 flex justify-between items-center bg-gray-50 shrink-0">
                             <span class="text-[10px] font-black uppercase tracking-widest text-gray-400">Unscheduled Tasks</span>
                             <a href="todo.html" class="text-[9px] font-bold uppercase text-blue-500 hover:text-blue-700 transition">Manage All &rarr;</a>
@@ -100,15 +109,6 @@
                         <div class="p-3 overflow-y-auto flex-1 bg-gray-50/50" id="dashTodos">
                             <div class="text-center text-gray-400 text-xs font-bold italic py-8 animate-pulse">Loading tasks...</div>
                         </div>
-                    </div>
-
-                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 flex flex-col overflow-hidden flex-1 min-h-[300px]">
-                        <div class="p-3 border-b border-gray-100 flex justify-between items-center bg-gray-50 shrink-0">
-                            <span class="text-[10px] font-black uppercase tracking-widest text-gray-400">Today's Schedule</span>
-                            <span class="text-[9px] font-bold text-gray-400" id="scheduleDateLabel"></span>
-                        </div>
-                        <div class="flex-1 overflow-y-auto p-3 space-y-2 bg-gray-50/50" id="dashTimelineContainer">
-                            </div>
                     </div>
 
                 </div>
@@ -529,7 +529,6 @@
                 ${subtasksHtml}
             `;
 
-            // Route to timeline or main unscheduled list
             if (isTaskScheduled && blockElement) {
                 blockElement.appendChild(taskDiv);
             } else {
@@ -560,6 +559,10 @@
                 document.getElementById(`dash-block-${todaySchedule[sub.id]}`).appendChild(subDiv);
             });
         });
+
+        if (unscheduledCount === 0 && pendingTodos.length > 0) {
+             container.innerHTML = `<div class="text-center text-gray-400 text-xs font-bold italic py-8">All current tasks are scheduled!</div>`;
+        }
 
         initDashSortable();
     }
