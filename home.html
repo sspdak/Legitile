@@ -188,7 +188,7 @@
         } catch (e) { console.error("Could not fetch user profile.", e); }
     }
     
-let refreshTimer;
+    let refreshTimer;
 
     window.onload = async () => {
         document.getElementById('dashOtDate').valueAsDate = new Date();
@@ -196,19 +196,15 @@ let refreshTimer;
         await fetchUserProfile();
         refreshDashboard();
         
-        // Start the normal 5-minute interval
         refreshTimer = setInterval(refreshDashboard, 300000);
     };
 
-    // Listen for the app being backgrounded or resumed
     document.addEventListener("visibilitychange", () => {
         if (document.visibilityState === "visible") {
-            // The app just woke up! Clear the old timer and run a fresh sync immediately.
             clearInterval(refreshTimer);
             refreshDashboard();
             refreshTimer = setInterval(refreshDashboard, 300000);
         } else {
-            // The app was minimized. Pause the timer to save battery and prevent error pileups.
             clearInterval(refreshTimer);
         }
     });
@@ -430,17 +426,15 @@ let refreshTimer;
         });
     }
 
-async function fetchOvertime() {
+    async function fetchOvertime() {
         try {
-            // Calculate current session year dynamically
             const today = new Date();
             const currentSession = today.getMonth() >= 9 ? today.getFullYear() + 1 : today.getFullYear();
             
-            // Pass it to the worker
             const res = await fetch(`${workerBaseUrl}/overtime?session_year=${currentSession}`, { headers: authHeaders });
             if (!res.ok) throw new Error();
             
-            // ... rest of the function stays the same
+            const overtime = await res.json();
             
             let totalHrs = 0;
             overtime.forEach(r => totalHrs += parseFloat(r.hours || 0));
