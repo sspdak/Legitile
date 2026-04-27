@@ -94,6 +94,7 @@
         
         let tasks = [];
         let sortables = [];
+        let expandedTasks = new Set(); // Tracks which tasks have their subtasks expanded
 
         async function loadSidebar() {
             try {
@@ -157,6 +158,16 @@
             }
         }
 
+        function toggleSubtaskList(taskId, event) {
+            if(event) event.stopPropagation();
+            if (expandedTasks.has(taskId)) {
+                expandedTasks.delete(taskId);
+            } else {
+                expandedTasks.add(taskId);
+            }
+            renderTasks();
+        }
+
         function renderTasks() {
             const list = document.getElementById('taskList');
             list.innerHTML = '';
@@ -176,8 +187,8 @@
                 const isTaskScheduled = !!todaySchedule[task.id];
                 const blockElement = document.getElementById(`block-${todaySchedule[task.id]}`);
                 const isCompleted = task.completed === 1;
+                const isExpanded = expandedTasks.has(task.id);
                 
-                // Separate subtasks into scheduled vs unscheduled
                 const scheduledSubtasks = [];
                 const unscheduledSubtasks = [];
 
@@ -211,8 +222,16 @@
                     dueDateHtml = `<span class="ml-3 text-[10px] font-black uppercase tracking-wide px-2 py-0.5 rounded ${badgeColor}">Due: ${shortDate}</span>`;
                 }
 
-                // Render Unscheduled Subtasks inside the main task
-                let subtasksHtml = `<div class="space-y-2 mt-3 w-full pl-12 subtask-list-zone min-h-[20px] pb-2" data-parent-id="${task.id}">`;
+                let subtaskToggleHtml = '';
+                if (unscheduledSubtasks.length > 0) {
+                    subtaskToggleHtml = `
+                        <button onclick="toggleSubtaskList('${task.id}', event)" class="mt-2 text-[10px] font-black uppercase text-gray-500 hover:text-[#002e5d] transition bg-gray-50 hover:bg-gray-100 px-2 py-1 rounded border border-gray-200 flex items-center gap-1 focus:outline-none">
+                            ${unscheduledSubtasks.length} Subtasks <span class="text-[8px]">${isExpanded ? '▲' : '▼'}</span>
+                        </button>
+                    `;
+                }
+
+                let subtasksHtml = `<div class="${isExpanded ? 'block' : 'hidden'} space-y-2 mt-3 w-full pl-12 subtask-list-zone min-h-[20px] pb-2" data-parent-id="${task.id}">`;
                 if (unscheduledSubtasks.length > 0) {
                     subtasksHtml += unscheduledSubtasks.map(sub => `
                         <div class="flex items-center gap-3 group bg-white border border-gray-100 p-2 rounded shadow-sm" data-id="${sub.id}" data-is-subtask="true" data-parent-id="${task.id}">
@@ -234,7 +253,6 @@
                     </div>
                 `;
 
-                // Render the Main Task Wrapper
                 const taskDiv = document.createElement('div');
                 taskDiv.setAttribute('data-id', task.id);
                 taskDiv.setAttribute('data-is-subtask', 'false');
@@ -255,14 +273,17 @@
                                 <div class="font-bold text-[15px] ${textClass}">
                                     ${task.text} ${dueDateHtml}
                                 </div>
-                                <div class="text-[10px] text-gray-400 font-bold mt-1">Created: ${task.created_at}</div>
+                                <div class="flex items-center gap-3">
+                                    <div class="text-[10px] text-gray-400 font-bold mt-1">Created: ${task.created_at}</div>
+                                </div>
+                                ${subtaskToggleHtml}
                             </div>
                         </div>
                         <div class="flex items-center gap-1 ml-4 shrink-0">
-                            <button onclick="toggleSubtaskInput('${task.id}')" class="text-[9px] font-black uppercase text-gray-400 hover:text-[#002e5d] bg-transparent hover:bg-blue-50 transition px-3 py-1.5 rounded border border-transparent hover:border-blue-100">
+                            <button onclick="toggleSubtaskInput('${task.id}')" class="text-[9px] font-black uppercase text-gray-400 hover:text-[#002e5d] bg-transparent hover:bg-blue-50 transition px-3 py-1.5 rounded border border-transparent hover:border-blue-100 focus:outline-none">
                                 + Subtask
                             </button>
-                            <button onclick="deleteTask('${task.id}')" class="text-gray-300 hover:text-red-500 p-1.5 rounded transition-colors" title="Delete task">
+                            <button onclick="deleteTask('${task.id}')" class="text-gray-300 hover:text-red-500 p-1.5 rounded transition-colors focus:outline-none" title="Delete task">
                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
                             </button>
                         </div>
@@ -271,14 +292,12 @@
                     ${subtaskInputHtml}
                 `;
                 
-                // Route task to the timeline or the main list
                 if (isTaskScheduled && blockElement && !isCompleted) {
                     blockElement.appendChild(taskDiv);
                 } else {
                     list.appendChild(taskDiv);
                 }
 
-                // Render Scheduled Subtasks directly into the timeline blocks
                 scheduledSubtasks.forEach(sub => {
                     const subDiv = document.createElement('div');
                     subDiv.setAttribute('data-id', sub.id);
@@ -295,7 +314,7 @@
                             <span class="text-[9px] font-black uppercase text-gray-400 tracking-widest leading-none mb-0.5">Subtask of: ${task.text.substring(0,25)}${task.text.length > 25 ? '...' : ''}</span>
                             <span class="text-sm font-bold text-gray-800 leading-tight">${sub.text}</span>
                         </div>
-                        <button onclick="deleteSubtask('${task.id}', '${sub.id}')" class="text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition px-2">×</button>
+                        <button onclick="deleteSubtask('${task.id}', '${sub.id}')" class="text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition px-2 focus:outline-none">×</button>
                     `;
                     document.getElementById(`block-${todaySchedule[sub.id]}`).appendChild(subDiv);
                 });
@@ -332,7 +351,6 @@
                             localStorage.setItem('legitile_schedule', JSON.stringify(schedule));
                         }
 
-                        // Reorder main tasks if dropped in main list
                         if (!isSubtask && toEl.id === 'taskList') {
                             const listItems = Array.from(toEl.children);
                             const newOrderIds = listItems.map(li => li.getAttribute('data-id')).filter(i => i !== null);
@@ -345,7 +363,6 @@
                             });
                         }
 
-                        // Reorder subtasks if dropped back into their parent's list
                         if (isSubtask && toEl.classList.contains('subtask-list-zone')) {
                             const parentId = toEl.getAttribute('data-parent-id');
                             const parentTask = tasks.find(t => t.id === parentId);
@@ -360,7 +377,6 @@
                 }
             };
 
-            // Main Task List Rules (Only accept main tasks)
             const mainList = document.getElementById('taskList');
             if (mainList) {
                 sortables.push(new Sortable(mainList, {
@@ -369,7 +385,6 @@
                 }));
             }
 
-            // Timeline Block Rules (Accept both main and subtasks)
             document.querySelectorAll('.time-block-zone').forEach(zone => {
                 sortables.push(new Sortable(zone, {
                     ...commonOptions,
@@ -377,7 +392,6 @@
                 }));
             });
 
-            // Subtask Parent Zone Rules (Only accept their own specific subtasks)
             document.querySelectorAll('.subtask-list-zone').forEach(zone => {
                 sortables.push(new Sortable(zone, {
                     ...commonOptions,
@@ -467,15 +481,16 @@
             });
         }
 
-        // --- SUBTASK FUNCTIONS ---
-
         function toggleSubtaskInput(taskId) {
             const container = document.getElementById(`subtaskInputContainer_${taskId}`);
             const input = document.getElementById(`subtaskInput_${taskId}`);
             
             if (container.classList.contains('hidden')) {
-                container.classList.remove('hidden');
-                input.focus();
+                expandedTasks.add(taskId); // Auto-expand the list so they can see the input
+                renderTasks(); // Re-render to show expansion
+                // After re-render, grab the newly unhidden elements to focus
+                document.getElementById(`subtaskInputContainer_${taskId}`).classList.remove('hidden');
+                document.getElementById(`subtaskInput_${taskId}`).focus();
             } else {
                 container.classList.add('hidden');
             }
@@ -497,6 +512,7 @@
             
             task.subtasks.sort((a, b) => a.completed - b.completed);
             
+            expandedTasks.add(taskId); // Ensure expanded when adding
             renderTasks();
             
             const container = document.getElementById(`subtaskInputContainer_${taskId}`);
@@ -521,6 +537,7 @@
             }
 
             task.subtasks.sort((a, b) => a.completed - b.completed);
+            expandedTasks.add(taskId); // Keep it open if they are interacting with it
             renderTasks();
             await syncSubtasks(taskId);
         }
@@ -536,6 +553,7 @@
                 localStorage.setItem('legitile_schedule', JSON.stringify(schedule));
             }
 
+            expandedTasks.add(taskId); // Keep list open
             renderTasks();
             await syncSubtasks(taskId);
         }
