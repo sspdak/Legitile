@@ -41,6 +41,7 @@
                     </div>
                     <input type="text" id="reportInput" placeholder="Enter phrases separated by commas (e.g. housing, tax, emergency)" class="flex-1 border-2 border-gray-200 p-3 rounded-lg outline-none focus:border-[#002e5d] font-bold text-gray-700" onkeypress="if(event.key === 'Enter') generateReport()">
                     <button onclick="saveCurrentQuery()" class="bg-blue-50 text-blue-600 hover:bg-blue-100 border border-blue-200 text-[12px] font-black uppercase px-4 py-3 rounded-lg shadow-sm transition" title="Save this search">💾 Save</button>
+                    <button onclick="generateCollisionReport()" id="collisionBtn" class="bg-orange-50 text-orange-600 hover:bg-orange-100 border border-orange-200 text-[12px] font-black uppercase px-4 py-3 rounded-lg shadow-sm transition" title="Find overlapping bills">Detect Collisions</button>
                     <button onclick="generateReport()" id="generateBtn" class="bg-[#002e5d] hover:bg-[#001f3f] text-white text-[12px] font-black uppercase px-8 py-3 rounded-lg shadow-sm transition">Generate</button>
                 </div>
                 <div class="flex items-center gap-3">
@@ -56,6 +57,7 @@
                 <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
                     <div id="reportStats" class="px-6 py-4 text-sm font-bold text-gray-700 bg-gray-50 border-b border-gray-200 hidden"></div>
                     <div class="overflow-x-auto">
+                        
                         <table class="w-full text-left border-collapse" id="reportTable">
                             <thead>
                                 <tr class="bg-gray-50 text-gray-500 text-[10px] uppercase tracking-wider font-black border-b border-gray-200">
@@ -74,6 +76,19 @@
                                 </tr>
                             </tbody>
                         </table>
+
+                        <table class="w-full text-left border-collapse hidden" id="collisionTable">
+                            <thead>
+                                <tr class="bg-gray-50 text-gray-500 text-[10px] uppercase tracking-wider font-black border-b border-gray-200">
+                                    <th class="p-4 w-48">RCW Number</th>
+                                    <th class="p-4 w-32 text-center">Collision Count</th>
+                                    <th class="p-4">Impacting Bills</th>
+                                </tr>
+                            </thead>
+                            <tbody id="collisionGrid" class="text-sm divide-y divide-gray-100">
+                            </tbody>
+                        </table>
+
                     </div>
                 </div>
             </div>
@@ -91,6 +106,7 @@
     };
 
     let currentReportData = [];
+    let isCollisionView = false;
 
     async function loadSidebar() {
         try {
@@ -108,21 +124,18 @@
         } catch (error) { console.error("Sidebar failed to load."); }
     }
 
-async function updateSavedQueriesDropdown() {
+    async function updateSavedQueriesDropdown() {
         const dropdown = document.getElementById('savedQueriesDropdown');
         dropdown.innerHTML = '<option value="">-- Loading... --</option>';
         try {
-            // CACHE BUSTER: Appending ?t=timestamp forces the browser to ignore cache
             const timestamp = Date.now();
             const res = await fetch(`${workerBaseUrl}/saved-queries?t=${timestamp}`, { 
                 headers: authHeaders,
-                cache: 'no-store' // Extra instruction to prevent caching
+                cache: 'no-store' 
             });
             
             if (!res.ok) {
-                const err = await res.text();
                 dropdown.innerHTML = `<option value="">-- Load Error --</option>`;
-                alert(`Fetch Error: ${res.status} - ${err}`);
                 return;
             }
 
@@ -130,7 +143,6 @@ async function updateSavedQueriesDropdown() {
             
             if (saved.error) {
                 dropdown.innerHTML = `<option value="">-- Backend Error --</option>`;
-                alert(`Backend Error: ${saved.error}`);
                 return;
             }
 
@@ -146,7 +158,6 @@ async function updateSavedQueriesDropdown() {
                 dropdown.innerHTML = '<option value="">-- No saved searches --</option>';
             }
         } catch (error) { 
-            console.error(error);
             dropdown.innerHTML = '<option value="">-- Network Error --</option>'; 
         }
     }
@@ -191,7 +202,7 @@ async function updateSavedQueriesDropdown() {
         btn.disabled = false;
     }
 
-async function saveCurrentQuery() {
+    async function saveCurrentQuery() {
         const query = document.getElementById('reportInput').value.trim();
         if (!query) {
             alert("Please enter a phrase first.");
@@ -222,11 +233,8 @@ async function saveCurrentQuery() {
                 saveBtn.innerText = originalText;
                 return;
             }
-
-            // It successfully saved! Force the dropdown to rebuild.
             await updateSavedQueriesDropdown();
         } catch (error) { 
-            console.error("Failed to save query:", error);
             alert(`Network Error: ${error.message}`);
         }
         saveBtn.innerText = originalText;
@@ -237,7 +245,7 @@ async function saveCurrentQuery() {
         if (dropdown.value) document.getElementById('reportInput').value = dropdown.value;
     }
 
-   async function clearSavedQueries() {
+    async function clearSavedQueries() {
         if (!confirm("Are you sure you want to delete all saved searches?")) return;
         try {
             const res = await fetch(`${workerBaseUrl}/saved-queries`, {
@@ -245,15 +253,12 @@ async function saveCurrentQuery() {
                 headers: authHeaders,
                 body: JSON.stringify({ action: "clear" })
             });
-            
             if(!res.ok) {
                 alert(`Failed to clear: ${await res.text()}`);
                 return;
             }
-            
             await updateSavedQueriesDropdown();
         } catch (error) { 
-            console.error("Failed to clear queries:", error); 
             alert("Network error while trying to clear searches.");
         }
     }
@@ -324,7 +329,74 @@ async function saveCurrentQuery() {
         }
     }
 
+    function toggleViewMode(mode) {
+        isCollisionView = mode === 'collision';
+        const reportTable = document.getElementById('reportTable');
+        const collisionTable = document.getElementById('collisionTable');
+        
+        if (isCollisionView) {
+            reportTable.classList.add('hidden');
+            collisionTable.classList.remove('hidden');
+            document.getElementById('exportBtn').classList.add('hidden');
+        } else {
+            collisionTable.classList.add('hidden');
+            reportTable.classList.remove('hidden');
+        }
+    }
+
+    async function generateCollisionReport() {
+        toggleViewMode('collision');
+        const biennium = document.getElementById('reportBiennium').value;
+        const collisionBtn = document.getElementById('collisionBtn');
+        const collisionGrid = document.getElementById('collisionGrid');
+        const statsDiv = document.getElementById('reportStats');
+
+        collisionBtn.innerText = "Scanning...";
+        collisionBtn.disabled = true;
+        statsDiv.classList.add('hidden');
+        collisionGrid.innerHTML = '<tr><td colspan="3" class="p-8 text-center text-orange-500 font-bold animate-pulse">Running collision analysis...</td></tr>';
+
+        try {
+            const res = await fetch(`${searchApiUrl}/collision-report?biennium=${encodeURIComponent(biennium)}`);
+            const data = await res.json();
+            
+            if (data.error) throw new Error(data.error);
+
+            if (data.length === 0) {
+                collisionGrid.innerHTML = '<tr><td colspan="3" class="p-8 text-center text-gray-500 font-bold">No overlapping RCWs found for this session yet. Ensure the background scraper is running.</td></tr>';
+            } else {
+                const year = biennium.split('-')[0];
+                collisionGrid.innerHTML = data.map(item => {
+                    const billLinks = item.bill_list.split(',').map(b => b.trim()).map(billNum => {
+                        const numericBill = billNum.replace(/\D/g, '');
+                        return `<a href="https://app.leg.wa.gov/billsummary/?BillNumber=${numericBill}&Year=${year}&Initiative=false" target="_blank" class="inline-block bg-gray-100 hover:bg-blue-50 text-gray-700 hover:text-blue-700 font-black text-xs px-2 py-1 rounded border border-gray-200 hover:border-blue-200 transition mb-1 mr-1">${billNum}</a>`;
+                    }).join('');
+
+                    return `
+                    <tr class="hover:bg-gray-50 transition border-b border-gray-100 last:border-0">
+                        <td class="p-4 font-black text-gray-800 align-top pt-5">RCW ${item.rcw_number}</td>
+                        <td class="p-4 align-top pt-5 text-center">
+                            <span class="bg-red-50 text-red-600 font-black px-2 py-1 rounded border border-red-200 text-xs">${item.colliding_bills}</span>
+                        </td>
+                        <td class="p-4 align-top pt-5">
+                            <div class="flex flex-wrap">${billLinks}</div>
+                        </td>
+                    </tr>`;
+                }).join('');
+                
+                statsDiv.innerHTML = `Found <span class="text-orange-600 font-black">${data.length}</span> contested RCWs with multiple active bills trying to amend them.`;
+                statsDiv.classList.remove('hidden');
+            }
+        } catch (e) {
+            collisionGrid.innerHTML = `<tr><td colspan="3" class="p-8 text-center text-red-500 font-bold">Error: ${e.message}</td></tr>`;
+        }
+
+        collisionBtn.innerText = "Detect Collisions";
+        collisionBtn.disabled = false;
+    }
+
     async function generateReport() {
+        toggleViewMode('phrase');
         const rawQuery = document.getElementById('reportInput').value.trim();
         const biennium = document.getElementById('reportBiennium').value;
         const reportGrid = document.getElementById('reportGrid');
@@ -461,7 +533,7 @@ async function saveCurrentQuery() {
         generateBtn.innerText = "Generate"; generateBtn.disabled = false;
     }
 
-function exportToCSV() {
+    function exportToCSV() {
         if (currentReportData.length === 0) return;
         
         const headers = [
