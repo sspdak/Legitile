@@ -86,10 +86,28 @@
 
         function startEngine() { syncData(); setInterval(syncData, 3000); }
 
-        async function syncData() {
+async function syncData() {
             try {
                 const statusRes = await fetch(`${API_URL}/api/status`);
                 currentState = await statusRes.json();
+                
+                // --- NEW: FORCED SESSION RESET ---
+                const serverHash = currentState.hash;
+                const localHash = localStorage.getItem('votetile_session_hash');
+                
+                if (serverHash && localHash !== serverHash) {
+                    // This triggers if the Admin ran a Factory Reset
+                    localStorage.removeItem('votetile_voter_id');
+                    localStorage.removeItem('votetile_voter_name');
+                    localStorage.removeItem('votetile_r1_' + myVoterId);
+                    localStorage.removeItem('votetile_r2_' + myVoterId);
+                    localStorage.setItem('votetile_session_hash', serverHash);
+                    location.reload(); // Force refresh to login screen
+                    return;
+                }
+                localStorage.setItem('votetile_session_hash', serverHash);
+                // ---------------------------------
+
                 const topicsRes = await fetch(`${API_URL}/api/topics`);
                 activeTopics = await topicsRes.json();
 
