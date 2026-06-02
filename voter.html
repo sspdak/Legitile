@@ -30,154 +30,6 @@
                 <div>
                     <h1 class="text-xl font-bold tracking-tight">Voter Dashboard</h1>
                     <p class="text-xs text-indigo-200 mt-1" id="welcome-text">Welcome back</p>
-                    <div id="group-badge" class="mt-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-indigo-800/50 text-indigo-100 uppercase tracking-wider hidden">
-                        Group: <span id="group-name" class="ml-1 text-white">None</span>
-                    </div>
-                </div>
-                <div class="flex gap-2">
-                    <span id="badge-gate" class="px-3 py-1 bg-indigo-800 rounded-full text-xs font-bold border border-indigo-700">Syncing...</span>
-                    <span id="badge-round" class="px-3 py-1 bg-indigo-100 text-indigo-800 rounded-full text-xs font-bold">Round --</span>
-                </div>
-            </header>
-
-            <div id="voting-canvas" class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 min-h-[400px]">
-                <div id="sync-status" class="text-center py-10 text-slate-400 text-sm font-medium animate-pulse">Syncing with system...</div>
-            </div>
-        </div>
-    </main>
-
-    <script>
-        const API_URL = "https://votetile-api.ewing-jacob.workers.dev";
-        let myVoterId = localStorage.getItem('votetile_voter_id');
-        let myVoterName = localStorage.getItem('votetile_voter_name');
-        
-        let myR1Votes = JSON.parse(localStorage.getItem(`votetile_r1_${myVoterId}`)) || {};
-        let myR2Votes = JSON.parse(localStorage.getItem(`votetile_r2_${myVoterId}`)) || {};
-        
-        let currentState = { round: '1', gate: 'open', limits: 0, published: 'false', hash: '' };
-        let activeTopics = [], myGroupFeed = [], finalResultsData = null;
-        let isReadyState = false;
-        
-        window.addEventListener('DOMContentLoaded', () => {
-            if (myVoterId && myVoterName) { showPortal(); startEngine(); } 
-            else { document.getElementById('view-login').classList.remove('hidden'); }
-        });
-
-        async function joinSession() {
-            const nameInput = document.getElementById('voter-name-input').value.trim();
-            if (!nameInput) return alert("Please enter your name.");
-            try {
-                const res = await fetch(`${API_URL}/api/voter/join`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: nameInput }) });
-                const data = await res.json();
-                myVoterId = data.voterId; myVoterName = data.name;
-                localStorage.setItem('votetile_voter_id', myVoterId); localStorage.setItem('votetile_voter_name', myVoterName);
-                showPortal(); startEngine();
-            } catch (err) { alert("Failed to connect."); }
-        }
-
-        function showPortal() {
-            document.getElementById('view-login').classList.add('hidden');
-            document.getElementById('view-portal').classList.remove('hidden');
-            document.getElementById('welcome-text').innerText = `Participant: ${escapeHtml(myVoterName)}`;
-        }
-
-        function startEngine() { syncData(); setInterval(syncData, 5000); }
-
-        async function syncData() {
-            try {
-                const statusRes = await fetch(`${API_URL}/api/status`);
-                currentState = await statusRes.json();
-                
-                // Hash Security Check
-                const serverHash = currentState.hash;
-                const localHash = localStorage.getItem('votetile_session_hash');
-                if (serverHash && localHash && localHash !== serverHash) {
-                    localStorage.clear(); location.reload(); return;
-                }
-                localStorage.setItem('votetile_session_hash', serverHash);
-
-                const rosterRes = await fetch(`${API_URL}/api/admin/roster`);
-                const rosterData = await rosterRes.json();
-                const me = rosterData.voters.find(v => v.voter_id === myVoterId);
-                
-                if (me) {
-                    isReadyState = me.status === `ready_r${currentState.round}`;
-                    const groupBadge = document.getElementById('group-badge');
-                    if (me.group_id && me.group_id !== 'unassigned') {
-                        groupBadge.classList.remove('hidden');
-                        document.getElementById('group-name').innerText = escapeHtml(me.group_id);
-                        
-                        if (currentState.round === '2') {
-                            const feedRes = await fetch(`${API_URL}/api/feed/group`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ groupId: me.group_id }) });
-                            myGroupFeed = await feedRes.json();
-                        }
-                    }
-                }
-
-                const topicsRes = await fetch(`${API_URL}/api/topics`);
-                activeTopics = await topicsRes.json();
-
-                if (currentState.published === 'true') {
-                    const resultsRes = await fetch(`${API_URL}/api/admin/results`);
-                    finalResultsData = await resultsRes.json();
-                }
-
-                updateUI();
-            } catch (err) {
-                document.getElementById('sync-status').innerHTML = `
-                    <div class="text-red-500 font-bold">Connection Lost</div>
-                    <button onclick="location.reload()" class="mt-4 bg-indigo-600 text-white px-6 py-2 rounded-lg">Reconnect</button>`;
-            }
-        }
-
-        function updateUI() {
-            document.getElementById('badge-gate').innerText = currentState.gate === 'open' ? '🟢 Open' : '🔒 Closed';
-            document.getElementById('badge-round').innerText = `Round ${currentState.round}`;
-            
-            if (currentState.published === 'true') renderPublishedResults();
-            else if (currentState.round === '1') renderRound1();
-            else renderRound2();
-        }
-
-        // ... (Include your existing renderRound1, renderRound2, and helper functions here) ...
-    </script>
-</body>
-</html><!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VoteTile - Participant Portal</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        input[type="number"]::-webkit-inner-spin-button, 
-        input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
-        input[type="number"] { -moz-appearance: textfield; }
-    </style>
-</head>
-<body class="bg-slate-50 text-slate-800 font-sans p-4 md:p-6 min-h-screen">
-
-    <main class="max-w-3xl mx-auto">
-        <div id="view-login" class="bg-white p-8 rounded-xl shadow-sm border border-slate-200 mt-10 max-w-md mx-auto space-y-6">
-            <div class="text-center">
-                <h1 class="text-2xl font-bold tracking-tight text-indigo-900">Conference Selection</h1>
-                <p class="text-sm text-slate-500 mt-2">Enter your name to join the voting session.</p>
-            </div>
-            <div class="space-y-4">
-                <input type="text" id="voter-name-input" placeholder="First and Last Name" class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-indigo-500 text-sm">
-                <button onclick="joinSession()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-lg transition-colors cursor-pointer">Join Session</button>
-            </div>
-        </div>
-
-        <div id="view-portal" class="hidden space-y-6">
-            <header class="bg-indigo-900 text-white p-4 md:p-6 rounded-xl shadow-md flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <div>
-                    <h1 class="text-xl font-bold tracking-tight">Voter Dashboard</h1>
-                    <p class="text-xs text-indigo-200 mt-1" id="welcome-text">Welcome back</p>
-                    <!-- NEW: Group Indicator -->
-                    <div id="group-badge" class="mt-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-indigo-800/50 text-indigo-100 uppercase tracking-wider hidden">
-                        Group: <span id="group-name" class="ml-1 text-white">None</span>
-                    </div>
                 </div>
                 <div class="flex gap-2">
                     <span id="badge-gate" class="px-3 py-1 bg-indigo-800 rounded-full text-xs font-bold border border-indigo-700">Checking...</span>
@@ -200,13 +52,12 @@
         const API_URL = "https://votetile-api.ewing-jacob.workers.dev";
         let myVoterId = localStorage.getItem('votetile_voter_id');
         let myVoterName = localStorage.getItem('votetile_voter_name');
-        let myGroup = 'unassigned';
         
         let myR1Votes = JSON.parse(localStorage.getItem(`votetile_r1_${myVoterId}`)) || {};
         let myR2Votes = JSON.parse(localStorage.getItem(`votetile_r2_${myVoterId}`)) || {};
         
         let currentState = { round: '1', gate: 'open', limits: 0, published: 'false', hash: '' };
-        let activeTopics = [], myGroupFeed = [], finalResultsData = null;
+        let activeTopics = [], myGroupFeed = [], finalResultsData = null, finalGroupResults = null;
         let isReadyState = false;
         
         window.addEventListener('DOMContentLoaded', () => {
@@ -222,7 +73,7 @@
                 const data = await res.json();
                 myVoterId = data.voterId; myVoterName = data.name;
                 localStorage.setItem('votetile_voter_id', myVoterId); localStorage.setItem('votetile_voter_name', myVoterName);
-                myR1Votes = {}; myR2Votes = {}; isReadyState = false;
+                myR1Votes = {}; myR2Votes = {};
                 showPortal(); startEngine();
             } catch (err) { alert("Failed to connect to voting server."); }
         }
@@ -240,29 +91,18 @@
                 const statusRes = await fetch(`${API_URL}/api/status`);
                 currentState = await statusRes.json();
                 
-                // --- UPDATE: Sync Group Assignment ---
-                const rosterRes = await fetch(`${API_URL}/api/admin/roster`);
-                const rosterData = await rosterRes.json();
-                const me = rosterData.voters.find(v => v.voter_id === myVoterId);
-                if (me) {
-                    myGroup = me.group_id;
-                    isReadyState = me.status === `ready_r${currentState.round}`;
-                    
-                    const groupBadge = document.getElementById('group-badge');
-                    const groupName = document.getElementById('group-name');
-                    if (myGroup && myGroup !== 'unassigned') {
-                        groupBadge.classList.remove('hidden');
-                        groupName.innerText = escapeHtml(myGroup);
-                    } else {
-                        groupBadge.classList.add('hidden');
-                    }
-                }
+                isReadyState = localStorage.getItem(`votetile_ready_r${currentState.round}_${myVoterId}`) === 'true';
 
                 const serverHash = currentState.hash;
                 const localHash = localStorage.getItem('votetile_session_hash');
                 if (serverHash && localHash !== serverHash) {
-                    if (!localHash) localStorage.setItem('votetile_session_hash', serverHash);
-                    else { localStorage.clear(); localStorage.setItem('votetile_session_hash', serverHash); location.reload(); return; }
+                    if (!localHash) {
+                        localStorage.setItem('votetile_session_hash', serverHash);
+                    } else {
+                        localStorage.clear();
+                        localStorage.setItem('votetile_session_hash', serverHash);
+                        location.reload(); return;
+                    }
                 }
 
                 const topicsRes = await fetch(`${API_URL}/api/topics`);
@@ -271,11 +111,21 @@
                 if (currentState.published === 'true') {
                     const resultsRes = await fetch(`${API_URL}/api/admin/results`);
                     finalResultsData = await resultsRes.json();
+                    
+                    if (currentState.round === '2') {
+                        const groupRes = await fetch(`${API_URL}/api/admin/group-results`);
+                        finalGroupResults = await groupRes.json();
+                    }
                 }
 
-                if (currentState.round === '2' && myGroup !== 'unassigned') {
-                    const feedRes = await fetch(`${API_URL}/api/feed/group`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ groupId: myGroup }) });
-                    myGroupFeed = await feedRes.json();
+                if (currentState.round === '2') {
+                    const rosterRes = await fetch(`${API_URL}/api/admin/roster`);
+                    const rosterData = await rosterRes.json();
+                    const me = rosterData.voters.find(v => v.voter_id === myVoterId);
+                    if (me && me.group_id !== 'unassigned') {
+                        const feedRes = await fetch(`${API_URL}/api/feed/group`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ groupId: me.group_id }) });
+                        myGroupFeed = await feedRes.json();
+                    }
                 }
                 updateUI();
             } catch (err) { console.error("Sync error:", err); }
@@ -289,8 +139,7 @@
             if (currentState.gate === 'closed' && currentState.published !== 'true') {
                 lockAlert.classList.remove('hidden'); canvas.classList.add('opacity-60', 'pointer-events-none');
             } else {
-                lockAlert.classList.remove('hidden', currentState.published === 'true' ? 'hidden' : ' ');
-                canvas.classList.remove('opacity-60', 'pointer-events-none');
+                lockAlert.classList.add('hidden'); canvas.classList.remove('opacity-60', 'pointer-events-none');
             }
 
             if (currentState.published === 'true') renderPublishedResults();
@@ -306,12 +155,12 @@
 
         window.toggleReady = async function() {
             isReadyState = !isReadyState;
+            localStorage.setItem(`votetile_ready_r${currentState.round}_${myVoterId}`, isReadyState);
             updateUI();
             await fetch(`${API_URL}/api/voter/ready`, { 
                 method: 'POST', headers: { 'Content-Type': 'application/json' }, 
                 body: JSON.stringify({ voterId: myVoterId, isReady: isReadyState, round: currentState.round }) 
             });
-            syncData();
         }
 
         function renderRound1() {
@@ -384,10 +233,28 @@
             
             sortedTopics.forEach((topic, index) => {
                 const rankColor = index === 0 ? 'bg-amber-100 text-amber-800 border-amber-200' : index === 1 ? 'bg-slate-200 text-slate-700 border-slate-300' : index === 2 ? 'bg-orange-100 text-orange-800 border-orange-200' : 'bg-slate-50 text-slate-500 border-slate-200';
-                const scoreHtml = isRound1 ? `<div class="text-sm font-bold text-emerald-600">👍 ${topic.yes_count}</div><div class="text-sm font-bold text-rose-600">👎 ${topic.no_count}</div>` : `<div class="text-lg font-black text-indigo-600">${topic.total_tokens} <span class="text-[10px] text-slate-400 font-normal uppercase tracking-wide">Tokens</span></div>`;
+                
+                const scoreHtml = isRound1 
+                    ? `<div class="text-sm font-bold text-emerald-600">👍 ${topic.yes_count}</div><div class="text-sm font-bold text-rose-600">👎 ${topic.no_count}</div>`
+                    : `<div class="text-lg font-black text-indigo-600">${topic.total_tokens} <span class="text-[10px] text-slate-400 font-normal uppercase tracking-wide">Tokens</span></div>`;
+
                 html += `<div class="flex items-center p-4 bg-white border border-slate-200 rounded-xl gap-4 shadow-sm"><div class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm border ${rankColor} shrink-0">#${index + 1}</div><span class="text-sm font-bold text-slate-800 flex-1">${escapeHtml(topic.title)}</span><div class="text-right flex flex-col items-end justify-center">${scoreHtml}</div></div>`;
             });
             html += `</div>`;
+
+            if (!isRound1 && finalGroupResults) {
+                html += `<div class="mt-10 mb-4 border-b border-slate-200 pb-2"><h3 class="text-lg font-bold text-slate-800">Top 5 Topics by Group</h3></div><div class="grid grid-cols-1 md:grid-cols-2 gap-4">`;
+                const groups = [...new Set(finalGroupResults.map(item => item.group_id))];
+                groups.forEach(g => {
+                    if (g === 'unassigned') return;
+                    const top5 = finalGroupResults.filter(i => i.group_id === g).slice(0, 5);
+                    html += `<div class="p-4 bg-slate-50 rounded-xl border border-slate-200"><h4 class="font-bold text-sm mb-3 text-indigo-800 uppercase tracking-wider">${escapeHtml(g)}</h4>`;
+                    top5.forEach((t, idx) => { html += `<div class="text-xs py-1.5 border-b border-slate-200 flex justify-between"><span class="truncate pr-2">${idx+1}. ${escapeHtml(t.title)}</span><span class="font-bold text-indigo-600 shrink-0">${t.total_tokens}</span></div>`; });
+                    html += `</div>`;
+                });
+                html += `</div>`;
+            }
+
             if (canvas.innerHTML !== html) canvas.innerHTML = html;
         }
 
