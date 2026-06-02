@@ -16,21 +16,15 @@
                 <p class="text-sm text-slate-500">Configure rounds, monitor rosters, and manage the voting threshold.</p>
             </div>
             <div class="flex gap-3">
-                <button onclick="togglePublish()" id="btn-publish" class="bg-purple-50 text-purple-600 hover:bg-purple-100 font-bold px-4 py-2 rounded-lg transition-colors cursor-pointer text-sm border border-purple-200">
-                    📢 Publish Results: OFF
-                </button>
-                <button onclick="refreshAllData()" class="bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg transition-colors cursor-pointer text-sm">
-                    🔄 Refresh Dashboard
-                </button>
+                <button onclick="togglePublish()" id="btn-publish" class="bg-purple-50 text-purple-600 hover:bg-purple-100 font-bold px-4 py-2 rounded-lg transition-colors cursor-pointer text-sm border border-purple-200">📢 Publish Results: OFF</button>
+                <button onclick="refreshAllData()" class="bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg transition-colors cursor-pointer text-sm">🔄 Refresh Dashboard</button>
             </div>
         </header>
 
         <section class="grid grid-cols-1 md:grid-cols-4 gap-6">
             <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 space-y-3">
                 <h2 class="text-xs font-bold tracking-wide uppercase text-slate-400">Poll Gatekeeper</h2>
-                <div class="flex items-center gap-3">
-                    <span id="gate-badge" class="px-2.5 py-1 text-xs font-semibold rounded-full bg-slate-100 text-slate-700">Loading...</span>
-                </div>
+                <div class="flex items-center gap-3"><span id="gate-badge" class="px-2.5 py-1 text-xs font-semibold rounded-full bg-slate-100 text-slate-700">Loading...</span></div>
                 <div class="flex gap-2">
                     <button onclick="updateMeta('_meta_gate', 'open')" class="flex-1 bg-green-50 hover:bg-green-100 text-green-700 font-bold py-1.5 rounded text-xs border border-green-200 cursor-pointer">Open</button>
                     <button onclick="updateMeta('_meta_gate', 'closed')" class="flex-1 bg-red-50 hover:bg-red-100 text-red-700 font-bold py-1.5 rounded text-xs border border-red-200 cursor-pointer">Close</button>
@@ -73,12 +67,7 @@
                     </div>
                     <div class="overflow-x-auto">
                         <table class="w-full text-left border-collapse text-sm">
-                            <thead>
-                                <tr class="border-b border-slate-200 text-slate-400 font-medium">
-                                    <th class="py-2">Topic Details</th>
-                                    <th class="py-2 text-right">Actions</th>
-                                </tr>
-                            </thead>
+                            <thead><tr class="border-b border-slate-200 text-slate-400 font-medium"><th class="py-2">Topic Details</th><th class="py-2 text-right">Actions</th></tr></thead>
                             <tbody id="topics-table-body" class="divide-y divide-slate-100"></tbody>
                         </table>
                     </div>
@@ -87,121 +76,83 @@
                 <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
                     <div class="flex justify-between items-center border-b border-slate-100 pb-4 mb-4">
                         <h2 class="text-lg font-bold">Real-Time Results</h2>
-                        <button onclick="purgeFailedTopics()" class="bg-red-600 hover:bg-red-700 text-white font-bold px-3 py-1.5 rounded-md text-xs shadow-sm cursor-pointer">
-                            Drop Failed Topics
-                        </button>
+                        <button onclick="purgeFailedTopics()" class="bg-red-600 hover:bg-red-700 text-white font-bold px-3 py-1.5 rounded-md text-xs shadow-sm cursor-pointer">Drop Failed Topics</button>
                     </div>
                     <div class="overflow-x-auto">
                         <table class="w-full text-left border-collapse text-sm">
-                            <thead>
-                                <tr class="border-b border-slate-200 text-slate-400 font-medium text-xs uppercase tracking-wider">
-                                    <th class="py-3">Topic Title</th>
-                                    <th class="py-3 text-center">R1 (Yes/No)</th>
-                                    <th class="py-3 text-center">Status</th>
-                                    <th class="py-3 text-center">R2 Tokens</th>
-                                </tr>
-                            </thead>
+                            <thead><tr class="border-b border-slate-200 text-slate-400 font-medium text-xs uppercase tracking-wider"><th class="py-3">Topic Title</th><th class="py-3 text-center">R1 (Yes/No)</th><th class="py-3 text-center">Status</th><th class="py-3 text-center">R2 Tokens</th></tr></thead>
                             <tbody id="results-table-body" class="divide-y divide-slate-100"></tbody>
                         </table>
                     </div>
                 </div>
+                
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                    <h2 class="text-lg font-bold border-b border-slate-100 pb-4 mb-4">Round 2: Group Leaderboards (Top 5)</h2>
+                    <div id="group-results-container" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+                </div>
             </div>
 
             <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 h-fit">
-                <div class="border-b border-slate-100 pb-4 mb-4">
-                    <h2 class="text-lg font-bold">Live Voter Registry</h2>
-                </div>
+                <div class="border-b border-slate-100 pb-4 mb-4"><h2 class="text-lg font-bold">Live Voter Registry</h2></div>
                 <div id="roster-container" class="space-y-3 max-h-[600px] overflow-y-auto pr-1 mb-4"></div>
-                <button onclick="saveGroupAssignments()" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-medium py-2 rounded-lg text-xs cursor-pointer">
-                    💾 Save Group Assignments
-                </button>
+                <button onclick="saveGroupAssignments()" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-medium py-2 rounded-lg text-xs cursor-pointer">💾 Save Group Assignments</button>
             </div>
         </section>
 
         <!-- Danger Zone -->
         <section class="bg-rose-50 p-6 rounded-xl shadow-sm border border-rose-200 mt-12">
             <h2 class="text-lg font-bold text-rose-800 mb-2">Danger Zone</h2>
-            <p class="text-sm text-rose-600 mb-4">This will permanently delete all registered voters, clear all submitted votes, and reset the system to Round 1. Your Topics will NOT be deleted.</p>
-            <button onclick="factoryReset()" class="bg-rose-600 hover:bg-rose-700 text-white font-bold px-4 py-2 rounded-lg text-sm transition-colors cursor-pointer shadow-sm">
-                ⚠️ Erase All Voting Data (Dry Run Reset)
-            </button>
+            <p class="text-sm text-rose-600 mb-4">Permanently delete all registered voters, clear all submitted votes, and reset to Round 1.</p>
+            <button onclick="factoryReset()" class="bg-rose-600 hover:bg-rose-700 text-white font-bold px-4 py-2 rounded-lg text-sm transition-colors cursor-pointer shadow-sm">⚠️ Erase All Voting Data</button>
         </section>
     </main>
 
     <script>
         const API_URL = "https://votetile-api.ewing-jacob.workers.dev";
         let currentTopics = [], currentVoters = [], r1Analytics = [];
-        let customGroupsList = [], activeThreshold = 0, isPublished = false;
-        let activeRound = "1";
+        let customGroupsList = [], activeThreshold = 0, isPublished = false, activeRound = "1";
 
-        window.addEventListener('DOMContentLoaded', () => {
-            refreshAllData();
-            setInterval(refreshAllData, 5000);
-        });
+        window.addEventListener('DOMContentLoaded', () => { refreshAllData(); setInterval(refreshAllData, 5000); });
 
         async function refreshAllData() {
-            await fetchStatus();
-            await fetchTopics();
-            await fetchResults();
-            await fetchRoster();
+            await fetchStatus(); await fetchTopics(); await fetchResults(); await fetchRoster(); await fetchGroupResults();
         }
 
         async function fetchStatus() {
             try {
                 const res = await fetch(`${API_URL}/api/status`);
                 const data = await res.json();
-                
                 activeRound = data.round;
                 const gateBadge = document.getElementById('gate-badge');
                 gateBadge.innerText = data.gate.toUpperCase();
-                gateBadge.className = data.gate === 'open' 
-                    ? "px-2.5 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-700"
-                    : "px-2.5 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-700";
-
+                gateBadge.className = data.gate === 'open' ? "px-2.5 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-700" : "px-2.5 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-700";
                 document.getElementById('current-round-display').innerText = `Phase ${activeRound}`;
                 try { customGroupsList = JSON.parse(data.groups); } catch(e) { customGroupsList = []; }
                 renderCustomGroups();
-
-                activeThreshold = parseInt(data.threshold) || 0;
-                document.getElementById('threshold-input').value = activeThreshold;
-
+                activeThreshold = parseInt(data.threshold) || 0; document.getElementById('threshold-input').value = activeThreshold;
                 isPublished = data.published === 'true';
                 const pubBtn = document.getElementById('btn-publish');
                 if (isPublished) {
-                    pubBtn.innerText = `📢 Publish R${activeRound} Results: ON`;
-                    pubBtn.className = "bg-purple-600 text-white hover:bg-purple-700 font-bold px-4 py-2 rounded-lg cursor-pointer text-sm shadow-sm";
+                    pubBtn.innerText = `📢 Publish R${activeRound} Results: ON`; pubBtn.className = "bg-purple-600 text-white hover:bg-purple-700 font-bold px-4 py-2 rounded-lg cursor-pointer text-sm shadow-sm";
                 } else {
-                    pubBtn.innerText = `📢 Publish R${activeRound} Results: OFF`;
-                    pubBtn.className = "bg-purple-50 text-purple-600 hover:bg-purple-100 border border-purple-200 font-bold px-4 py-2 rounded-lg cursor-pointer text-sm";
+                    pubBtn.innerText = `📢 Publish R${activeRound} Results: OFF`; pubBtn.className = "bg-purple-50 text-purple-600 hover:bg-purple-100 border border-purple-200 font-bold px-4 py-2 rounded-lg cursor-pointer text-sm";
                 }
             } catch (err) { console.error("Status sync error:", err); }
         }
 
-        async function updateMeta(key, value) {
-            await fetch(`${API_URL}/api/admin/configure`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key, value }) });
-            refreshAllData();
-        }
-
+        async function updateMeta(key, value) { await fetch(`${API_URL}/api/admin/configure`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key, value }) }); refreshAllData(); }
         async function togglePublish() { await updateMeta('_meta_published', (!isPublished).toString()); }
         async function saveThreshold() { await updateMeta('_meta_threshold', document.getElementById('threshold-input').value); }
 
         async function addGroup() {
-            const input = document.getElementById('new-group-input');
-            const newGroup = input.value.trim();
+            const input = document.getElementById('new-group-input'), newGroup = input.value.trim();
             if (!newGroup || customGroupsList.includes(newGroup)) return;
-            customGroupsList.push(newGroup);
-            await updateMeta('_meta_groups', JSON.stringify(customGroupsList));
-            input.value = '';
+            customGroupsList.push(newGroup); await updateMeta('_meta_groups', JSON.stringify(customGroupsList)); input.value = '';
         }
-
-        async function removeGroup(groupName) {
-            customGroupsList = customGroupsList.filter(g => g !== groupName);
-            await updateMeta('_meta_groups', JSON.stringify(customGroupsList));
-        }
+        async function removeGroup(groupName) { customGroupsList = customGroupsList.filter(g => g !== groupName); await updateMeta('_meta_groups', JSON.stringify(customGroupsList)); }
 
         function renderCustomGroups() {
-            const container = document.getElementById('active-groups-container');
-            container.innerHTML = '';
+            const container = document.getElementById('active-groups-container'); container.innerHTML = '';
             if (customGroupsList.length === 0) return container.innerHTML = `<span class="text-xs text-slate-400 italic">No custom groups created.</span>`;
             customGroupsList.forEach(group => {
                 const badge = document.createElement('div');
@@ -212,10 +163,8 @@
         }
 
         async function fetchTopics() {
-            const res = await fetch(`${API_URL}/api/topics`);
-            currentTopics = await res.json();
-            const tbody = document.getElementById('topics-table-body');
-            tbody.innerHTML = '';
+            const res = await fetch(`${API_URL}/api/topics`); currentTopics = await res.json();
+            const tbody = document.getElementById('topics-table-body'); tbody.innerHTML = '';
             currentTopics.forEach(topic => {
                 const tr = document.createElement('tr');
                 tr.innerHTML = `<td class="py-2 font-medium text-slate-700">${escapeHtml(topic.title)}</td><td class="py-2 text-right"><button onclick="deleteTopic('${topic.topic_id}')" class="text-red-500 hover:text-red-700 font-medium text-xs cursor-pointer">Delete</button></td>`;
@@ -224,14 +173,10 @@
         }
 
         async function fetchResults() {
-            const res = await fetch(`${API_URL}/api/admin/results`);
-            const data = await res.json();
-            r1Analytics = data.round1;
-            const tbody = document.getElementById('results-table-body');
-            tbody.innerHTML = '';
+            const res = await fetch(`${API_URL}/api/admin/results`); const data = await res.json(); r1Analytics = data.round1;
+            const tbody = document.getElementById('results-table-body'); tbody.innerHTML = '';
             currentTopics.forEach(topic => {
-                const r1 = r1Analytics.find(r => r.topic_id === topic.topic_id) || { yes_count: 0, no_count: 0 };
-                const r2 = data.round2.find(r => r.topic_id === topic.topic_id) || { total_tokens: 0 };
+                const r1 = r1Analytics.find(r => r.topic_id === topic.topic_id) || { yes_count: 0, no_count: 0 }, r2 = data.round2.find(r => r.topic_id === topic.topic_id) || { total_tokens: 0 };
                 const passesCut = r1.yes_count >= activeThreshold;
                 const statusBadge = passesCut ? `<span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-green-100 text-green-700">Passes</span>` : `<span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-slate-200 text-slate-500">Eliminated</span>`;
                 const tr = document.createElement('tr');
@@ -240,64 +185,54 @@
             });
         }
 
+        async function fetchGroupResults() {
+            const res = await fetch(`${API_URL}/api/admin/group-results`); const data = await res.json();
+            const container = document.getElementById('group-results-container'); container.innerHTML = '';
+            const groups = [...new Set(data.map(item => item.group_id))];
+            if (groups.length === 0) return container.innerHTML = `<p class="text-slate-400 text-xs italic">No group tokens allocated yet.</p>`;
+            groups.forEach(g => {
+                if (g === 'unassigned') return;
+                const top5 = data.filter(i => i.group_id === g).slice(0, 5);
+                container.innerHTML += `<div class="p-4 bg-slate-50 rounded-lg border border-slate-200"><h3 class="font-bold text-sm mb-3 text-indigo-800 uppercase tracking-wider">${escapeHtml(g)}</h3>${top5.map((t, idx) => `<div class="text-xs py-1.5 border-b border-slate-100 flex justify-between"><span class="truncate pr-2">${idx+1}. ${escapeHtml(t.title)}</span><span class="font-bold text-indigo-600 shrink-0">${t.total_tokens}</span></div>`).join('')}</div>`;
+            });
+        }
+
         async function addTopic() {
             const title = document.getElementById('new-topic-input').value.trim();
-            if (!title) return;
-            await fetch(`${API_URL}/api/topics`, { method: 'POST', body: JSON.stringify({ title }) });
-            document.getElementById('new-topic-input').value = '';
-            refreshAllData();
+            if (!title) return; await fetch(`${API_URL}/api/topics`, { method: 'POST', body: JSON.stringify({ title }) }); document.getElementById('new-topic-input').value = ''; refreshAllData();
         }
 
-        async function deleteTopic(topicId) {
-            if (!confirm("Delete this topic completely?")) return;
-            await fetch(`${API_URL}/api/topics/delete`, { method: 'POST', body: JSON.stringify({ topicId }) });
-            refreshAllData();
-        }
-
+        async function deleteTopic(topicId) { if (!confirm("Delete this topic completely?")) return; await fetch(`${API_URL}/api/topics/delete`, { method: 'POST', body: JSON.stringify({ topicId }) }); refreshAllData(); }
         async function purgeFailedTopics() {
             if (!confirm(`Permanently delete all topics with fewer than ${activeThreshold} 'Yes' votes?`)) return;
-            const failedTopics = currentTopics.filter(topic => {
-                const metric = r1Analytics.find(r => r.topic_id === topic.topic_id);
-                return (metric ? metric.yes_count : 0) < activeThreshold;
-            });
-            for (const topic of failedTopics) {
-                await fetch(`${API_URL}/api/topics/delete`, { method: 'POST', body: JSON.stringify({ topicId: topic.topic_id }) });
-            }
+            const failedTopics = currentTopics.filter(topic => { const metric = r1Analytics.find(r => r.topic_id === topic.topic_id); return (metric ? metric.yes_count : 0) < activeThreshold; });
+            for (const topic of failedTopics) await fetch(`${API_URL}/api/topics/delete`, { method: 'POST', body: JSON.stringify({ topicId: topic.topic_id }) });
             refreshAllData();
         }
 
         async function fetchRoster() {
-            const res = await fetch(`${API_URL}/api/admin/roster`);
-            const data = await res.json();
-            currentVoters = data.voters;
-            const container = document.getElementById('roster-container');
-            container.innerHTML = '';
+            const res = await fetch(`${API_URL}/api/admin/roster`); const data = await res.json(); currentVoters = data.voters;
+            const container = document.getElementById('roster-container'); container.innerHTML = '';
             currentVoters.forEach(voter => {
                 const voteCount = data.activity.find(a => a.voter_id === voter.voter_id)?.count || 0;
                 const optionsWithSelection = customGroupsList.map(g => `<option value="${escapeHtml(g)}" ${voter.group_id === g ? 'selected' : ''}>${escapeHtml(g)}</option>`).join('');
                 const div = document.createElement('div');
                 div.className = "flex flex-col p-3 bg-slate-50 rounded-lg border border-slate-200 gap-2";
-                div.innerHTML = `<div class="flex justify-between items-center"><span class="font-semibold text-xs text-slate-700">${escapeHtml(voter.voter_name)}</span><span class="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-sm font-medium">R1 Votes: ${voteCount}</span></div><div class="flex items-center gap-2"><select id="group-select-${voter.voter_id}" class="flex-1 bg-white border border-slate-300 text-xs rounded px-2 py-1 focus:outline-blue-500"><option value="unassigned" ${!customGroupsList.includes(voter.group_id) ? 'selected' : ''}>Unassigned</option>${optionsWithSelection}</select></div>`;
+                div.innerHTML = `<div class="flex justify-between items-center"><span class="font-semibold text-xs text-slate-700">${escapeHtml(voter.voter_name)} ${voter.status === 'ready' ? '✅' : ''}</span><div class="flex gap-2"><span class="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-sm font-medium">R1 Votes: ${voteCount}</span><button onclick="removeVoter('${voter.voter_id}')" class="text-rose-400 hover:text-rose-600 font-bold px-1" title="Remove Voter">×</button></div></div><div class="flex items-center gap-2"><select id="group-select-${voter.voter_id}" class="flex-1 bg-white border border-slate-300 text-xs rounded px-2 py-1 focus:outline-blue-500"><option value="unassigned" ${!customGroupsList.includes(voter.group_id) ? 'selected' : ''}>Unassigned</option>${optionsWithSelection}</select></div>`;
                 container.appendChild(div);
             });
         }
 
+        async function removeVoter(voterId) { if(!confirm("Remove this participant entirely?")) return; await fetch(`${API_URL}/api/admin/remove-voter`, { method: 'POST', body: JSON.stringify({ voterId }) }); refreshAllData(); }
         async function saveGroupAssignments() {
             const assignments = currentVoters.map(voter => ({ voterId: voter.voter_id, groupId: document.getElementById(`group-select-${voter.voter_id}`).value }));
-            await fetch(`${API_URL}/api/admin/assign-groups`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ assignments }) });
-            alert("Roster groupings saved.");
+            await fetch(`${API_URL}/api/admin/assign-groups`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ assignments }) }); alert("Roster groupings saved.");
         }
 
         async function factoryReset() {
-            const confirm1 = confirm("WARNING: You are about to delete all votes and users. This cannot be undone. Are you sure?");
-            if (!confirm1) return;
-            const confirm2 = prompt("Type 'RESET' to confirm you want to wipe the database:");
-            if (confirm2 !== "RESET") return alert("Reset cancelled.");
-            try {
-                await fetch(`${API_URL}/api/admin/reset`, { method: 'POST' });
-                alert("System has been wiped and reset to Phase 1.");
-                refreshAllData();
-            } catch (err) { alert("Failed to execute system reset."); }
+            if (!confirm("WARNING: You are about to delete all votes and users. This cannot be undone. Are you sure?")) return;
+            if (prompt("Type 'RESET' to confirm you want to wipe the database:") !== "RESET") return alert("Reset cancelled.");
+            try { await fetch(`${API_URL}/api/admin/reset`, { method: 'POST' }); alert("System has been wiped and reset to Phase 1."); refreshAllData(); } catch (err) { alert("Failed to execute system reset."); }
         }
 
         function escapeHtml(str) { return str ? str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;") : ''; }
