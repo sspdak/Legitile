@@ -57,8 +57,8 @@
         let myR2Votes = JSON.parse(localStorage.getItem(`votetile_r2_${myVoterId}`)) || {};
         
         let currentState = { round: '1', gate: 'open', limits: 0, published: 'false', hash: '' };
-        let activeTopics = [], myGroupFeed = [], finalResultsData = null;
-        let isReadyState = localStorage.getItem(`votetile_ready_${myVoterId}`) === 'true';
+        let activeTopics = [], myGroupFeed = [], finalResultsData = null, finalGroupResults = null;
+        let isReadyState = false;
         
         window.addEventListener('DOMContentLoaded', () => {
             if (myVoterId && myVoterName) { showPortal(); startEngine(); } 
@@ -73,7 +73,7 @@
                 const data = await res.json();
                 myVoterId = data.voterId; myVoterName = data.name;
                 localStorage.setItem('votetile_voter_id', myVoterId); localStorage.setItem('votetile_voter_name', myVoterName);
-                myR1Votes = {}; myR2Votes = {}; isReadyState = false; localStorage.removeItem(`votetile_ready_${myVoterId}`);
+                myR1Votes = {}; myR2Votes = {};
                 showPortal(); startEngine();
             } catch (err) { alert("Failed to connect to voting server."); }
         }
@@ -90,8 +90,9 @@
             try {
                 const statusRes = await fetch(`${API_URL}/api/status`);
                 currentState = await statusRes.json();
+                
+                isReadyState = localStorage.getItem(`votetile_ready_r${currentState.round}_${myVoterId}`) === 'true';
 
-                // SESSION FORCED RESET CHECK
                 const serverHash = currentState.hash;
                 const localHash = localStorage.getItem('votetile_session_hash');
                 if (serverHash && localHash !== serverHash) {
@@ -110,6 +111,11 @@
                 if (currentState.published === 'true') {
                     const resultsRes = await fetch(`${API_URL}/api/admin/results`);
                     finalResultsData = await resultsRes.json();
+                    
+                    if (currentState.round === '2') {
+                        const groupRes = await fetch(`${API_URL}/api/admin/group-results`);
+                        finalGroupResults = await groupRes.json();
+                    }
                 }
 
                 if (currentState.round === '2') {
@@ -141,7 +147,6 @@
             else renderRound2();
         }
 
-        // Add Ready Button Utility
         function appendReadyButton(html) {
             return html + `<button onclick="toggleReady()" class="mt-6 w-full ${isReadyState ? 'bg-green-600 hover:bg-green-700' : 'bg-slate-800 hover:bg-slate-900'} text-white font-bold py-3 rounded-lg shadow-sm cursor-pointer transition-colors">
                 ${isReadyState ? '✅ I am Done Voting' : 'Mark as Ready'}
@@ -150,9 +155,12 @@
 
         window.toggleReady = async function() {
             isReadyState = !isReadyState;
-            localStorage.setItem(`votetile_ready_${myVoterId}`, isReadyState);
+            localStorage.setItem(`votetile_ready_r${currentState.round}_${myVoterId}`, isReadyState);
             updateUI();
-            await fetch(`${API_URL}/api/voter/ready`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ voterId: myVoterId, isReady: isReadyState }) });
+            await fetch(`${API_URL}/api/voter/ready`, { 
+                method: 'POST', headers: { 'Content-Type': 'application/json' }, 
+                body: JSON.stringify({ voterId: myVoterId, isReady: isReadyState, round: currentState.round }) 
+            });
         }
 
         function renderRound1() {
@@ -173,9 +181,7 @@
 
         async function castBinaryVote(topicId, value) {
             if (currentState.gate === 'closed') return;
-            myR1Votes[topicId] = value;
-            localStorage.setItem(`votetile_r1_${myVoterId}`, JSON.stringify(myR1Votes));
-            renderRound1();
+            myR1Votes[topicId] = value; localStorage.setItem(`votetile_r1_${myVoterId}`, JSON.stringify(myR1Votes)); renderRound1();
             await fetch(`${API_URL}/api/vote/round1`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ voterId: myVoterId, topicId, value }) });
         }
 
@@ -208,10 +214,8 @@
                 const spentOnOthers = Object.keys(myR2Votes).filter(id => id !== topicId).reduce((sum, id) => sum + (myR2Votes[id] || 0), 0);
                 if (spentOnOthers + val > limit) { val = limit - spentOnOthers; alert(`Limit reached. You only have ${limit} tokens.`); }
             }
-            myR2Votes[topicId] = val; localStorage.setItem(`votetile_r2_${myVoterId}`, JSON.stringify(myR2Votes));
-            renderRound2();
-            await fetch(`${API_URL}/api/vote/round2`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ voterId: myVoterId, topicId, tokens: val }) });
-            syncData();
+            myR2Votes[topicId] = val; localStorage.setItem(`votetile_r2_${myVoterId}`, JSON.stringify(myR2Votes)); renderRound2();
+            await fetch(`${API_URL}/api/vote/round2`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ voterId: myVoterId, topicId, tokens: val }) }); syncData();
         }
 
         function renderPublishedResults() {
@@ -237,6 +241,20 @@
                 html += `<div class="flex items-center p-4 bg-white border border-slate-200 rounded-xl gap-4 shadow-sm"><div class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm border ${rankColor} shrink-0">#${index + 1}</div><span class="text-sm font-bold text-slate-800 flex-1">${escapeHtml(topic.title)}</span><div class="text-right flex flex-col items-end justify-center">${scoreHtml}</div></div>`;
             });
             html += `</div>`;
+
+            if (!isRound1 && finalGroupResults) {
+                html += `<div class="mt-10 mb-4 border-b border-slate-200 pb-2"><h3 class="text-lg font-bold text-slate-800">Top 5 Topics by Group</h3></div><div class="grid grid-cols-1 md:grid-cols-2 gap-4">`;
+                const groups = [...new Set(finalGroupResults.map(item => item.group_id))];
+                groups.forEach(g => {
+                    if (g === 'unassigned') return;
+                    const top5 = finalGroupResults.filter(i => i.group_id === g).slice(0, 5);
+                    html += `<div class="p-4 bg-slate-50 rounded-xl border border-slate-200"><h4 class="font-bold text-sm mb-3 text-indigo-800 uppercase tracking-wider">${escapeHtml(g)}</h4>`;
+                    top5.forEach((t, idx) => { html += `<div class="text-xs py-1.5 border-b border-slate-200 flex justify-between"><span class="truncate pr-2">${idx+1}. ${escapeHtml(t.title)}</span><span class="font-bold text-indigo-600 shrink-0">${t.total_tokens}</span></div>`; });
+                    html += `</div>`;
+                });
+                html += `</div>`;
+            }
+
             if (canvas.innerHTML !== html) canvas.innerHTML = html;
         }
 
