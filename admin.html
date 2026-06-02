@@ -118,6 +118,7 @@
             </div>
         </section>
 
+        <!-- Danger Zone -->
         <section class="bg-rose-50 p-6 rounded-xl shadow-sm border border-rose-200 mt-12">
             <h2 class="text-lg font-bold text-rose-800 mb-2">Danger Zone</h2>
             <p class="text-sm text-rose-600 mb-4">This will permanently delete all registered voters, clear all submitted votes, and reset the system to Round 1. Your Topics will NOT be deleted.</p>
@@ -131,6 +132,7 @@
         const API_URL = "https://votetile-api.ewing-jacob.workers.dev";
         let currentTopics = [], currentVoters = [], r1Analytics = [];
         let customGroupsList = [], activeThreshold = 0, isPublished = false;
+        let activeRound = "1";
 
         window.addEventListener('DOMContentLoaded', () => {
             refreshAllData();
@@ -149,13 +151,14 @@
                 const res = await fetch(`${API_URL}/api/status`);
                 const data = await res.json();
                 
+                activeRound = data.round;
                 const gateBadge = document.getElementById('gate-badge');
                 gateBadge.innerText = data.gate.toUpperCase();
                 gateBadge.className = data.gate === 'open' 
                     ? "px-2.5 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-700"
                     : "px-2.5 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-700";
 
-                document.getElementById('current-round-display').innerText = `Phase ${data.round}`;
+                document.getElementById('current-round-display').innerText = `Phase ${activeRound}`;
                 try { customGroupsList = JSON.parse(data.groups); } catch(e) { customGroupsList = []; }
                 renderCustomGroups();
 
@@ -165,10 +168,10 @@
                 isPublished = data.published === 'true';
                 const pubBtn = document.getElementById('btn-publish');
                 if (isPublished) {
-                    pubBtn.innerText = "📢 Publish Results: ON";
+                    pubBtn.innerText = `📢 Publish R${activeRound} Results: ON`;
                     pubBtn.className = "bg-purple-600 text-white hover:bg-purple-700 font-bold px-4 py-2 rounded-lg cursor-pointer text-sm shadow-sm";
                 } else {
-                    pubBtn.innerText = "📢 Publish Results: OFF";
+                    pubBtn.innerText = `📢 Publish R${activeRound} Results: OFF`;
                     pubBtn.className = "bg-purple-50 text-purple-600 hover:bg-purple-100 border border-purple-200 font-bold px-4 py-2 rounded-lg cursor-pointer text-sm";
                 }
             } catch (err) { console.error("Status sync error:", err); }
