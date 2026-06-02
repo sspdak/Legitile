@@ -56,8 +56,9 @@
         let myR1Votes = JSON.parse(localStorage.getItem(`votetile_r1_${myVoterId}`)) || {};
         let myR2Votes = JSON.parse(localStorage.getItem(`votetile_r2_${myVoterId}`)) || {};
         
-        let currentState = { round: '1', gate: 'open', limits: 0, published: 'false' };
+        let currentState = { round: '1', gate: 'open', limits: 0, published: 'false', hash: '' };
         let activeTopics = [], myGroupFeed = [], finalResultsData = null;
+        let isReadyState = localStorage.getItem(`votetile_ready_${myVoterId}`) === 'true';
         
         window.addEventListener('DOMContentLoaded', () => {
             if (myVoterId && myVoterName) { showPortal(); startEngine(); } 
@@ -71,9 +72,8 @@
                 const res = await fetch(`${API_URL}/api/voter/join`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: nameInput }) });
                 const data = await res.json();
                 myVoterId = data.voterId; myVoterName = data.name;
-                localStorage.setItem('votetile_voter_id', myVoterId);
-                localStorage.setItem('votetile_voter_name', myVoterName);
-                myR1Votes = {}; myR2Votes = {};
+                localStorage.setItem('votetile_voter_id', myVoterId); localStorage.setItem('votetile_voter_name', myVoterName);
+                myR1Votes = {}; myR2Votes = {}; isReadyState = false; localStorage.removeItem(`votetile_ready_${myVoterId}`);
                 showPortal(); startEngine();
             } catch (err) { alert("Failed to connect to voting server."); }
         }
@@ -86,27 +86,23 @@
 
         function startEngine() { syncData(); setInterval(syncData, 3000); }
 
-async function syncData() {
+        async function syncData() {
             try {
                 const statusRes = await fetch(`${API_URL}/api/status`);
                 currentState = await statusRes.json();
-                
-                // --- NEW: FORCED SESSION RESET ---
+
+                // SESSION FORCED RESET CHECK
                 const serverHash = currentState.hash;
                 const localHash = localStorage.getItem('votetile_session_hash');
-                
                 if (serverHash && localHash !== serverHash) {
-                    // This triggers if the Admin ran a Factory Reset
-                    localStorage.removeItem('votetile_voter_id');
-                    localStorage.removeItem('votetile_voter_name');
-                    localStorage.removeItem('votetile_r1_' + myVoterId);
-                    localStorage.removeItem('votetile_r2_' + myVoterId);
-                    localStorage.setItem('votetile_session_hash', serverHash);
-                    location.reload(); // Force refresh to login screen
-                    return;
+                    if (!localHash) {
+                        localStorage.setItem('votetile_session_hash', serverHash);
+                    } else {
+                        localStorage.clear();
+                        localStorage.setItem('votetile_session_hash', serverHash);
+                        location.reload(); return;
+                    }
                 }
-                localStorage.setItem('votetile_session_hash', serverHash);
-                // ---------------------------------
 
                 const topicsRes = await fetch(`${API_URL}/api/topics`);
                 activeTopics = await topicsRes.json();
@@ -145,6 +141,20 @@ async function syncData() {
             else renderRound2();
         }
 
+        // Add Ready Button Utility
+        function appendReadyButton(html) {
+            return html + `<button onclick="toggleReady()" class="mt-6 w-full ${isReadyState ? 'bg-green-600 hover:bg-green-700' : 'bg-slate-800 hover:bg-slate-900'} text-white font-bold py-3 rounded-lg shadow-sm cursor-pointer transition-colors">
+                ${isReadyState ? '✅ I am Done Voting' : 'Mark as Ready'}
+            </button>`;
+        }
+
+        window.toggleReady = async function() {
+            isReadyState = !isReadyState;
+            localStorage.setItem(`votetile_ready_${myVoterId}`, isReadyState);
+            updateUI();
+            await fetch(`${API_URL}/api/voter/ready`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ voterId: myVoterId, isReady: isReadyState }) });
+        }
+
         function renderRound1() {
             const canvas = document.getElementById('voting-canvas');
             if (activeTopics.length === 0) return canvas.innerHTML = `<p class="text-center text-slate-500 py-8">Waiting for topics...</p>`;
@@ -157,6 +167,7 @@ async function syncData() {
                 html += `<div class="flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 bg-slate-50 border border-slate-200 rounded-lg gap-3"><span class="text-sm font-semibold text-slate-700 flex-1">${escapeHtml(topic.title)}</span><div class="flex gap-2 w-full sm:w-auto"><button onclick="castBinaryVote('${topic.topic_id}', 'yes')" class="flex-1 sm:flex-initial px-6 py-2 text-xs font-bold rounded-md transition-colors border cursor-pointer ${yesClass}">Yes</button><button onclick="castBinaryVote('${topic.topic_id}', 'no')" class="flex-1 sm:flex-initial px-6 py-2 text-xs font-bold rounded-md transition-colors border cursor-pointer ${noClass}">No</button></div></div>`;
             });
             html += `</div>`;
+            html = appendReadyButton(html);
             if (canvas.innerHTML !== html) canvas.innerHTML = html;
         }
 
@@ -183,6 +194,7 @@ async function syncData() {
                 html += `<div class="flex flex-col md:flex-row justify-between items-start md:items-center p-4 bg-white border border-slate-200 rounded-xl gap-4 shadow-sm"><div class="flex-1"><span class="text-sm font-bold text-slate-800 block">${escapeHtml(topic.title)}</span><div class="mt-1.5 inline-flex items-center gap-1.5 text-xs text-slate-500 font-medium bg-slate-50 px-2 py-1 rounded border border-slate-100">Group Total: <span class="font-bold text-indigo-600 text-sm">${groupTotal}</span></div></div><div class="flex items-center gap-1 bg-slate-100 p-1.5 rounded-lg border border-slate-200 shrink-0 w-full md:w-auto justify-between"><label class="text-[10px] font-bold text-slate-400 uppercase tracking-wide mx-2 hidden md:block">My Allocation</label><div class="flex items-center gap-1"><button onclick="adjustTokens('${topic.topic_id}', -1)" class="w-8 h-8 flex items-center justify-center bg-white hover:bg-slate-50 border border-slate-300 rounded text-slate-600 font-bold cursor-pointer shadow-sm">-</button><input type="number" onchange="setTokens('${topic.topic_id}', this.value)" value="${myTokens}" min="0" class="w-14 h-8 text-center text-sm font-bold text-indigo-900 border border-slate-300 rounded focus:outline-indigo-500 bg-white"><button onclick="adjustTokens('${topic.topic_id}', 1)" class="w-8 h-8 flex items-center justify-center bg-white hover:bg-slate-50 border border-slate-300 rounded text-slate-600 font-bold cursor-pointer shadow-sm">+</button></div></div></div>`;
             });
             html += `</div>`;
+            html = appendReadyButton(html);
             if (canvas.innerHTML !== html) canvas.innerHTML = html;
         }
 
