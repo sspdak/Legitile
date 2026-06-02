@@ -220,12 +220,28 @@
         }
 
         async function fetchRoster() {
+            // FIX 1: Do not refresh the DOM if the admin is currently interacting with a dropdown
+            if (document.activeElement && document.activeElement.tagName === 'SELECT') return;
+
             const res = await fetch(`${API_URL}/api/admin/roster`); const data = await res.json(); currentVoters = data.voters;
+            
+            // FIX 2: Cache any unsaved dropdown selections before rewriting the HTML
+            const pendingSelections = {};
+            currentVoters.forEach(v => {
+                const selectEl = document.getElementById(`group-select-${v.voter_id}`);
+                if (selectEl) pendingSelections[v.voter_id] = selectEl.value;
+            });
+
             const container = document.getElementById('roster-container'); container.innerHTML = '';
+            
             currentVoters.forEach(voter => {
                 const r1Count = data.activityR1.find(a => a.voter_id === voter.voter_id)?.count || 0;
                 const r2Count = data.activityR2.find(a => a.voter_id === voter.voter_id)?.count || 0;
-                const optionsWithSelection = customGroupsList.map(g => `<option value="${escapeHtml(g)}" ${voter.group_id === g ? 'selected' : ''}>${escapeHtml(g)}</option>`).join('');
+                
+                // Inject the cached selection if they changed it, otherwise use database state
+                const displayedGroup = pendingSelections[voter.voter_id] || voter.group_id;
+                
+                const optionsWithSelection = customGroupsList.map(g => `<option value="${escapeHtml(g)}" ${displayedGroup === g ? 'selected' : ''}>${escapeHtml(g)}</option>`).join('');
                 const div = document.createElement('div');
                 div.className = "flex flex-col p-3 bg-slate-50 rounded-lg border border-slate-200 gap-2";
                 div.innerHTML = `<div class="flex justify-between items-center"><span class="font-semibold text-xs text-slate-700">${escapeHtml(voter.voter_name)}</span><button onclick="removeVoter('${voter.voter_id}')" class="text-rose-400 hover:text-rose-600 font-bold px-1" title="Remove Voter">×</button></div>
@@ -233,7 +249,7 @@
                     <span class="text-[10px] ${voter.status === 'ready_r1' ? 'bg-green-100 text-green-800 border-green-200' : 'bg-blue-50 text-blue-700 border-blue-200'} border px-1.5 py-0.5 rounded font-medium">R1 Votes: ${r1Count} ${voter.status === 'ready_r1' ? '✅' : ''}</span>
                     <span class="text-[10px] ${voter.status === 'ready_r2' ? 'bg-green-100 text-green-800 border-green-200' : 'bg-indigo-50 text-indigo-700 border-indigo-200'} border px-1.5 py-0.5 rounded font-medium">R2 Tokens: ${r2Count} ${voter.status === 'ready_r2' ? '✅' : ''}</span>
                 </div>
-                <div class="flex items-center gap-2 mt-1"><select id="group-select-${voter.voter_id}" class="flex-1 bg-white border border-slate-300 text-xs rounded px-2 py-1 focus:outline-blue-500"><option value="unassigned" ${!customGroupsList.includes(voter.group_id) ? 'selected' : ''}>Unassigned</option>${optionsWithSelection}</select></div>`;
+                <div class="flex items-center gap-2 mt-1"><select id="group-select-${voter.voter_id}" class="flex-1 bg-white border border-slate-300 text-xs rounded px-2 py-1 focus:outline-blue-500"><option value="unassigned" ${displayedGroup === 'unassigned' || !customGroupsList.includes(displayedGroup) ? 'selected' : ''}>Unassigned</option>${optionsWithSelection}</select></div>`;
                 container.appendChild(div);
             });
         }
