@@ -3,259 +3,252 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VoteTile - Participant Portal</title>
+    <title>VoteTile - Admin Console</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        input[type="number"]::-webkit-inner-spin-button, 
-        input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
-        input[type="number"] { -moz-appearance: textfield; }
-    </style>
 </head>
-<body class="bg-slate-50 text-slate-800 font-sans p-4 md:p-6 min-h-screen">
+<body class="bg-slate-50 text-slate-800 font-sans p-6">
 
-    <main class="max-w-3xl mx-auto">
-        <div id="view-login" class="bg-white p-8 rounded-xl shadow-sm border border-slate-200 mt-10 max-w-md mx-auto space-y-6">
-            <div class="text-center">
-                <h1 class="text-2xl font-bold tracking-tight text-indigo-900">Conference Selection</h1>
-                <p class="text-sm text-slate-500 mt-2">Enter your name to join the voting session.</p>
+    <main class="max-w-6xl mx-auto space-y-8">
+        
+        <header class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div>
+                <h1 class="text-2xl font-bold tracking-tight">VoteTile Admin Dashboard</h1>
+                <p class="text-sm text-slate-500">Configure rounds, monitor rosters, and manage the voting threshold.</p>
             </div>
-            <div class="space-y-4">
-                <input type="text" id="voter-name-input" placeholder="First and Last Name" class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-indigo-500 text-sm">
-                <button onclick="joinSession()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-lg transition-colors cursor-pointer">Join Session</button>
+            <div class="flex gap-3">
+                <button onclick="togglePublish()" id="btn-publish" class="bg-purple-50 text-purple-600 hover:bg-purple-100 font-bold px-4 py-2 rounded-lg transition-colors cursor-pointer text-sm border border-purple-200">📢 Publish Results: OFF</button>
+                <button onclick="refreshAllData()" class="bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg transition-colors cursor-pointer text-sm">🔄 Refresh Dashboard</button>
             </div>
-        </div>
+        </header>
 
-        <div id="view-portal" class="hidden space-y-6">
-            <header class="bg-indigo-900 text-white p-4 md:p-6 rounded-xl shadow-md flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <div>
-                    <h1 class="text-xl font-bold tracking-tight">Voter Dashboard</h1>
-                    <p class="text-xs text-indigo-200 mt-1" id="welcome-text">Welcome back</p>
-                </div>
+        <section class="grid grid-cols-1 md:grid-cols-5 gap-6">
+            <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 space-y-3">
+                <h2 class="text-xs font-bold tracking-wide uppercase text-slate-400">Poll Gatekeeper</h2>
+                <div class="flex items-center gap-3"><span id="gate-badge" class="px-2.5 py-1 text-xs font-semibold rounded-full bg-slate-100 text-slate-700">Loading...</span></div>
                 <div class="flex gap-2">
-                    <span id="badge-gate" class="px-3 py-1 bg-indigo-800 rounded-full text-xs font-bold border border-indigo-700">Checking...</span>
-                    <span id="badge-round" class="px-3 py-1 bg-indigo-100 text-indigo-800 rounded-full text-xs font-bold">Round --</span>
+                    <button onclick="updateMeta('_meta_gate', 'open')" class="flex-1 bg-green-50 hover:bg-green-100 text-green-700 font-bold py-1.5 rounded text-xs border border-green-200 cursor-pointer">Open</button>
+                    <button onclick="updateMeta('_meta_gate', 'closed')" class="flex-1 bg-red-50 hover:bg-red-100 text-red-700 font-bold py-1.5 rounded text-xs border border-red-200 cursor-pointer">Close</button>
                 </div>
-            </header>
-
-            <div id="alert-locked" class="hidden bg-amber-50 border-l-4 border-amber-500 p-4 rounded-r-lg shadow-sm">
-                <h3 class="text-amber-800 font-bold text-sm">Polls are currently closed</h3>
-                <p class="text-xs text-amber-700 mt-1">The administrator has paused submissions.</p>
             </div>
 
-            <div id="voting-canvas" class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 min-h-[400px]">
-                <div class="text-center py-10 text-slate-400 text-sm font-medium animate-pulse">Syncing with system...</div>
+            <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 space-y-3">
+                <h2 class="text-xs font-bold tracking-wide uppercase text-slate-400">Active Phase</h2>
+                <div class="text-xl font-bold" id="current-round-display">Round --</div>
+                <div class="flex gap-2">
+                    <button onclick="updateMeta('_meta_round', '1')" class="flex-1 bg-slate-100 hover:bg-slate-200 font-bold py-1.5 rounded text-xs cursor-pointer">Set R1</button>
+                    <button onclick="updateMeta('_meta_round', '2')" class="flex-1 bg-slate-100 hover:bg-slate-200 font-bold py-1.5 rounded text-xs cursor-pointer">Set R2</button>
+                </div>
             </div>
-        </div>
+
+            <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 space-y-3">
+                <h2 class="text-xs font-bold tracking-wide uppercase text-slate-400">Token Limit</h2>
+                <div class="flex gap-2">
+                    <input type="number" id="token-limit-input" value="0" min="0" class="w-16 px-2 py-1.5 text-sm border border-slate-300 rounded focus:outline-blue-500">
+                    <button onclick="saveTokenLimit()" class="flex-1 bg-slate-800 hover:bg-slate-900 text-white font-bold py-1.5 px-2 rounded text-xs cursor-pointer">Save</button>
+                </div>
+            </div>
+
+            <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 space-y-3 col-span-1 md:col-span-2">
+                <h2 class="text-xs font-bold tracking-wide uppercase text-slate-400">Custom Group Generator</h2>
+                <div class="flex gap-2">
+                    <input type="text" id="new-group-input" placeholder="e.g., Tech Track" class="flex-1 px-3 py-1.5 text-sm border border-slate-300 rounded focus:outline-blue-500">
+                    <button onclick="addGroup()" class="bg-slate-800 hover:bg-slate-900 text-white font-bold px-3 py-1.5 rounded text-xs cursor-pointer">Add Group</button>
+                </div>
+                <div id="active-groups-container" class="flex flex-wrap gap-2 pt-1"></div>
+            </div>
+        </section>
+
+        <section class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div class="lg:col-span-2 space-y-6">
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                    <div class="flex justify-between items-center border-b border-slate-100 pb-4 mb-4">
+                        <h2 class="text-lg font-bold">Topics Registry & Cut-Off</h2>
+                        <div class="flex items-center gap-2">
+                            <label class="text-xs font-bold text-slate-500 uppercase">Min 'Yes' Threshold:</label>
+                            <input type="number" id="threshold-input" value="0" min="0" class="w-16 px-2 py-1 border border-slate-300 rounded text-sm text-center">
+                            <button onclick="saveThreshold()" class="bg-blue-100 hover:bg-blue-200 text-blue-700 font-bold px-3 py-1 rounded text-xs cursor-pointer">Save</button>
+                        </div>
+                    </div>
+                    <div class="flex gap-2 mb-4">
+                        <input type="text" id="new-topic-input" placeholder="Type a new topic description here..." class="flex-1 px-4 py-2 border border-slate-300 rounded-lg text-sm">
+                        <button onclick="addTopic()" class="bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg text-sm cursor-pointer">Add Topic</button>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse text-sm">
+                            <thead><tr class="border-b border-slate-200 text-slate-400 font-medium"><th class="py-2">Topic Details</th><th class="py-2 text-right">Actions</th></tr></thead>
+                            <tbody id="topics-table-body" class="divide-y divide-slate-100"></tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                    <div class="flex justify-between items-center border-b border-slate-100 pb-4 mb-4">
+                        <h2 class="text-lg font-bold">Real-Time Results</h2>
+                        <button onclick="purgeFailedTopics()" class="bg-red-600 hover:bg-red-700 text-white font-bold px-3 py-1.5 rounded-md text-xs shadow-sm cursor-pointer">Drop Failed Topics</button>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left border-collapse text-sm">
+                            <thead><tr class="border-b border-slate-200 text-slate-400 font-medium text-xs uppercase tracking-wider"><th class="py-3">Topic Title</th><th class="py-3 text-center">R1 (Yes/No)</th><th class="py-3 text-center">Status</th><th class="py-3 text-center">R2 Tokens</th></tr></thead>
+                            <tbody id="results-table-body" class="divide-y divide-slate-100"></tbody>
+                        </table>
+                    </div>
+                </div>
+                
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                    <h2 class="text-lg font-bold border-b border-slate-100 pb-4 mb-4">Round 2: Group Leaderboards (Top 5)</h2>
+                    <div id="group-results-container" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+                </div>
+            </div>
+
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 h-fit">
+                <div class="border-b border-slate-100 pb-4 mb-4"><h2 class="text-lg font-bold">Live Voter Registry</h2></div>
+                <div id="roster-container" class="space-y-3 max-h-[600px] overflow-y-auto pr-1 mb-4"></div>
+                <button onclick="saveGroupAssignments()" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-medium py-2 rounded-lg text-xs cursor-pointer">💾 Save Group Assignments</button>
+            </div>
+        </section>
+
+        <!-- Danger Zone -->
+        <section class="bg-rose-50 p-6 rounded-xl shadow-sm border border-rose-200 mt-12">
+            <h2 class="text-lg font-bold text-rose-800 mb-2">Danger Zone</h2>
+            <p class="text-sm text-rose-600 mb-4">Permanently delete all registered voters, clear all submitted votes, and reset to Round 1.</p>
+            <button onclick="factoryReset()" class="bg-rose-600 hover:bg-rose-700 text-white font-bold px-4 py-2 rounded-lg text-sm transition-colors cursor-pointer shadow-sm">⚠️ Erase All Voting Data</button>
+        </section>
     </main>
 
     <script>
         const API_URL = "https://votetile-api.ewing-jacob.workers.dev";
-        let myVoterId = localStorage.getItem('votetile_voter_id');
-        let myVoterName = localStorage.getItem('votetile_voter_name');
-        
-        let myR1Votes = JSON.parse(localStorage.getItem(`votetile_r1_${myVoterId}`)) || {};
-        let myR2Votes = JSON.parse(localStorage.getItem(`votetile_r2_${myVoterId}`)) || {};
-        
-        let currentState = { round: '1', gate: 'open', limits: 0, published: 'false', hash: '' };
-        let activeTopics = [], myGroupFeed = [], finalResultsData = null, finalGroupResults = null;
-        let isReadyState = false;
-        
-        window.addEventListener('DOMContentLoaded', () => {
-            if (myVoterId && myVoterName) { showPortal(); startEngine(); } 
-            else { document.getElementById('view-login').classList.remove('hidden'); }
-        });
+        let currentTopics = [], currentVoters = [], r1Analytics = [];
+        let customGroupsList = [], activeThreshold = 0, isPublished = false, activeRound = "1";
 
-        async function joinSession() {
-            const nameInput = document.getElementById('voter-name-input').value.trim();
-            if (!nameInput) return alert("Please enter your name.");
+        window.addEventListener('DOMContentLoaded', () => { refreshAllData(); setInterval(refreshAllData, 5000); });
+
+        async function refreshAllData() {
+            await fetchStatus(); await fetchTopics(); await fetchResults(); await fetchRoster(); await fetchGroupResults();
+        }
+
+        async function fetchStatus() {
             try {
-                const res = await fetch(`${API_URL}/api/voter/join`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: nameInput }) });
+                const res = await fetch(`${API_URL}/api/status`);
                 const data = await res.json();
-                myVoterId = data.voterId; myVoterName = data.name;
-                localStorage.setItem('votetile_voter_id', myVoterId); localStorage.setItem('votetile_voter_name', myVoterName);
-                myR1Votes = {}; myR2Votes = {};
-                showPortal(); startEngine();
-            } catch (err) { alert("Failed to connect to voting server."); }
-        }
-
-        function showPortal() {
-            document.getElementById('view-login').classList.add('hidden');
-            document.getElementById('view-portal').classList.remove('hidden');
-            document.getElementById('welcome-text').innerText = `Participant: ${escapeHtml(myVoterName)}`;
-        }
-
-        function startEngine() { syncData(); setInterval(syncData, 3000); }
-
-        async function syncData() {
-            try {
-                const statusRes = await fetch(`${API_URL}/api/status`);
-                currentState = await statusRes.json();
-                
-                isReadyState = localStorage.getItem(`votetile_ready_r${currentState.round}_${myVoterId}`) === 'true';
-
-                const serverHash = currentState.hash;
-                const localHash = localStorage.getItem('votetile_session_hash');
-                if (serverHash && localHash !== serverHash) {
-                    if (!localHash) {
-                        localStorage.setItem('votetile_session_hash', serverHash);
-                    } else {
-                        localStorage.clear();
-                        localStorage.setItem('votetile_session_hash', serverHash);
-                        location.reload(); return;
-                    }
+                activeRound = data.round;
+                const gateBadge = document.getElementById('gate-badge');
+                gateBadge.innerText = data.gate.toUpperCase();
+                gateBadge.className = data.gate === 'open' ? "px-2.5 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-700" : "px-2.5 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-700";
+                document.getElementById('current-round-display').innerText = `Phase ${activeRound}`;
+                document.getElementById('token-limit-input').value = data.limits || 0;
+                try { customGroupsList = JSON.parse(data.groups); } catch(e) { customGroupsList = []; }
+                renderCustomGroups();
+                activeThreshold = parseInt(data.threshold) || 0; document.getElementById('threshold-input').value = activeThreshold;
+                isPublished = data.published === 'true';
+                const pubBtn = document.getElementById('btn-publish');
+                if (isPublished) {
+                    pubBtn.innerText = `📢 Publish R${activeRound} Results: ON`; pubBtn.className = "bg-purple-600 text-white hover:bg-purple-700 font-bold px-4 py-2 rounded-lg cursor-pointer text-sm shadow-sm";
+                } else {
+                    pubBtn.innerText = `📢 Publish R${activeRound} Results: OFF`; pubBtn.className = "bg-purple-50 text-purple-600 hover:bg-purple-100 border border-purple-200 font-bold px-4 py-2 rounded-lg cursor-pointer text-sm";
                 }
-
-                const topicsRes = await fetch(`${API_URL}/api/topics`);
-                activeTopics = await topicsRes.json();
-
-                if (currentState.published === 'true') {
-                    const resultsRes = await fetch(`${API_URL}/api/admin/results`);
-                    finalResultsData = await resultsRes.json();
-                    
-                    if (currentState.round === '2') {
-                        const groupRes = await fetch(`${API_URL}/api/admin/group-results`);
-                        finalGroupResults = await groupRes.json();
-                    }
-                }
-
-                if (currentState.round === '2') {
-                    const rosterRes = await fetch(`${API_URL}/api/admin/roster`);
-                    const rosterData = await rosterRes.json();
-                    const me = rosterData.voters.find(v => v.voter_id === myVoterId);
-                    if (me && me.group_id !== 'unassigned') {
-                        const feedRes = await fetch(`${API_URL}/api/feed/group`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ groupId: me.group_id }) });
-                        myGroupFeed = await feedRes.json();
-                    }
-                }
-                updateUI();
-            } catch (err) { console.error("Sync error:", err); }
+            } catch (err) { console.error("Status sync error:", err); }
         }
 
-        function updateUI() {
-            document.getElementById('badge-gate').innerText = currentState.gate === 'open' ? '🟢 Polls Open' : '🔒 Polls Closed';
-            document.getElementById('badge-round').innerText = `Phase ${currentState.round}`;
-            const lockAlert = document.getElementById('alert-locked'), canvas = document.getElementById('voting-canvas');
+        async function updateMeta(key, value) { await fetch(`${API_URL}/api/admin/configure`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key, value }) }); refreshAllData(); }
+        async function togglePublish() { await updateMeta('_meta_published', (!isPublished).toString()); }
+        async function saveThreshold() { await updateMeta('_meta_threshold', document.getElementById('threshold-input').value); }
+        async function saveTokenLimit() { await updateMeta('_meta_limits', document.getElementById('token-limit-input').value); }
 
-            if (currentState.gate === 'closed' && currentState.published !== 'true') {
-                lockAlert.classList.remove('hidden'); canvas.classList.add('opacity-60', 'pointer-events-none');
-            } else {
-                lockAlert.classList.add('hidden'); canvas.classList.remove('opacity-60', 'pointer-events-none');
-            }
-
-            if (currentState.published === 'true') renderPublishedResults();
-            else if (currentState.round === '1') renderRound1();
-            else renderRound2();
+        async function addGroup() {
+            const input = document.getElementById('new-group-input'), newGroup = input.value.trim();
+            if (!newGroup || customGroupsList.includes(newGroup)) return;
+            customGroupsList.push(newGroup); await updateMeta('_meta_groups', JSON.stringify(customGroupsList)); input.value = '';
         }
+        async function removeGroup(groupName) { customGroupsList = customGroupsList.filter(g => g !== groupName); await updateMeta('_meta_groups', JSON.stringify(customGroupsList)); }
 
-        function appendReadyButton(html) {
-            return html + `<button onclick="toggleReady()" class="mt-6 w-full ${isReadyState ? 'bg-green-600 hover:bg-green-700' : 'bg-slate-800 hover:bg-slate-900'} text-white font-bold py-3 rounded-lg shadow-sm cursor-pointer transition-colors">
-                ${isReadyState ? '✅ I am Done Voting' : 'Mark as Ready'}
-            </button>`;
-        }
-
-        window.toggleReady = async function() {
-            isReadyState = !isReadyState;
-            localStorage.setItem(`votetile_ready_r${currentState.round}_${myVoterId}`, isReadyState);
-            updateUI();
-            await fetch(`${API_URL}/api/voter/ready`, { 
-                method: 'POST', headers: { 'Content-Type': 'application/json' }, 
-                body: JSON.stringify({ voterId: myVoterId, isReady: isReadyState, round: currentState.round }) 
+        function renderCustomGroups() {
+            const container = document.getElementById('active-groups-container'); container.innerHTML = '';
+            if (customGroupsList.length === 0) return container.innerHTML = `<span class="text-xs text-slate-400 italic">No custom groups created.</span>`;
+            customGroupsList.forEach(group => {
+                const badge = document.createElement('div');
+                badge.className = "inline-flex items-center gap-1 bg-indigo-50 border border-indigo-200 text-indigo-700 px-2 py-1 rounded text-xs font-semibold";
+                badge.innerHTML = `${escapeHtml(group)} <button onclick="removeGroup('${escapeHtml(group)}')" class="text-indigo-400 hover:text-indigo-900 ml-1">×</button>`;
+                container.appendChild(badge);
             });
         }
 
-        function renderRound1() {
-            const canvas = document.getElementById('voting-canvas');
-            if (activeTopics.length === 0) return canvas.innerHTML = `<p class="text-center text-slate-500 py-8">Waiting for topics...</p>`;
-            let html = `<div class="mb-6 border-b border-slate-100 pb-4"><h2 class="text-lg font-bold text-slate-800">Quality Filter (Yes/No)</h2></div><div class="space-y-3">`;
-
-            activeTopics.forEach(topic => {
-                const myChoice = myR1Votes[topic.topic_id];
-                const yesClass = myChoice === 'yes' ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm' : 'bg-white text-slate-600 border-slate-300 hover:bg-emerald-50';
-                const noClass = myChoice === 'no' ? 'bg-rose-600 text-white border-rose-600 shadow-sm' : 'bg-white text-slate-600 border-slate-300 hover:bg-rose-50';
-                html += `<div class="flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 bg-slate-50 border border-slate-200 rounded-lg gap-3"><span class="text-sm font-semibold text-slate-700 flex-1">${escapeHtml(topic.title)}</span><div class="flex gap-2 w-full sm:w-auto"><button onclick="castBinaryVote('${topic.topic_id}', 'yes')" class="flex-1 sm:flex-initial px-6 py-2 text-xs font-bold rounded-md transition-colors border cursor-pointer ${yesClass}">Yes</button><button onclick="castBinaryVote('${topic.topic_id}', 'no')" class="flex-1 sm:flex-initial px-6 py-2 text-xs font-bold rounded-md transition-colors border cursor-pointer ${noClass}">No</button></div></div>`;
+        async function fetchTopics() {
+            const res = await fetch(`${API_URL}/api/topics`); currentTopics = await res.json();
+            const tbody = document.getElementById('topics-table-body'); tbody.innerHTML = '';
+            currentTopics.forEach(topic => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `<td class="py-2 font-medium text-slate-700">${escapeHtml(topic.title)}</td><td class="py-2 text-right"><button onclick="deleteTopic('${topic.topic_id}')" class="text-red-500 hover:text-red-700 font-medium text-xs cursor-pointer">Delete</button></td>`;
+                tbody.appendChild(tr);
             });
-            html += `</div>`;
-            html = appendReadyButton(html);
-            if (canvas.innerHTML !== html) canvas.innerHTML = html;
         }
 
-        async function castBinaryVote(topicId, value) {
-            if (currentState.gate === 'closed') return;
-            myR1Votes[topicId] = value; localStorage.setItem(`votetile_r1_${myVoterId}`, JSON.stringify(myR1Votes)); renderRound1();
-            await fetch(`${API_URL}/api/vote/round1`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ voterId: myVoterId, topicId, value }) });
-        }
-
-        function renderRound2() {
-            const canvas = document.getElementById('voting-canvas');
-            const limit = parseInt(currentState.limits) || 0;
-            const spentTokens = Object.values(myR2Votes).reduce((sum, val) => sum + (parseInt(val) || 0), 0);
-            
-            let trackerHtml = limit > 0 ? `<div class="p-3 rounded-lg border border-slate-200 ${limit - spentTokens < 0 ? 'text-red-600 bg-red-50' : 'text-indigo-700 bg-indigo-50'} font-bold text-sm text-center mb-4">Your Tokens Remaining: ${limit - spentTokens} / ${limit}</div>` : `<div class="p-3 rounded-lg border border-slate-200 bg-slate-50 font-bold text-sm text-center mb-4 text-slate-600">Total Tokens Spent: ${spentTokens}</div>`;
-
-            let html = `<div class="mb-6 border-b border-slate-100 pb-4"><h2 class="text-lg font-bold text-slate-800">Team Priority Ranking</h2></div>${trackerHtml}<div class="space-y-3">`;
-
-            activeTopics.forEach(topic => {
-                const groupTotal = myGroupFeed.find(f => f.topic_id === topic.topic_id)?.total_tokens || 0;
-                const myTokens = myR2Votes[topic.topic_id] || 0;
-                html += `<div class="flex flex-col md:flex-row justify-between items-start md:items-center p-4 bg-white border border-slate-200 rounded-xl gap-4 shadow-sm"><div class="flex-1"><span class="text-sm font-bold text-slate-800 block">${escapeHtml(topic.title)}</span><div class="mt-1.5 inline-flex items-center gap-1.5 text-xs text-slate-500 font-medium bg-slate-50 px-2 py-1 rounded border border-slate-100">Group Total: <span class="font-bold text-indigo-600 text-sm">${groupTotal}</span></div></div><div class="flex items-center gap-1 bg-slate-100 p-1.5 rounded-lg border border-slate-200 shrink-0 w-full md:w-auto justify-between"><label class="text-[10px] font-bold text-slate-400 uppercase tracking-wide mx-2 hidden md:block">My Allocation</label><div class="flex items-center gap-1"><button onclick="adjustTokens('${topic.topic_id}', -1)" class="w-8 h-8 flex items-center justify-center bg-white hover:bg-slate-50 border border-slate-300 rounded text-slate-600 font-bold cursor-pointer shadow-sm">-</button><input type="number" onchange="setTokens('${topic.topic_id}', this.value)" value="${myTokens}" min="0" class="w-14 h-8 text-center text-sm font-bold text-indigo-900 border border-slate-300 rounded focus:outline-indigo-500 bg-white"><button onclick="adjustTokens('${topic.topic_id}', 1)" class="w-8 h-8 flex items-center justify-center bg-white hover:bg-slate-50 border border-slate-300 rounded text-slate-600 font-bold cursor-pointer shadow-sm">+</button></div></div></div>`;
+        async function fetchResults() {
+            const res = await fetch(`${API_URL}/api/admin/results`); const data = await res.json(); r1Analytics = data.round1;
+            const tbody = document.getElementById('results-table-body'); tbody.innerHTML = '';
+            currentTopics.forEach(topic => {
+                const r1 = r1Analytics.find(r => r.topic_id === topic.topic_id) || { yes_count: 0, no_count: 0 }, r2 = data.round2.find(r => r.topic_id === topic.topic_id) || { total_tokens: 0 };
+                const passesCut = r1.yes_count >= activeThreshold;
+                const statusBadge = passesCut ? `<span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-green-100 text-green-700">Passes</span>` : `<span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-slate-200 text-slate-500">Eliminated</span>`;
+                const tr = document.createElement('tr');
+                tr.innerHTML = `<td class="py-3 font-medium text-slate-800 ${!passesCut ? 'opacity-50' : ''}">${escapeHtml(topic.title)}</td><td class="py-3 text-center"><span class="inline-flex gap-2 text-xs"><strong class="text-green-600">👍 ${r1.yes_count}</strong> <strong class="text-red-600">👎 ${r1.no_count}</strong></span></td><td class="py-3 text-center">${statusBadge}</td><td class="py-3 text-center font-bold text-blue-600 text-sm">⭐ ${r2.total_tokens}</td>`;
+                tbody.appendChild(tr);
             });
-            html += `</div>`;
-            html = appendReadyButton(html);
-            if (canvas.innerHTML !== html) canvas.innerHTML = html;
         }
 
-        function adjustTokens(topicId, delta) { setTokens(topicId, (myR2Votes[topicId] || 0) + delta); }
-
-        async function setTokens(topicId, newVal) {
-            if (currentState.gate === 'closed') return;
-            let val = Math.max(0, parseInt(newVal) || 0);
-            const limit = parseInt(currentState.limits) || 0;
-            if (limit > 0) {
-                const spentOnOthers = Object.keys(myR2Votes).filter(id => id !== topicId).reduce((sum, id) => sum + (myR2Votes[id] || 0), 0);
-                if (spentOnOthers + val > limit) { val = limit - spentOnOthers; alert(`Limit reached. You only have ${limit} tokens.`); }
-            }
-            myR2Votes[topicId] = val; localStorage.setItem(`votetile_r2_${myVoterId}`, JSON.stringify(myR2Votes)); renderRound2();
-            await fetch(`${API_URL}/api/vote/round2`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ voterId: myVoterId, topicId, tokens: val }) }); syncData();
-        }
-
-        function renderPublishedResults() {
-            const canvas = document.getElementById('voting-canvas');
-            if (!finalResultsData || activeTopics.length === 0) return;
-            const isRound1 = currentState.round === '1';
-
-            const sortedTopics = [...activeTopics].map(topic => {
-                const r1 = finalResultsData.round1.find(r => r.topic_id === topic.topic_id) || { yes_count: 0, no_count: 0 };
-                const r2 = finalResultsData.round2.find(r => r.topic_id === topic.topic_id) || { total_tokens: 0 };
-                return { ...topic, yes_count: r1.yes_count, no_count: r1.no_count, total_tokens: r2.total_tokens };
-            }).sort((a, b) => isRound1 ? b.yes_count - a.yes_count : b.total_tokens - a.total_tokens || b.yes_count - a.yes_count);
-
-            let html = `<div class="mb-6 text-center"><h2 class="text-2xl font-bold text-indigo-900 mb-2">🎉 Phase ${isRound1 ? '1' : '2'} Results</h2></div><div class="space-y-3">`;
-            
-            sortedTopics.forEach((topic, index) => {
-                const rankColor = index === 0 ? 'bg-amber-100 text-amber-800 border-amber-200' : index === 1 ? 'bg-slate-200 text-slate-700 border-slate-300' : index === 2 ? 'bg-orange-100 text-orange-800 border-orange-200' : 'bg-slate-50 text-slate-500 border-slate-200';
-                
-                const scoreHtml = isRound1 
-                    ? `<div class="text-sm font-bold text-emerald-600">👍 ${topic.yes_count}</div><div class="text-sm font-bold text-rose-600">👎 ${topic.no_count}</div>`
-                    : `<div class="text-lg font-black text-indigo-600">${topic.total_tokens} <span class="text-[10px] text-slate-400 font-normal uppercase tracking-wide">Tokens</span></div>`;
-
-                html += `<div class="flex items-center p-4 bg-white border border-slate-200 rounded-xl gap-4 shadow-sm"><div class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm border ${rankColor} shrink-0">#${index + 1}</div><span class="text-sm font-bold text-slate-800 flex-1">${escapeHtml(topic.title)}</span><div class="text-right flex flex-col items-end justify-center">${scoreHtml}</div></div>`;
+        async function fetchGroupResults() {
+            const res = await fetch(`${API_URL}/api/admin/group-results`); const data = await res.json();
+            const container = document.getElementById('group-results-container'); container.innerHTML = '';
+            const groups = [...new Set(data.map(item => item.group_id))];
+            if (groups.length === 0) return container.innerHTML = `<p class="text-slate-400 text-xs italic">No group tokens allocated yet.</p>`;
+            groups.forEach(g => {
+                if (g === 'unassigned') return;
+                const top5 = data.filter(i => i.group_id === g).slice(0, 5);
+                container.innerHTML += `<div class="p-4 bg-slate-50 rounded-lg border border-slate-200"><h3 class="font-bold text-sm mb-3 text-indigo-800 uppercase tracking-wider">${escapeHtml(g)}</h3>${top5.map((t, idx) => `<div class="text-xs py-1.5 border-b border-slate-100 flex justify-between"><span class="truncate pr-2">${idx+1}. ${escapeHtml(t.title)}</span><span class="font-bold text-indigo-600 shrink-0">${t.total_tokens}</span></div>`).join('')}</div>`;
             });
-            html += `</div>`;
+        }
 
-            if (!isRound1 && finalGroupResults) {
-                html += `<div class="mt-10 mb-4 border-b border-slate-200 pb-2"><h3 class="text-lg font-bold text-slate-800">Top 5 Topics by Group</h3></div><div class="grid grid-cols-1 md:grid-cols-2 gap-4">`;
-                const groups = [...new Set(finalGroupResults.map(item => item.group_id))];
-                groups.forEach(g => {
-                    if (g === 'unassigned') return;
-                    const top5 = finalGroupResults.filter(i => i.group_id === g).slice(0, 5);
-                    html += `<div class="p-4 bg-slate-50 rounded-xl border border-slate-200"><h4 class="font-bold text-sm mb-3 text-indigo-800 uppercase tracking-wider">${escapeHtml(g)}</h4>`;
-                    top5.forEach((t, idx) => { html += `<div class="text-xs py-1.5 border-b border-slate-200 flex justify-between"><span class="truncate pr-2">${idx+1}. ${escapeHtml(t.title)}</span><span class="font-bold text-indigo-600 shrink-0">${t.total_tokens}</span></div>`; });
-                    html += `</div>`;
-                });
-                html += `</div>`;
-            }
+        async function addTopic() {
+            const title = document.getElementById('new-topic-input').value.trim();
+            if (!title) return; await fetch(`${API_URL}/api/topics`, { method: 'POST', body: JSON.stringify({ title }) }); document.getElementById('new-topic-input').value = ''; refreshAllData();
+        }
 
-            if (canvas.innerHTML !== html) canvas.innerHTML = html;
+        async function deleteTopic(topicId) { if (!confirm("Delete this topic completely?")) return; await fetch(`${API_URL}/api/topics/delete`, { method: 'POST', body: JSON.stringify({ topicId }) }); refreshAllData(); }
+        async function purgeFailedTopics() {
+            if (!confirm(`Permanently delete all topics with fewer than ${activeThreshold} 'Yes' votes?`)) return;
+            const failedTopics = currentTopics.filter(topic => { const metric = r1Analytics.find(r => r.topic_id === topic.topic_id); return (metric ? metric.yes_count : 0) < activeThreshold; });
+            for (const topic of failedTopics) await fetch(`${API_URL}/api/topics/delete`, { method: 'POST', body: JSON.stringify({ topicId: topic.topic_id }) });
+            refreshAllData();
+        }
+
+        async function fetchRoster() {
+            const res = await fetch(`${API_URL}/api/admin/roster`); const data = await res.json(); currentVoters = data.voters;
+            const container = document.getElementById('roster-container'); container.innerHTML = '';
+            currentVoters.forEach(voter => {
+                const r1Count = data.activityR1.find(a => a.voter_id === voter.voter_id)?.count || 0;
+                const r2Count = data.activityR2.find(a => a.voter_id === voter.voter_id)?.count || 0;
+                const optionsWithSelection = customGroupsList.map(g => `<option value="${escapeHtml(g)}" ${voter.group_id === g ? 'selected' : ''}>${escapeHtml(g)}</option>`).join('');
+                const div = document.createElement('div');
+                div.className = "flex flex-col p-3 bg-slate-50 rounded-lg border border-slate-200 gap-2";
+                div.innerHTML = `<div class="flex justify-between items-center"><span class="font-semibold text-xs text-slate-700">${escapeHtml(voter.voter_name)}</span><button onclick="removeVoter('${voter.voter_id}')" class="text-rose-400 hover:text-rose-600 font-bold px-1" title="Remove Voter">×</button></div>
+                <div class="flex gap-2">
+                    <span class="text-[10px] ${voter.status === 'ready_r1' ? 'bg-green-100 text-green-800 border-green-200' : 'bg-blue-50 text-blue-700 border-blue-200'} border px-1.5 py-0.5 rounded font-medium">R1 Votes: ${r1Count} ${voter.status === 'ready_r1' ? '✅' : ''}</span>
+                    <span class="text-[10px] ${voter.status === 'ready_r2' ? 'bg-green-100 text-green-800 border-green-200' : 'bg-indigo-50 text-indigo-700 border-indigo-200'} border px-1.5 py-0.5 rounded font-medium">R2 Tokens: ${r2Count} ${voter.status === 'ready_r2' ? '✅' : ''}</span>
+                </div>
+                <div class="flex items-center gap-2 mt-1"><select id="group-select-${voter.voter_id}" class="flex-1 bg-white border border-slate-300 text-xs rounded px-2 py-1 focus:outline-blue-500"><option value="unassigned" ${!customGroupsList.includes(voter.group_id) ? 'selected' : ''}>Unassigned</option>${optionsWithSelection}</select></div>`;
+                container.appendChild(div);
+            });
+        }
+
+        async function removeVoter(voterId) { if(!confirm("Remove this participant entirely?")) return; await fetch(`${API_URL}/api/admin/remove-voter`, { method: 'POST', body: JSON.stringify({ voterId }) }); refreshAllData(); }
+        async function saveGroupAssignments() {
+            const assignments = currentVoters.map(voter => ({ voterId: voter.voter_id, groupId: document.getElementById(`group-select-${voter.voter_id}`).value }));
+            await fetch(`${API_URL}/api/admin/assign-groups`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ assignments }) }); alert("Roster groupings saved.");
+        }
+
+        async function factoryReset() {
+            if (!confirm("WARNING: You are about to delete all votes and users. This cannot be undone. Are you sure?")) return;
+            if (prompt("Type 'RESET' to confirm you want to wipe the database:") !== "RESET") return alert("Reset cancelled.");
+            try { await fetch(`${API_URL}/api/admin/reset`, { method: 'POST' }); alert("System has been wiped and reset to Phase 1."); refreshAllData(); } catch (err) { alert("Failed to execute system reset."); }
         }
 
         function escapeHtml(str) { return str ? str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;") : ''; }
