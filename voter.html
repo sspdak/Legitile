@@ -187,16 +187,24 @@
         function renderPublishedResults() {
             const canvas = document.getElementById('voting-canvas');
             if (!finalResultsData || activeTopics.length === 0) return;
-            const sortedTopics = [...activeTopics].map(topic => {
-                const r1 = finalResultsData.round1.find(r => r.topic_id === topic.topic_id) || { yes_count: 0 };
-                const r2 = finalResultsData.round2.find(r => r.topic_id === topic.topic_id) || { total_tokens: 0 };
-                return { ...topic, yes_count: r1.yes_count, total_tokens: r2.total_tokens };
-            }).sort((a, b) => b.total_tokens - a.total_tokens || b.yes_count - a.yes_count);
+            const isRound1 = currentState.round === '1';
 
-            let html = `<div class="mb-6 text-center"><h2 class="text-2xl font-bold text-indigo-900 mb-2">🎉 Final Results</h2></div><div class="space-y-3">`;
+            const sortedTopics = [...activeTopics].map(topic => {
+                const r1 = finalResultsData.round1.find(r => r.topic_id === topic.topic_id) || { yes_count: 0, no_count: 0 };
+                const r2 = finalResultsData.round2.find(r => r.topic_id === topic.topic_id) || { total_tokens: 0 };
+                return { ...topic, yes_count: r1.yes_count, no_count: r1.no_count, total_tokens: r2.total_tokens };
+            }).sort((a, b) => isRound1 ? b.yes_count - a.yes_count : b.total_tokens - a.total_tokens || b.yes_count - a.yes_count);
+
+            let html = `<div class="mb-6 text-center"><h2 class="text-2xl font-bold text-indigo-900 mb-2">🎉 Phase ${isRound1 ? '1' : '2'} Results</h2></div><div class="space-y-3">`;
+            
             sortedTopics.forEach((topic, index) => {
                 const rankColor = index === 0 ? 'bg-amber-100 text-amber-800 border-amber-200' : index === 1 ? 'bg-slate-200 text-slate-700 border-slate-300' : index === 2 ? 'bg-orange-100 text-orange-800 border-orange-200' : 'bg-slate-50 text-slate-500 border-slate-200';
-                html += `<div class="flex items-center p-4 bg-white border border-slate-200 rounded-xl gap-4 shadow-sm"><div class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm border ${rankColor} shrink-0">#${index + 1}</div><span class="text-sm font-bold text-slate-800 flex-1">${escapeHtml(topic.title)}</span><div class="text-right"><div class="text-lg font-black text-indigo-600">${topic.total_tokens} <span class="text-[10px] text-slate-400 font-normal uppercase tracking-wide">Tokens</span></div></div></div>`;
+                
+                const scoreHtml = isRound1 
+                    ? `<div class="text-sm font-bold text-emerald-600">👍 ${topic.yes_count}</div><div class="text-sm font-bold text-rose-600">👎 ${topic.no_count}</div>`
+                    : `<div class="text-lg font-black text-indigo-600">${topic.total_tokens} <span class="text-[10px] text-slate-400 font-normal uppercase tracking-wide">Tokens</span></div>`;
+
+                html += `<div class="flex items-center p-4 bg-white border border-slate-200 rounded-xl gap-4 shadow-sm"><div class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm border ${rankColor} shrink-0">#${index + 1}</div><span class="text-sm font-bold text-slate-800 flex-1">${escapeHtml(topic.title)}</span><div class="text-right flex flex-col items-end justify-center">${scoreHtml}</div></div>`;
             });
             html += `</div>`;
             if (canvas.innerHTML !== html) canvas.innerHTML = html;
