@@ -30,6 +30,9 @@
                 <div>
                     <h1 class="text-xl font-bold tracking-tight">Voter Dashboard</h1>
                     <p class="text-xs text-indigo-200 mt-1" id="welcome-text">Welcome back</p>
+                    <div id="group-badge" class="mt-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-indigo-800/50 text-indigo-100 uppercase tracking-wider hidden">
+                        Group: <span id="group-name" class="ml-1 text-white">None</span>
+                    </div>
                 </div>
                 <div class="flex gap-2">
                     <span id="badge-gate" class="px-3 py-1 bg-indigo-800 rounded-full text-xs font-bold border border-indigo-700">Checking...</span>
@@ -43,7 +46,7 @@
             </div>
 
             <div id="voting-canvas" class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 min-h-[400px]">
-                <div class="text-center py-10 text-slate-400 text-sm font-medium animate-pulse">Syncing with system...</div>
+                <div id="sync-status" class="text-center py-10 text-slate-400 text-sm font-medium animate-pulse">Syncing with system...</div>
             </div>
         </div>
     </main>
@@ -84,51 +87,68 @@
             document.getElementById('welcome-text').innerText = `Participant: ${escapeHtml(myVoterName)}`;
         }
 
-        function startEngine() { syncData(); setInterval(syncData, 3000); }
+        function startEngine() { syncData(); setInterval(syncData, 5000); }
 
         async function syncData() {
+            if (!myVoterId) return;
             try {
-                const statusRes = await fetch(`${API_URL}/api/status`);
-                currentState = await statusRes.json();
+                // One call to get everything required to prevent API spam
+                const res = await fetch(`${API_URL}/api/voter/sync`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ voterId: myVoterId })
+                });
                 
-                isReadyState = localStorage.getItem(`votetile_ready_r${currentState.round}_${myVoterId}`) === 'true';
+                if (!res.ok) throw new Error("Sync API failed");
+                const data = await res.json();
+                
+                currentState = data.state;
+                activeTopics = data.topics;
+                myGroupFeed = data.groupFeed || [];
+                finalResultsData = data.finalResults;
 
-                const serverHash = currentState.hash;
-                const localHash = localStorage.getItem('votetile_session_hash');
-                if (serverHash && localHash !== serverHash) {
-                    if (!localHash) {
-                        localStorage.setItem('votetile_session_hash', serverHash);
+                // Handle final group leaderboards if published
+                if (currentState.published === 'true' && currentState.round === '2' && !finalGroupResults) {
+                    const groupRes = await fetch(`${API_URL}/api/admin/group-results`);
+                    finalGroupResults = await groupRes.json();
+                } else if (currentState.published !== 'true') {
+                    finalGroupResults = null;
+                }
+
+                // Handle group badge assignment visibility and ready state
+                if (data.voter) {
+                    isReadyState = data.voter.status === `ready_r${currentState.round}`;
+                    const groupBadge = document.getElementById('group-badge');
+                    if (data.voter.group_id && data.voter.group_id !== 'unassigned') {
+                        groupBadge.classList.remove('hidden');
+                        document.getElementById('group-name').innerText = escapeHtml(data.voter.group_id);
                     } else {
-                        localStorage.clear();
-                        localStorage.setItem('votetile_session_hash', serverHash);
-                        location.reload(); return;
+                        groupBadge.classList.add('hidden');
                     }
                 }
 
-                const topicsRes = await fetch(`${API_URL}/api/topics`);
-                activeTopics = await topicsRes.json();
-
-                if (currentState.published === 'true') {
-                    const resultsRes = await fetch(`${API_URL}/api/admin/results`);
-                    finalResultsData = await resultsRes.json();
-                    
-                    if (currentState.round === '2') {
-                        const groupRes = await fetch(`${API_URL}/api/admin/group-results`);
-                        finalGroupResults = await groupRes.json();
-                    }
+                // Handle session clear safety checks
+                const serverHash = currentState.hash || 'default';
+                const localHash = localStorage.getItem('votetile_session_hash');
+                if (localHash && localHash !== serverHash) {
+                    localStorage.clear(); 
+                    location.reload(); 
+                    return;
                 }
+                localStorage.setItem('votetile_session_hash', serverHash);
 
-                if (currentState.round === '2') {
-                    const rosterRes = await fetch(`${API_URL}/api/admin/roster`);
-                    const rosterData = await rosterRes.json();
-                    const me = rosterData.voters.find(v => v.voter_id === myVoterId);
-                    if (me && me.group_id !== 'unassigned') {
-                        const feedRes = await fetch(`${API_URL}/api/feed/group`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ groupId: me.group_id }) });
-                        myGroupFeed = await feedRes.json();
-                    }
-                }
                 updateUI();
-            } catch (err) { console.error("Sync error:", err); }
+            } catch (err) {
+                console.error("Sync payload error:", err);
+                const canvas = document.getElementById('voting-canvas');
+                if (canvas) {
+                    canvas.innerHTML = `
+                        <div class="text-center py-10">
+                            <div class="text-rose-600 font-bold mb-4">Network Disconnect</div>
+                            <button onclick="location.reload()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-6 py-2 rounded-lg text-sm shadow-sm transition-colors cursor-pointer">Force Retry</button>
+                        </div>`;
+                }
+            }
         }
 
         function updateUI() {
@@ -215,7 +235,9 @@
                 if (spentOnOthers + val > limit) { val = limit - spentOnOthers; alert(`Limit reached. You only have ${limit} tokens.`); }
             }
             myR2Votes[topicId] = val; localStorage.setItem(`votetile_r2_${myVoterId}`, JSON.stringify(myR2Votes)); renderRound2();
-            await fetch(`${API_URL}/api/vote/round2`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ voterId: myVoterId, topicId, tokens: val }) }); syncData();
+            
+            // Note: Unlike syncData(), vote commands remain silent in background to preserve flow
+            fetch(`${API_URL}/api/vote/round2`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ voterId: myVoterId, topicId, tokens: val }) }); 
         }
 
         function renderPublishedResults() {
