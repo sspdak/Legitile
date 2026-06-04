@@ -62,6 +62,7 @@
         let currentState = { round: '1', gate: 'open', limits: 0, published: 'false', hash: '' };
         let activeTopics = [], myGroupFeed = [], finalResultsData = null, finalGroupResults = null;
         let isReadyState = false;
+        let syncTimer;
         
         window.addEventListener('DOMContentLoaded', () => {
             if (myVoterId && myVoterName) { showPortal(); startEngine(); } 
@@ -87,12 +88,30 @@
             document.getElementById('welcome-text').innerText = `Participant: ${escapeHtml(myVoterName)}`;
         }
 
-        function startEngine() { syncData(); setInterval(syncData, 5000); }
+        function startEngine() { 
+            runSyncLoop(); 
+        }
+
+        async function runSyncLoop() {
+            if (myVoterId) {
+                await syncData();
+            }
+            
+            // Adaptive Polling: 1 Second Active Mode
+            let timerSpeed = 1000; 
+
+            if (currentState.gate === 'closed') {
+                timerSpeed = 15000; // Idle mode: 15 seconds
+            }
+            if (currentState.published === 'true') {
+                timerSpeed = 60000; // Sleep mode: 1 minute
+            }
+
+            syncTimer = setTimeout(runSyncLoop, timerSpeed);
+        }
 
         async function syncData() {
-            if (!myVoterId) return;
             try {
-                // One call to get everything required to prevent API spam
                 const res = await fetch(`${API_URL}/api/voter/sync`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -107,7 +126,6 @@
                 myGroupFeed = data.groupFeed || [];
                 finalResultsData = data.finalResults;
 
-                // Handle final group leaderboards if published
                 if (currentState.published === 'true' && currentState.round === '2' && !finalGroupResults) {
                     const groupRes = await fetch(`${API_URL}/api/admin/group-results`);
                     finalGroupResults = await groupRes.json();
@@ -115,7 +133,6 @@
                     finalGroupResults = null;
                 }
 
-                // Handle group badge assignment visibility and ready state
                 if (data.voter) {
                     isReadyState = data.voter.status === `ready_r${currentState.round}`;
                     const groupBadge = document.getElementById('group-badge');
@@ -127,7 +144,6 @@
                     }
                 }
 
-                // Handle session clear safety checks
                 const serverHash = currentState.hash || 'default';
                 const localHash = localStorage.getItem('votetile_session_hash');
                 if (localHash && localHash !== serverHash) {
@@ -140,6 +156,7 @@
                 updateUI();
             } catch (err) {
                 console.error("Sync payload error:", err);
+                clearTimeout(syncTimer); // Kills the engine if internet drops
                 const canvas = document.getElementById('voting-canvas');
                 if (canvas) {
                     canvas.innerHTML = `
@@ -236,7 +253,6 @@
             }
             myR2Votes[topicId] = val; localStorage.setItem(`votetile_r2_${myVoterId}`, JSON.stringify(myR2Votes)); renderRound2();
             
-            // Note: Unlike syncData(), vote commands remain silent in background to preserve flow
             fetch(`${API_URL}/api/vote/round2`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ voterId: myVoterId, topicId, tokens: val }) }); 
         }
 
