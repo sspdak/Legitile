@@ -15,8 +15,7 @@
                 <h1 class="text-2xl font-bold tracking-tight">VoteTile Admin Dashboard</h1>
                 <p class="text-sm text-slate-500">Configure rounds, monitor rosters, and manage the voting threshold.</p>
             </div>
-            <div class="flex flex-wrap gap-3">
-                <button onclick="exportResultsCSV()" class="bg-emerald-50 text-emerald-700 hover:bg-emerald-100 font-bold px-4 py-2 rounded-lg transition-colors cursor-pointer text-sm border border-emerald-200">📥 Export CSV</button>
+            <div class="flex gap-3">
                 <button onclick="togglePublish()" id="btn-publish" class="bg-purple-50 text-purple-600 hover:bg-purple-100 font-bold px-4 py-2 rounded-lg transition-colors cursor-pointer text-sm border border-purple-200">📢 Publish Results: OFF</button>
                 <button onclick="refreshAllData()" class="bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg transition-colors cursor-pointer text-sm">🔄 Refresh Dashboard</button>
             </div>
@@ -117,7 +116,7 @@
 
     <script>
         const API_URL = "https://votetile-api.ewing-jacob.workers.dev";
-        let currentTopics = [], currentVoters = [], r1Analytics = [], r2Analytics = [];
+        let currentTopics = [], currentVoters = [], r1Analytics = [];
         let customGroupsList = [], activeThreshold = 0, isPublished = false, activeRound = "1";
 
         window.addEventListener('DOMContentLoaded', () => { refreshAllData(); setInterval(refreshAllData, 5000); });
@@ -183,15 +182,10 @@
         }
 
         async function fetchResults() {
-            const res = await fetch(`${API_URL}/api/admin/results`); 
-            const data = await res.json(); 
-            r1Analytics = data.round1;
-            r2Analytics = data.round2; // Cached for CSV export
-            
+            const res = await fetch(`${API_URL}/api/admin/results`); const data = await res.json(); r1Analytics = data.round1;
             const tbody = document.getElementById('results-table-body'); tbody.innerHTML = '';
             currentTopics.forEach(topic => {
-                const r1 = r1Analytics.find(r => r.topic_id === topic.topic_id) || { yes_count: 0, no_count: 0 };
-                const r2 = r2Analytics.find(r => r.topic_id === topic.topic_id) || { total_tokens: 0 };
+                const r1 = r1Analytics.find(r => r.topic_id === topic.topic_id) || { yes_count: 0, no_count: 0 }, r2 = data.round2.find(r => r.topic_id === topic.topic_id) || { total_tokens: 0 };
                 const passesCut = r1.yes_count >= activeThreshold;
                 const statusBadge = passesCut ? `<span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-green-100 text-green-700">Passes</span>` : `<span class="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-slate-200 text-slate-500">Eliminated</span>`;
                 const tr = document.createElement('tr');
@@ -226,10 +220,12 @@
         }
 
         async function fetchRoster() {
+            // FIX 1: Do not refresh the DOM if the admin is currently interacting with a dropdown
             if (document.activeElement && document.activeElement.tagName === 'SELECT') return;
 
             const res = await fetch(`${API_URL}/api/admin/roster`); const data = await res.json(); currentVoters = data.voters;
             
+            // FIX 2: Cache any unsaved dropdown selections before rewriting the HTML
             const pendingSelections = {};
             currentVoters.forEach(v => {
                 const selectEl = document.getElementById(`group-select-${v.voter_id}`);
@@ -242,6 +238,7 @@
                 const r1Count = data.activityR1.find(a => a.voter_id === voter.voter_id)?.count || 0;
                 const r2Count = data.activityR2.find(a => a.voter_id === voter.voter_id)?.count || 0;
                 
+                // Inject the cached selection if they changed it, otherwise use database state
                 const displayedGroup = pendingSelections[voter.voter_id] || voter.group_id;
                 
                 const optionsWithSelection = customGroupsList.map(g => `<option value="${escapeHtml(g)}" ${displayedGroup === g ? 'selected' : ''}>${escapeHtml(g)}</option>`).join('');
@@ -261,36 +258,6 @@
         async function saveGroupAssignments() {
             const assignments = currentVoters.map(voter => ({ voterId: voter.voter_id, groupId: document.getElementById(`group-select-${voter.voter_id}`).value }));
             await fetch(`${API_URL}/api/admin/assign-groups`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ assignments }) }); alert("Roster groupings saved.");
-        }
-
-        function exportResultsCSV() {
-            if (currentTopics.length === 0) return alert("There is no topic data to export.");
-            
-            let csvLines = ["Topic Title,Round 1 Yes Votes,Round 1 No Votes,Round 1 Status,Round 2 Total Tokens"];
-            
-            currentTopics.forEach(topic => {
-                // Escape quotes and commas in the title for safe CSV formatting
-                const safeTitle = `"${escapeHtml(topic.title).replace(/"/g, '""')}"`;
-                
-                const r1 = r1Analytics.find(r => r.topic_id === topic.topic_id) || { yes_count: 0, no_count: 0 };
-                const r2 = r2Analytics.find(r => r.topic_id === topic.topic_id) || { total_tokens: 0 };
-                
-                const passesCut = r1.yes_count >= activeThreshold;
-                const statusStr = passesCut ? "Passed" : "Eliminated";
-                
-                csvLines.push(`${safeTitle},${r1.yes_count},${r1.no_count},${statusStr},${r2.total_tokens}`);
-            });
-            
-            const csvContent = csvLines.join("\n");
-            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-            const url = URL.createObjectURL(blob);
-            
-            const link = document.createElement("a");
-            link.setAttribute("href", url);
-            link.setAttribute("download", `VoteTile_Results_${new Date().toISOString().slice(0,10)}.csv`);
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
         }
 
         async function factoryReset() {
