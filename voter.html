@@ -5,6 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>VoteTile - Participant Portal</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        input[type="number"]::-webkit-inner-spin-button, 
+        input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+        input[type="number"] { -moz-appearance: textfield; }
+    </style>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans p-4 md:p-6 min-h-screen">
 
@@ -12,7 +17,7 @@
         <div id="view-login" class="bg-white p-8 rounded-xl shadow-sm border border-slate-200 mt-10 max-w-md mx-auto space-y-6">
             <div class="text-center">
                 <h1 class="text-2xl font-bold tracking-tight text-indigo-900">Conference Selection</h1>
-                <p class="text-sm text-slate-500 mt-2">Enter your name and workgroup to join.</p>
+                <p class="text-sm text-slate-500 mt-2">Enter your name to join the voting session.</p>
             </div>
             <div class="space-y-4">
                 <input type="text" id="voter-name-input" placeholder="First and Last Name" class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-indigo-500 text-sm">
@@ -35,7 +40,7 @@
 
                 <button onclick="joinSession()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-lg transition-colors cursor-pointer">Join Session</button>
             </div>
-        </div>
+        </div> <!-- FIXED: Added missing closing div for view-login -->
 
         <div id="view-portal" class="hidden space-y-6">
             <header class="bg-indigo-900 text-white p-4 md:p-6 rounded-xl shadow-md flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -70,10 +75,9 @@
         
         let myR1Votes = JSON.parse(localStorage.getItem(`votetile_r1_${myVoterId}`)) || {};
         let myR2Votes = JSON.parse(localStorage.getItem(`votetile_r2_${myVoterId}`)) || {};
-        let scribeSelections = JSON.parse(localStorage.getItem(`votetile_scribe_${myVoterId}`)) || {};
         
         let currentState = { round: '1', gate: 'open', limits: 0, published: 'false', hash: '' };
-        let activeTopics = [], myGroupFeed = [], voterProfile = null;
+        let activeTopics = [], myGroupFeed = [], finalResultsData = null, finalGroupResults = null;
         let isReadyState = false;
         let syncTimer;
         
@@ -82,45 +86,43 @@
             else { document.getElementById('view-login').classList.remove('hidden'); }
         });
 
-async function joinSession() {
-    const nameInput = document.getElementById('voter-name-input').value.trim();
-    const workgroupInput = document.getElementById('voter-workgroup-input').value;
-    
-    if (!nameInput) return alert("Please enter your name.");
-    if (!workgroupInput) return alert("Please select your work group.");
-    
-    try {
-        const res = await fetch(`${API_URL}/api/voter/join`, { 
-            method: 'POST', 
-            headers: { 'Content-Type': 'application/json' }, 
-            body: JSON.stringify({ name: nameInput, workgroup: workgroupInput }) 
-        });
-        
-        // PARSE FIRST: Capture the JSON response regardless of success/fail
-        const data = await res.json();
-        
-        // CHECK STATUS: If it's a 500 error, throw the actual database error
-        if (!res.ok) throw new Error(data.error || "Server rejected registration.");
-        
-        // Store fresh session
-        localStorage.setItem('votetile_voter_id', data.voterId); 
-        localStorage.setItem('votetile_voter_name', data.name);
-        
-        myVoterId = data.voterId; 
-        myVoterName = data.name;
-        myR1Votes = {}; myR2Votes = {}; scribeSelections = {};
-        
-        showPortal(); 
-        startEngine();
-    } catch (err) { 
-        console.error(err);
-        // Display the ACTUAL error from the database
-        alert(`Registration failed: ${err.message}`);
-        
-        localStorage.removeItem('votetile_voter_id');
-        localStorage.removeItem('votetile_voter_name');
-    }
-}
+        async function joinSession() {
+            const nameInput = document.getElementById('voter-name-input').value.trim();
+            const workgroupInput = document.getElementById('voter-workgroup-input').value;
+            
+            if (!nameInput) return alert("Please enter your name.");
+            if (!workgroupInput) return alert("Please select your work group.");
+            
+            try {
+                const res = await fetch(`${API_URL}/api/voter/join`, { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json' }, 
+                    body: JSON.stringify({ name: nameInput, workgroup: workgroupInput }) 
+                });
+                
+                // Parse the JSON first so we can read the backend error
+                const data = await res.json();
+                
+                // If it's a 500 error, throw the actual database error string
+                if (!res.ok) throw new Error(data.error || "Server rejected registration.");
+                
+                myVoterId = data.voterId; 
+                myVoterName = data.name;
+                localStorage.setItem('votetile_voter_id', myVoterId); 
+                localStorage.setItem('votetile_voter_name', myVoterName);
+                
+                // Clear any old session votes
+                myR1Votes = {}; myR2Votes = {};
+                
+                showPortal(); 
+                startEngine();
+            } catch (err) { 
+                console.error(err);
+                alert(`Registration failed: ${err.message}`);
+                localStorage.removeItem('votetile_voter_id');
+                localStorage.removeItem('votetile_voter_name');
+            }
+        }
 
         function showPortal() {
             document.getElementById('view-login').classList.add('hidden');
@@ -128,14 +130,24 @@ async function joinSession() {
             document.getElementById('welcome-text').innerText = `Participant: ${escapeHtml(myVoterName)}`;
         }
 
-        function startEngine() { runSyncLoop(); }
+        function startEngine() { 
+            runSyncLoop(); 
+        }
 
         async function runSyncLoop() {
-            if (myVoterId) await syncData();
+            if (myVoterId) {
+                await syncData();
+            }
             
-            let timerSpeed = currentState.round === '1' ? 1000 : 2000;
-            if (currentState.gate === 'closed') timerSpeed = 15000; 
-            if (currentState.published === 'true') timerSpeed = 60000; 
+            // Adaptive Polling: 1 Second Active Mode
+            let timerSpeed = 1000; 
+
+            if (currentState.gate === 'closed') {
+                timerSpeed = 15000; // Idle mode: 15 seconds
+            }
+            if (currentState.published === 'true') {
+                timerSpeed = 60000; // Sleep mode: 1 minute
+            }
 
             syncTimer = setTimeout(runSyncLoop, timerSpeed);
         }
@@ -143,46 +155,58 @@ async function joinSession() {
         async function syncData() {
             try {
                 const res = await fetch(`${API_URL}/api/voter/sync`, {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ voterId: myVoterId })
                 });
                 
                 if (!res.ok) throw new Error("Sync API failed");
                 const data = await res.json();
-
-                // SESSION VALIDATION CHECK
-                // If the user was removed from the backend, their DB record won't have an ID.
-                if (!data.voter || !data.voter.voter_id) {
-                    clearTimeout(syncTimer);
-                    localStorage.removeItem('votetile_voter_id');
-                    localStorage.removeItem('votetile_voter_name');
-                    alert("Your session has been removed by the administrator. Please re-register.");
-                    location.reload();
-                    return;
-                }
                 
                 currentState = data.state;
                 activeTopics = data.topics;
                 myGroupFeed = data.groupFeed || [];
-                voterProfile = data.voter;
+                finalResultsData = data.finalResults;
 
-                if (voterProfile) {
-                    isReadyState = voterProfile.status === `ready_r${currentState.round}`;
+                if (currentState.published === 'true' && currentState.round === '2' && !finalGroupResults) {
+                    const groupRes = await fetch(`${API_URL}/api/admin/group-results`);
+                    finalGroupResults = await groupRes.json();
+                } else if (currentState.published !== 'true') {
+                    finalGroupResults = null;
+                }
+
+                if (data.voter) {
+                    isReadyState = data.voter.status === `ready_r${currentState.round}`;
                     const groupBadge = document.getElementById('group-badge');
-                    if (voterProfile.group_id && voterProfile.group_id !== 'unassigned') {
+                    if (data.voter.group_id && data.voter.group_id !== 'unassigned') {
                         groupBadge.classList.remove('hidden');
-                        document.getElementById('group-name').innerText = escapeHtml(voterProfile.group_id) + (voterProfile.is_scribe ? ' (SCRIBE)' : '');
+                        document.getElementById('group-name').innerText = escapeHtml(data.voter.group_id);
                     } else {
                         groupBadge.classList.add('hidden');
                     }
                 }
 
+                const serverHash = currentState.hash || 'default';
+                const localHash = localStorage.getItem('votetile_session_hash');
+                if (localHash && localHash !== serverHash) {
+                    localStorage.clear(); 
+                    location.reload(); 
+                    return;
+                }
+                localStorage.setItem('votetile_session_hash', serverHash);
+
                 updateUI();
             } catch (err) {
-                console.error("Sync error:", err);
-                clearTimeout(syncTimer); 
+                console.error("Sync payload error:", err);
+                clearTimeout(syncTimer); // Kills the engine if internet drops
                 const canvas = document.getElementById('voting-canvas');
-                if (canvas) canvas.innerHTML = `<div class="text-center py-10"><div class="text-rose-600 font-bold mb-4">Network Disconnect</div><button onclick="location.reload()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-6 py-2 rounded-lg text-sm">Force Retry</button></div>`;
+                if (canvas) {
+                    canvas.innerHTML = `
+                        <div class="text-center py-10">
+                            <div class="text-rose-600 font-bold mb-4">Network Disconnect</div>
+                            <button onclick="location.reload()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-6 py-2 rounded-lg text-sm shadow-sm transition-colors cursor-pointer">Force Retry</button>
+                        </div>`;
+                }
             }
         }
 
@@ -191,27 +215,26 @@ async function joinSession() {
             document.getElementById('badge-round').innerText = `Phase ${currentState.round}`;
             const lockAlert = document.getElementById('alert-locked'), canvas = document.getElementById('voting-canvas');
 
-            if (currentState.gate === 'closed') {
+            if (currentState.gate === 'closed' && currentState.published !== 'true') {
                 lockAlert.classList.remove('hidden'); canvas.classList.add('opacity-60', 'pointer-events-none');
             } else {
                 lockAlert.classList.add('hidden'); canvas.classList.remove('opacity-60', 'pointer-events-none');
             }
 
-            if (currentState.round === '1') {
-                renderRound1();
-            } else if (currentState.round === '2') {
-                voterProfile && voterProfile.is_scribe ? renderScribeInterface() : renderObserverInterface();
-            }
+            if (currentState.published === 'true') renderPublishedResults();
+            else if (currentState.round === '1') renderRound1();
+            else renderRound2();
         }
 
         function appendReadyButton(html) {
-            return html + `<button onclick="toggleReady()" class="mt-8 w-full ${isReadyState ? 'bg-green-600 hover:bg-green-700' : 'bg-slate-800 hover:bg-slate-900'} text-white font-bold py-3 rounded-lg shadow-sm cursor-pointer transition-colors">
+            return html + `<button onclick="toggleReady()" class="mt-6 w-full ${isReadyState ? 'bg-green-600 hover:bg-green-700' : 'bg-slate-800 hover:bg-slate-900'} text-white font-bold py-3 rounded-lg shadow-sm cursor-pointer transition-colors">
                 ${isReadyState ? '✅ I am Done Voting' : 'Mark as Ready'}
             </button>`;
         }
 
         window.toggleReady = async function() {
             isReadyState = !isReadyState;
+            localStorage.setItem(`votetile_ready_r${currentState.round}_${myVoterId}`, isReadyState);
             updateUI();
             await fetch(`${API_URL}/api/voter/ready`, { 
                 method: 'POST', headers: { 'Content-Type': 'application/json' }, 
@@ -219,110 +242,103 @@ async function joinSession() {
             });
         }
 
-        // ==========================================
-        // ROUND 1: TOP 10 DRAFT
-        // ==========================================
         function renderRound1() {
             const canvas = document.getElementById('voting-canvas');
             if (activeTopics.length === 0) return canvas.innerHTML = `<p class="text-center text-slate-500 py-8">Waiting for topics...</p>`;
-            
-            const selectedCount = Object.values(myR1Votes).filter(v => v === 'yes').length;
-            const maxReached = selectedCount >= 10;
-
-            let html = `<div class="mb-6 border-b border-slate-100 pb-4"><h2 class="text-lg font-bold text-slate-800">Select Your Top 10 Priorities</h2><p class="text-sm font-semibold ${maxReached ? 'text-green-600' : 'text-indigo-600'}">${selectedCount} / 10 Selected</p></div><div class="space-y-2">`;
+            let html = `<div class="mb-6 border-b border-slate-100 pb-4"><h2 class="text-lg font-bold text-slate-800">Quality Filter (Yes/No)</h2></div><div class="space-y-3">`;
 
             activeTopics.forEach(topic => {
-                const isSelected = myR1Votes[topic.topic_id] === 'yes';
-                const isDisabled = !isSelected && maxReached;
-                
-                html += `
-                <label class="flex items-center p-3 bg-slate-50 border ${isSelected ? 'border-indigo-400 bg-indigo-50' : 'border-slate-200'} rounded-lg gap-3 ${isDisabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:bg-slate-100'}">
-                    <input type="checkbox" ${isSelected ? 'checked' : ''} ${isDisabled ? 'disabled' : ''} onchange="toggleR1Selection('${topic.topic_id}', this.checked)" class="w-5 h-5 text-indigo-600 rounded focus:ring-indigo-500">
-                    <span class="text-sm font-medium text-slate-700">${escapeHtml(topic.title)}</span>
-                </label>`;
+                const myChoice = myR1Votes[topic.topic_id];
+                const yesClass = myChoice === 'yes' ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm' : 'bg-white text-slate-600 border-slate-300 hover:bg-emerald-50';
+                const noClass = myChoice === 'no' ? 'bg-rose-600 text-white border-rose-600 shadow-sm' : 'bg-white text-slate-600 border-slate-300 hover:bg-rose-50';
+                html += `<div class="flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 bg-slate-50 border border-slate-200 rounded-lg gap-3"><span class="text-sm font-semibold text-slate-700 flex-1">${escapeHtml(topic.title)}</span><div class="flex gap-2 w-full sm:w-auto"><button onclick="castBinaryVote('${topic.topic_id}', 'yes')" class="flex-1 sm:flex-initial px-6 py-2 text-xs font-bold rounded-md transition-colors border cursor-pointer ${yesClass}">Yes</button><button onclick="castBinaryVote('${topic.topic_id}', 'no')" class="flex-1 sm:flex-initial px-6 py-2 text-xs font-bold rounded-md transition-colors border cursor-pointer ${noClass}">No</button></div></div>`;
             });
             html += `</div>`;
             html = appendReadyButton(html);
             if (canvas.innerHTML !== html) canvas.innerHTML = html;
         }
 
-        async function toggleR1Selection(topicId, isChecked) {
+        async function castBinaryVote(topicId, value) {
             if (currentState.gate === 'closed') return;
-            myR1Votes[topicId] = isChecked ? 'yes' : 'no';
-            localStorage.setItem(`votetile_r1_${myVoterId}`, JSON.stringify(myR1Votes));
-            renderRound1();
-            await fetch(`${API_URL}/api/vote/round1`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ voterId: myVoterId, topicId, value: myR1Votes[topicId] }) });
+            myR1Votes[topicId] = value; localStorage.setItem(`votetile_r1_${myVoterId}`, JSON.stringify(myR1Votes)); renderRound1();
+            await fetch(`${API_URL}/api/vote/round1`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ voterId: myVoterId, topicId, value }) });
         }
 
-        // ==========================================
-        // ROUND 2: OBSERVER INTERFACE (Arrows)
-        // ==========================================
-        function renderObserverInterface() {
+        function renderRound2() {
             const canvas = document.getElementById('voting-canvas');
-            let html = `<div class="mb-6"><h2 class="text-lg font-bold">Group Deliberation</h2><p class="text-sm text-slate-500">Signal your support or concern for the active list.</p></div><div class="space-y-3">`;
+            const limit = parseInt(currentState.limits) || 0;
+            const spentTokens = Object.values(myR2Votes).reduce((sum, val) => sum + (parseInt(val) || 0), 0);
+            
+            let trackerHtml = limit > 0 ? `<div class="p-3 rounded-lg border border-slate-200 ${limit - spentTokens < 0 ? 'text-red-600 bg-red-50' : 'text-indigo-700 bg-indigo-50'} font-bold text-sm text-center mb-4">Your Tokens Remaining: ${limit - spentTokens} / ${limit}</div>` : `<div class="p-3 rounded-lg border border-slate-200 bg-slate-50 font-bold text-sm text-center mb-4 text-slate-600">Total Tokens Spent: ${spentTokens}</div>`;
+
+            let html = `<div class="mb-6 border-b border-slate-100 pb-4"><h2 class="text-lg font-bold text-slate-800">Team Priority Ranking</h2></div>${trackerHtml}<div class="space-y-3">`;
 
             activeTopics.forEach(topic => {
-                const mySentiment = myR2Votes[topic.topic_id] || 0;
-                
-                html += `
-                <div class="p-4 bg-white border ${mySentiment === 1 ? 'border-green-300' : mySentiment === -1 ? 'border-red-300' : 'border-slate-200'} rounded-xl shadow-sm flex justify-between items-center gap-4">
-                    <span class="text-sm font-bold text-slate-800 flex-1">${escapeHtml(topic.title)}</span>
-                    <div class="flex gap-1 shrink-0">
-                        <button onclick="castSentiment('${topic.topic_id}', 1)" class="px-3 py-1.5 ${mySentiment === 1 ? 'bg-green-600 text-white' : 'bg-slate-100 text-slate-500 hover:bg-green-100'} rounded-lg text-sm font-bold transition-colors">▲</button>
-                        <button onclick="castSentiment('${topic.topic_id}', 0)" class="px-2 py-1.5 ${mySentiment === 0 ? 'bg-slate-300 text-slate-700' : 'bg-slate-100 text-slate-400 hover:bg-slate-200'} rounded-lg text-xs font-bold transition-colors">—</button>
-                        <button onclick="castSentiment('${topic.topic_id}', -1)" class="px-3 py-1.5 ${mySentiment === -1 ? 'bg-red-600 text-white' : 'bg-slate-100 text-slate-500 hover:bg-red-100'} rounded-lg text-sm font-bold transition-colors">▼</button>
-                    </div>
-                </div>`;
+                const groupTotal = myGroupFeed.find(f => f.topic_id === topic.topic_id)?.total_tokens || 0;
+                const myTokens = myR2Votes[topic.topic_id] || 0;
+                html += `<div class="flex flex-col md:flex-row justify-between items-start md:items-center p-4 bg-white border border-slate-200 rounded-xl gap-4 shadow-sm"><div class="flex-1"><span class="text-sm font-bold text-slate-800 block">${escapeHtml(topic.title)}</span><div class="mt-1.5 inline-flex items-center gap-1.5 text-xs text-slate-500 font-medium bg-slate-50 px-2 py-1 rounded border border-slate-100">Group Total: <span class="font-bold text-indigo-600 text-sm">${groupTotal}</span></div></div><div class="flex items-center gap-1 bg-slate-100 p-1.5 rounded-lg border border-slate-200 shrink-0 w-full md:w-auto justify-between"><label class="text-[10px] font-bold text-slate-400 uppercase tracking-wide mx-2 hidden md:block">My Allocation</label><div class="flex items-center gap-1"><button onclick="adjustTokens('${topic.topic_id}', -1)" class="w-8 h-8 flex items-center justify-center bg-white hover:bg-slate-50 border border-slate-300 rounded text-slate-600 font-bold cursor-pointer shadow-sm">-</button><input type="number" onchange="setTokens('${topic.topic_id}', this.value)" value="${myTokens}" min="0" class="w-14 h-8 text-center text-sm font-bold text-indigo-900 border border-slate-300 rounded focus:outline-indigo-500 bg-white"><button onclick="adjustTokens('${topic.topic_id}', 1)" class="w-8 h-8 flex items-center justify-center bg-white hover:bg-slate-50 border border-slate-300 rounded text-slate-600 font-bold cursor-pointer shadow-sm">+</button></div></div></div>`;
             });
             html += `</div>`;
             html = appendReadyButton(html);
             if (canvas.innerHTML !== html) canvas.innerHTML = html;
         }
 
-        async function castSentiment(topicId, val) {
+        function adjustTokens(topicId, delta) { setTokens(topicId, (myR2Votes[topicId] || 0) + delta); }
+
+        async function setTokens(topicId, newVal) {
             if (currentState.gate === 'closed') return;
-            myR2Votes[topicId] = val; 
-            localStorage.setItem(`votetile_r2_${myVoterId}`, JSON.stringify(myR2Votes)); 
-            renderObserverInterface();
+            let val = Math.max(0, parseInt(newVal) || 0);
+            const limit = parseInt(currentState.limits) || 0;
+            if (limit > 0) {
+                const spentOnOthers = Object.keys(myR2Votes).filter(id => id !== topicId).reduce((sum, id) => sum + (myR2Votes[id] || 0), 0);
+                if (spentOnOthers + val > limit) { val = limit - spentOnOthers; alert(`Limit reached. You only have ${limit} tokens.`); }
+            }
+            myR2Votes[topicId] = val; localStorage.setItem(`votetile_r2_${myVoterId}`, JSON.stringify(myR2Votes)); renderRound2();
+            
             fetch(`${API_URL}/api/vote/round2`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ voterId: myVoterId, topicId, tokens: val }) }); 
         }
 
-        // ==========================================
-        // ROUND 2: SCRIBE INTERFACE (Heat Map & Selection)
-        // ==========================================
-        function renderScribeInterface() {
+        function renderPublishedResults() {
             const canvas = document.getElementById('voting-canvas');
-            
-            // Sort topics by Heat Score (Descending) so Scribe sees most popular at the top
+            if (!finalResultsData || activeTopics.length === 0) return;
+            const isRound1 = currentState.round === '1';
+
             const sortedTopics = [...activeTopics].map(topic => {
-                const heat = myGroupFeed.find(f => f.topic_id === topic.topic_id)?.heat_score || 0;
-                return { ...topic, heat };
-            }).sort((a, b) => b.heat - a.heat);
+                const r1 = finalResultsData.round1.find(r => r.topic_id === topic.topic_id) || { yes_count: 0, no_count: 0 };
+                const r2 = finalResultsData.round2.find(r => r.topic_id === topic.topic_id) || { total_tokens: 0 };
+                return { ...topic, yes_count: r1.yes_count, no_count: r1.no_count, total_tokens: r2.total_tokens };
+            }).sort((a, b) => isRound1 ? b.yes_count - a.yes_count : b.total_tokens - a.total_tokens || b.yes_count - a.yes_count);
 
-            let html = `<div class="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-lg"><h2 class="text-lg font-bold text-amber-900">✍️ Scribe Panel</h2><p class="text-sm text-amber-800">Review the group's heat map and categorize the final list.</p></div><div class="space-y-3">`;
-
-            sortedTopics.forEach(topic => {
-                const currentSelection = scribeSelections[topic.topic_id] || 'unranked';
-                const heatColor = topic.heat > 0 ? 'text-green-600 bg-green-50' : topic.heat < 0 ? 'text-red-600 bg-red-50' : 'text-slate-500 bg-slate-100';
+            let html = `<div class="mb-6 text-center"><h2 class="text-2xl font-bold text-indigo-900 mb-2">🎉 Phase ${isRound1 ? '1' : '2'} Results</h2></div><div class="space-y-3">`;
+            
+            sortedTopics.forEach((topic, index) => {
+                const rankColor = index === 0 ? 'bg-amber-100 text-amber-800 border-amber-200' : index === 1 ? 'bg-slate-200 text-slate-700 border-slate-300' : index === 2 ? 'bg-orange-100 text-orange-800 border-orange-200' : 'bg-slate-50 text-slate-500 border-slate-200';
                 
-                html += `
-                <div class="p-3 bg-white border border-slate-200 rounded-xl shadow-sm flex flex-col md:flex-row justify-between gap-3">
-                    <div class="flex items-start gap-3 flex-1">
-                        <div class="min-w-[40px] text-center font-black ${heatColor} px-2 py-1 rounded border border-slate-100" title="Group Heat Score">${topic.heat > 0 ? '+' : ''}${topic.heat}</div>
-                        <span class="text-sm font-bold text-slate-800 pt-1">${escapeHtml(topic.title)}</span>
-                    </div>
-                    <select onchange="saveScribeChoice('${topic.topic_id}', this.value)" class="shrink-0 bg-slate-50 border border-slate-300 text-xs font-bold rounded p-2 focus:outline-indigo-500">
-                        <option value="unranked" ${currentSelection === 'unranked' ? 'selected' : ''}>-- Categorize --</option>
-                        <option value="top5" ${currentSelection === 'top5' ? 'selected' : ''}>⭐ Top 5 Priority</option>
-                        <option value="alt" ${currentSelection === 'alt' ? 'selected' : ''}>🔄 Alternative</option>
-                    </select>
-                </div>`;
+                const scoreHtml = isRound1 
+                    ? `<div class="text-sm font-bold text-emerald-600">👍 ${topic.yes_count}</div><div class="text-sm font-bold text-rose-600">👎 ${topic.no_count}</div>`
+                    : `<div class="text-lg font-black text-indigo-600">${topic.total_tokens} <span class="text-[10px] text-slate-400 font-normal uppercase tracking-wide">Tokens</span></div>`;
+
+                html += `<div class="flex items-center p-4 bg-white border border-slate-200 rounded-xl gap-4 shadow-sm"><div class="w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm border ${rankColor} shrink-0">#${index + 1}</div><span class="text-sm font-bold text-slate-800 flex-1">${escapeHtml(topic.title)}</span><div class="text-right flex flex-col items-end justify-center">${scoreHtml}</div></div>`;
             });
             html += `</div>`;
-            html = appendReadyButton(html);
+
+            if (!isRound1 && finalGroupResults) {
+                html += `<div class="mt-10 mb-4 border-b border-slate-200 pb-2"><h3 class="text-lg font-bold text-slate-800">Top 5 Topics by Group</h3></div><div class="grid grid-cols-1 md:grid-cols-2 gap-4">`;
+                const groups = [...new Set(finalGroupResults.map(item => item.group_id))];
+                groups.forEach(g => {
+                    if (g === 'unassigned') return;
+                    const top5 = finalGroupResults.filter(i => i.group_id === g).slice(0, 5);
+                    html += `<div class="p-4 bg-slate-50 rounded-xl border border-slate-200"><h4 class="font-bold text-sm mb-3 text-indigo-800 uppercase tracking-wider">${escapeHtml(g)}</h4>`;
+                    top5.forEach((t, idx) => { html += `<div class="text-xs py-1.5 border-b border-slate-200 flex justify-between"><span class="truncate pr-2">${idx+1}. ${escapeHtml(t.title)}</span><span class="font-bold text-indigo-600 shrink-0">${t.total_tokens}</span></div>`; });
+                    html += `</div>`;
+                });
+                html += `</div>`;
+            }
+
             if (canvas.innerHTML !== html) canvas.innerHTML = html;
         }
 
-        function saveScribeChoice(topicId, value) {
-            scribeSelections[topicId] = value;
-            localStorage.setItem(`votetile_scribe_${myVoterId}`, JSON.stringify(
+        function escapeHtml(str) { return str ? str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;") : ''; }
+    </script>
+</body>
+</html>
