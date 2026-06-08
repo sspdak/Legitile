@@ -5,6 +5,309 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>VoteTile - Participant Portal</title>
     <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans p-4 md:p-6 min-h-screen">
+
+    <main class="max-w-3xl mx-auto">
+        <div id="view-login" class="bg-white p-8 rounded-xl shadow-sm border border-slate-200 mt-10 max-w-md mx-auto space-y-6">
+            <div class="text-center">
+                <h1 class="text-2xl font-bold tracking-tight text-indigo-900">Conference Selection</h1>
+                <p class="text-sm text-slate-500 mt-2">Enter your name to join the voting session.</p>
+            </div>
+            <div class="space-y-4">
+                <input type="text" id="voter-name-input" placeholder="First and Last Name" class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-indigo-500 text-sm">
+                
+                <select id="voter-workgroup-input" class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-indigo-500 text-sm bg-white">
+                    <option value="" disabled selected>Select your work group...</option>
+                    <option value="CRO">CRO</option>
+                    <option value="HADM">HADM</option>
+                    <option value="HDC">HDC</option>
+                    <option value="HRC">HRC</option>
+                    <option value="LA">LA</option>
+                    <option value="Leg-Tech">Leg-Tech</option>
+                    <option value="LSS">LSS</option>
+                    <option value="OPR">OPR</option>
+                    <option value="SADM">SADM</option>
+                    <option value="SCS">SCS</option>
+                    <option value="SDC">SDC</option>
+                    <option value="SRC">SRC</option>
+                </select>
+
+                <button onclick="joinSession()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-lg transition-colors cursor-pointer">Join Session</button>
+            </div>
+        </div>
+
+        <div id="view-portal" class="hidden space-y-6">
+            <header class="bg-indigo-900 text-white p-4 md:p-6 rounded-xl shadow-md flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div>
+                    <h1 class="text-xl font-bold tracking-tight">Voter Dashboard</h1>
+                    <p class="text-xs text-indigo-200 mt-1" id="welcome-text">Welcome back</p>
+                    <div id="group-badge" class="mt-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-indigo-800/50 text-indigo-100 uppercase tracking-wider hidden">
+                        Group: <span id="group-name" class="ml-1 text-white">None</span>
+                    </div>
+                </div>
+                <div class="flex gap-2">
+                    <span id="badge-gate" class="px-3 py-1 bg-indigo-800 rounded-full text-xs font-bold border border-indigo-700">Checking...</span>
+                    <span id="badge-round" class="px-3 py-1 bg-indigo-100 text-indigo-800 rounded-full text-xs font-bold">Round --</span>
+                </div>
+            </header>
+
+            <div id="alert-locked" class="hidden bg-amber-50 border-l-4 border-amber-500 p-4 rounded-r-lg shadow-sm">
+                <h3 class="text-amber-800 font-bold text-sm">Polls are currently closed</h3>
+                <p class="text-xs text-amber-700 mt-1">The administrator has paused submissions.</p>
+            </div>
+
+            <div id="voting-canvas" class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 min-h-[400px]">
+                <div id="sync-status" class="text-center py-10 text-slate-400 text-sm font-medium animate-pulse">Syncing with system...</div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const API_URL = "https://votetile-api.ewing-jacob.workers.dev";
+        let myVoterId = localStorage.getItem('votetile_voter_id');
+        let myVoterName = localStorage.getItem('votetile_voter_name');
+        
+        let myR1Votes = JSON.parse(localStorage.getItem(`votetile_r1_${myVoterId}`)) || {};
+        
+        let currentState = { round: '1', gate: 'open', limits: 0, published: 'false', hash: '' };
+        let activeTopics = [], groupFeed = [], scribeChoices = {}, voterProfile = null;
+        let isReadyState = false, groupComplete = false;
+        let syncTimer;
+        
+        window.addEventListener('DOMContentLoaded', () => {
+            if (myVoterId && myVoterName) { showPortal(); startEngine(); } 
+            else { document.getElementById('view-login').classList.remove('hidden'); }
+        });
+
+        async function joinSession() {
+            const nameInput = document.getElementById('voter-name-input').value.trim();
+            const workgroupInput = document.getElementById('voter-workgroup-input').value;
+            
+            if (!nameInput) return alert("Please enter your name.");
+            if (!workgroupInput) return alert("Please select your work group.");
+            
+            try {
+                const res = await fetch(`${API_URL}/api/voter/join`, { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json' }, 
+                    body: JSON.stringify({ name: nameInput, workgroup: workgroupInput }) 
+                });
+                
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || "Server rejected registration.");
+                
+                myVoterId = data.voterId; 
+                myVoterName = data.name;
+                localStorage.setItem('votetile_voter_id', myVoterId); 
+                localStorage.setItem('votetile_voter_name', myVoterName);
+                myR1Votes = {};
+                
+                showPortal(); 
+                startEngine();
+            } catch (err) { 
+                alert(`Registration failed: ${err.message}`);
+                localStorage.removeItem('votetile_voter_id');
+                localStorage.removeItem('votetile_voter_name');
+            }
+        }
+
+        function showPortal() {
+            document.getElementById('view-login').classList.add('hidden');
+            document.getElementById('view-portal').classList.remove('hidden');
+            document.getElementById('welcome-text').innerText = `Participant: ${escapeHtml(myVoterName)}`;
+        }
+
+        function startEngine() { runSyncLoop(); }
+
+        async function runSyncLoop() {
+            if (myVoterId) await syncData();
+            let timerSpeed = 1000; 
+            if (currentState.gate === 'closed') timerSpeed = 15000;
+            if (currentState.published === 'true') timerSpeed = 60000;
+            syncTimer = setTimeout(runSyncLoop, timerSpeed);
+        }
+
+        async function syncData() {
+            try {
+                const res = await fetch(`${API_URL}/api/voter/sync`, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ voterId: myVoterId })
+                });
+                
+                if (!res.ok) throw new Error("Sync API failed");
+                const data = await res.json();
+                
+                currentState = data.state;
+                activeTopics = data.topics;
+                groupFeed = data.groupFeed || [];
+                scribeChoices = data.scribeChoices || {};
+                groupComplete = data.groupComplete || false;
+                voterProfile = data.voter;
+
+                if (voterProfile) {
+                    isReadyState = voterProfile.status === `ready_r${currentState.round}`;
+                    const groupBadge = document.getElementById('group-badge');
+                    if (voterProfile.group_id && voterProfile.group_id !== 'unassigned') {
+                        groupBadge.classList.remove('hidden');
+                        document.getElementById('group-name').innerText = escapeHtml(voterProfile.group_id) + (voterProfile.is_scribe ? ' (SCRIBE)' : '');
+                    } else {
+                        groupBadge.classList.add('hidden');
+                    }
+                }
+
+                const serverHash = currentState.hash || 'default';
+                const localHash = localStorage.getItem('votetile_session_hash');
+                if (localHash && localHash !== serverHash) {
+                    localStorage.clear(); location.reload(); return;
+                }
+                localStorage.setItem('votetile_session_hash', serverHash);
+
+                updateUI();
+            } catch (err) {
+                console.error("Sync payload error:", err);
+                clearTimeout(syncTimer); 
+                const canvas = document.getElementById('voting-canvas');
+                if (canvas) canvas.innerHTML = `<div class="text-center py-10"><div class="text-rose-600 font-bold mb-4">Network Disconnect</div><button onclick="location.reload()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-6 py-2 rounded-lg text-sm shadow-sm transition-colors cursor-pointer">Force Retry</button></div>`;
+            }
+        }
+
+        function updateUI() {
+            document.getElementById('badge-gate').innerText = currentState.gate === 'open' ? '🟢 Polls Open' : '🔒 Polls Closed';
+            document.getElementById('badge-round').innerText = `Phase ${currentState.round}`;
+            const lockAlert = document.getElementById('alert-locked'), canvas = document.getElementById('voting-canvas');
+
+            if (currentState.gate === 'closed') {
+                lockAlert.classList.remove('hidden'); canvas.classList.add('opacity-60', 'pointer-events-none');
+            } else {
+                lockAlert.classList.add('hidden'); canvas.classList.remove('opacity-60', 'pointer-events-none');
+            }
+
+            if (currentState.round === '1') renderRound1();
+            else if (currentState.round === '2') renderRound2();
+        }
+
+        window.toggleReady = async function() {
+            isReadyState = !isReadyState;
+            updateUI();
+            await fetch(`${API_URL}/api/voter/ready`, { 
+                method: 'POST', headers: { 'Content-Type': 'application/json' }, 
+                body: JSON.stringify({ voterId: myVoterId, isReady: isReadyState, round: currentState.round }) 
+            });
+        }
+
+        // ==========================================
+        // ROUND 1: INDIVIDUAL 10 VOTES
+        // ==========================================
+        function renderRound1() {
+            const canvas = document.getElementById('voting-canvas');
+            if (activeTopics.length === 0) return canvas.innerHTML = `<p class="text-center text-slate-500 py-8">Waiting for topics...</p>`;
+            
+            const selectedCount = Object.values(myR1Votes).filter(v => v === 'yes').length;
+            const maxReached = selectedCount >= 10;
+
+            let html = `
+            <div class="mb-6 border-b border-slate-100 pb-4">
+                <h2 class="text-lg font-bold text-slate-800">Select Up To 10 Topics</h2>
+                <p class="text-sm font-semibold ${maxReached ? 'text-green-600' : 'text-indigo-600'}">${selectedCount} / 10 Selected</p>
+            </div><div class="space-y-2">`;
+
+            activeTopics.forEach(topic => {
+                const isSelected = myR1Votes[topic.topic_id] === 'yes';
+                const isDisabled = !isSelected && maxReached;
+                
+                html += `
+                <label class="flex items-center p-3 bg-slate-50 border ${isSelected ? 'border-indigo-400 bg-indigo-50' : 'border-slate-200'} rounded-lg gap-3 ${isDisabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:bg-slate-100'}">
+                    <input type="checkbox" ${isSelected ? 'checked' : ''} ${isDisabled ? 'disabled' : ''} onchange="toggleR1Selection('${topic.topic_id}', this.checked)" class="w-5 h-5 text-indigo-600 rounded focus:ring-indigo-500">
+                    <span class="text-sm font-medium text-slate-700">${escapeHtml(topic.title)}</span>
+                </label>`;
+            });
+            html += `</div>`;
+            html += `<button onclick="toggleReady()" class="mt-8 w-full ${isReadyState ? 'bg-green-600 hover:bg-green-700' : 'bg-slate-800 hover:bg-slate-900'} text-white font-bold py-3 rounded-lg shadow-sm cursor-pointer transition-colors">${isReadyState ? '✅ I am Done Voting' : 'Mark as Ready'}</button>`;
+            if (canvas.innerHTML !== html) canvas.innerHTML = html;
+        }
+
+        async function toggleR1Selection(topicId, isChecked) {
+            if (currentState.gate === 'closed') return;
+            myR1Votes[topicId] = isChecked ? 'yes' : 'no';
+            localStorage.setItem(`votetile_r1_${myVoterId}`, JSON.stringify(myR1Votes));
+            renderRound1();
+            await fetch(`${API_URL}/api/vote/round1`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ voterId: myVoterId, topicId, value: myR1Votes[topicId] }) });
+        }
+
+        // ==========================================
+        // ROUND 2: GROUP DELIBERATION
+        // ==========================================
+        function renderRound2() {
+            const canvas = document.getElementById('voting-canvas');
+            if (!groupFeed || groupFeed.length === 0) return canvas.innerHTML = `<div class="text-center py-10 text-slate-500"><p class="font-bold">No Topics Selected</p><p class="text-sm">No one in your group selected any topics in Phase 1.</p></div>`;
+
+            const isScribe = voterProfile && voterProfile.is_scribe === 1;
+
+            let html = `
+            <div class="mb-6 border-b border-slate-100 pb-4 flex justify-between items-end">
+                <div>
+                    <h2 class="text-lg font-bold text-slate-800">Group Deliberation</h2>
+                    <p class="text-sm text-slate-500 mt-1">${isScribe ? 'You are the Scribe. Assign the final Top 5 and Alternatives.' : 'Watch as your Scribe builds the final list.'}</p>
+                </div>
+                ${groupComplete && !isScribe ? `<span class="bg-green-100 text-green-800 text-xs font-bold px-2.5 py-1 rounded-full border border-green-200">✅ Group Finished</span>` : ''}
+            </div>
+            <div class="space-y-4">`;
+
+            groupFeed.forEach(topic => {
+                const currentSelection = scribeChoices[topic.topic_id] || 'unranked';
+                
+                let categoryUI = '';
+                if (isScribe) {
+                    categoryUI = `
+                    <select onchange="saveScribeChoice('${topic.topic_id}', this.value)" class="shrink-0 bg-white border border-slate-300 text-xs font-bold rounded p-2 focus:outline-indigo-500 cursor-pointer shadow-sm">
+                        <option value="unranked" ${currentSelection === 'unranked' ? 'selected' : ''}>-- Categorize --</option>
+                        <option value="top5" ${currentSelection === 'top5' ? 'selected' : ''}>⭐ Top 5 Priority</option>
+                        <option value="alt" ${currentSelection === 'alt' ? 'selected' : ''}>🔄 Alternative</option>
+                    </select>`;
+                } else {
+                    if (currentSelection === 'top5') categoryUI = `<span class="px-3 py-1 bg-amber-100 text-amber-800 border border-amber-300 font-bold text-xs rounded-full whitespace-nowrap">⭐ Top 5</span>`;
+                    else if (currentSelection === 'alt') categoryUI = `<span class="px-3 py-1 bg-slate-100 text-slate-600 border border-slate-300 font-bold text-xs rounded-full whitespace-nowrap">🔄 Alternative</span>`;
+                    else categoryUI = `<span class="px-3 py-1 bg-slate-50 text-slate-400 border border-slate-200 font-medium text-xs rounded-full whitespace-nowrap">Unranked</span>`;
+                }
+
+                html += `
+                <div class="p-4 bg-white border ${currentSelection === 'top5' ? 'border-amber-300 bg-amber-50/30' : currentSelection === 'alt' ? 'border-slate-300 bg-slate-50' : 'border-slate-200'} rounded-xl shadow-sm flex flex-col md:flex-row justify-between gap-4 transition-colors">
+                    <div class="flex-1">
+                        <span class="text-sm font-bold text-slate-800 block">${escapeHtml(topic.title)}</span>
+                        <div class="mt-2 inline-flex items-center gap-1.5 text-xs text-slate-500 font-medium bg-indigo-50/50 px-2.5 py-1 rounded-md border border-indigo-100">
+                            👤 Selected by: <span class="text-indigo-700">${escapeHtml(topic.selected_by)}</span>
+                        </div>
+                    </div>
+                    <div class="flex items-center shrink-0">
+                        ${categoryUI}
+                    </div>
+                </div>`;
+            });
+            html += `</div>`;
+
+            if (isScribe) {
+                html += `<button onclick="toggleReady()" class="mt-8 w-full ${isReadyState ? 'bg-green-600 hover:bg-green-700' : 'bg-slate-800 hover:bg-slate-900'} text-white font-bold py-3 rounded-lg shadow-sm cursor-pointer transition-colors">${isReadyState ? '✅ Sent to Administrator' : 'Submit Final Group List'}</button>`;
+            }
+
+            if (canvas.innerHTML !== html) canvas.innerHTML = html;
+        }
+
+        function saveScribeChoice(topicId, val) {
+            scribeChoices[topicId] = val;
+            fetch(`${API_URL}/api/vote/round2`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ voterId: myVoterId, topicId, category: val }) });
+        }
+
+        function escapeHtml(str) { return str ? str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;") : ''; }
+    </script>
+</body>
+</html><!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VoteTile - Participant Portal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
     <style>
         input[type="number"]::-webkit-inner-spin-button, 
         input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
