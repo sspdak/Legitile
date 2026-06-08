@@ -134,6 +134,17 @@
                 
                 if (!res.ok) throw new Error("Sync API failed");
                 const data = await res.json();
+
+                // SESSION VALIDATION CHECK
+                // If the user was removed from the backend, their DB record won't have an ID.
+                if (!data.voter || !data.voter.voter_id) {
+                    clearTimeout(syncTimer);
+                    localStorage.removeItem('votetile_voter_id');
+                    localStorage.removeItem('votetile_voter_name');
+                    alert("Your session has been removed by the administrator. Please re-register.");
+                    location.reload();
+                    return;
+                }
                 
                 currentState = data.state;
                 activeTopics = data.topics;
@@ -299,11 +310,4 @@
 
         function saveScribeChoice(topicId, value) {
             scribeSelections[topicId] = value;
-            localStorage.setItem(`votetile_scribe_${myVoterId}`, JSON.stringify(scribeSelections));
-            // In a future expansion, you could POST this scribe selection to the backend to generate official reports
-        }
-
-        function escapeHtml(str) { return str ? str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;") : ''; }
-    </script>
-</body>
-</html>
+            localStorage.setItem(`votetile_scribe_${myVoterId}`, JSON.stringify(
