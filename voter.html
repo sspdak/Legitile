@@ -82,7 +82,7 @@
             else { document.getElementById('view-login').classList.remove('hidden'); }
         });
 
-       async function joinSession() {
+async function joinSession() {
             const nameInput = document.getElementById('voter-name-input').value.trim();
             const workgroupInput = document.getElementById('voter-workgroup-input').value;
             
@@ -96,25 +96,26 @@
                     body: JSON.stringify({ name: nameInput, workgroup: workgroupInput }) 
                 });
                 
+                if (!res.ok) throw new Error("Server rejected registration.");
+                
                 const data = await res.json();
                 
-                // NEW: Explicitly catch worker errors before creating a session
-                if (!res.ok || data.error) {
-                    console.error("Worker Error:", data.error);
-                    alert("Registration failed: " + (data.error || "Please check your database configuration."));
-                    return;
-                }
+                // Store fresh session
+                localStorage.setItem('votetile_voter_id', data.voterId); 
+                localStorage.setItem('votetile_voter_name', data.name);
                 
                 myVoterId = data.voterId; 
                 myVoterName = data.name;
-                localStorage.setItem('votetile_voter_id', myVoterId); 
-                localStorage.setItem('votetile_voter_name', myVoterName);
                 myR1Votes = {}; myR2Votes = {}; scribeSelections = {};
                 
-                showPortal(); startEngine();
+                showPortal(); 
+                startEngine();
             } catch (err) { 
                 console.error(err);
-                alert("Failed to connect to voting server."); 
+                alert("Registration failed. Please try again or contact the administrator.");
+                // Ensure we don't accidentally leave ghost data
+                localStorage.removeItem('votetile_voter_id');
+                localStorage.removeItem('votetile_voter_name');
             }
         }
 
