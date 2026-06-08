@@ -82,7 +82,7 @@
             else { document.getElementById('view-login').classList.remove('hidden'); }
         });
 
-        async function joinSession() {
+       async function joinSession() {
             const nameInput = document.getElementById('voter-name-input').value.trim();
             const workgroupInput = document.getElementById('voter-workgroup-input').value;
             
@@ -95,7 +95,15 @@
                     headers: { 'Content-Type': 'application/json' }, 
                     body: JSON.stringify({ name: nameInput, workgroup: workgroupInput }) 
                 });
+                
                 const data = await res.json();
+                
+                // NEW: Explicitly catch worker errors before creating a session
+                if (!res.ok || data.error) {
+                    console.error("Worker Error:", data.error);
+                    alert("Registration failed: " + (data.error || "Please check your database configuration."));
+                    return;
+                }
                 
                 myVoterId = data.voterId; 
                 myVoterName = data.name;
@@ -104,7 +112,10 @@
                 myR1Votes = {}; myR2Votes = {}; scribeSelections = {};
                 
                 showPortal(); startEngine();
-            } catch (err) { alert("Failed to connect to voting server."); }
+            } catch (err) { 
+                console.error(err);
+                alert("Failed to connect to voting server."); 
+            }
         }
 
         function showPortal() {
