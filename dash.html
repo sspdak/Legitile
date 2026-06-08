@@ -20,7 +20,7 @@
             </div>
         </header>
 
-        <section class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <section class="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 space-y-3">
                 <h2 class="text-xs font-bold tracking-wide uppercase text-slate-400">Poll Gatekeeper</h2>
                 <div class="flex items-center gap-3"><span id="gate-badge" class="px-2.5 py-1 text-xs font-semibold rounded-full bg-slate-100 text-slate-700">Loading...</span></div>
@@ -36,6 +36,15 @@
                 <div class="flex gap-2">
                     <button onclick="updateMeta('_meta_round', '1')" class="flex-1 bg-slate-100 hover:bg-slate-200 font-bold py-1.5 rounded text-xs cursor-pointer">Set Phase 1</button>
                     <button onclick="updateMeta('_meta_round', '2')" class="flex-1 bg-slate-100 hover:bg-slate-200 font-bold py-1.5 rounded text-xs cursor-pointer">Set Phase 2</button>
+                </div>
+            </div>
+
+            <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 space-y-3">
+                <h2 class="text-xs font-bold tracking-wide uppercase text-slate-400">Results Visibility</h2>
+                <div class="flex items-center gap-3"><span id="publish-badge" class="px-2.5 py-1 text-xs font-semibold rounded-full bg-slate-100 text-slate-700">Loading...</span></div>
+                <div class="flex gap-2">
+                    <button onclick="updateMeta('_meta_published', 'true')" class="flex-1 bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold py-1.5 rounded text-xs border border-blue-200 cursor-pointer">Publish</button>
+                    <button onclick="updateMeta('_meta_published', 'false')" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-1.5 rounded text-xs border border-slate-200 cursor-pointer">Hide</button>
                 </div>
             </div>
         </section>
@@ -115,6 +124,11 @@
                 const gateBadge = document.getElementById('gate-badge');
                 gateBadge.innerText = data.gate.toUpperCase();
                 gateBadge.className = data.gate === 'open' ? "px-2.5 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-700" : "px-2.5 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-700";
+                
+                const publishBadge = document.getElementById('publish-badge');
+                publishBadge.innerText = data.published === 'true' ? 'PUBLISHED' : 'HIDDEN';
+                publishBadge.className = data.published === 'true' ? "px-2.5 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-700" : "px-2.5 py-1 text-xs font-semibold rounded-full bg-slate-100 text-slate-700";
+
                 document.getElementById('current-round-display').innerText = `Phase ${activeRound}`;
             } catch (err) { console.error("Status sync error:", err); }
         }
@@ -209,6 +223,11 @@
                 if (selectEl) pendingSelections[v.voter_id] = selectEl.value;
             });
 
+            // Find all groups where the scribe has marked ready_r2
+            const finishedGroups = currentVoters
+                .filter(v => v.is_scribe === 1 && v.status === 'ready_r2')
+                .map(v => v.group_id);
+
             const container = document.getElementById('roster-container'); container.innerHTML = '';
             
             currentVoters.forEach(voter => {
@@ -220,7 +239,10 @@
                 const scribeBtn = `<button onclick="setScribe('${voter.voter_id}', ${!voter.is_scribe})" class="text-[10px] font-bold px-2 py-1 rounded border ${voter.is_scribe ? 'bg-amber-100 text-amber-800 border-amber-300' : 'bg-slate-100 text-slate-500 border-slate-300 hover:bg-amber-50'} transition-colors cursor-pointer shadow-sm">${voter.is_scribe ? '✍️ Scribe Assigned' : 'Make Scribe'}</button>`;
                 
                 const r1Status = `<span class="text-[10px] ${voter.status === 'ready_r1' ? 'bg-green-100 text-green-800 border-green-200' : 'bg-blue-50 text-blue-700 border-blue-200'} border px-1.5 py-0.5 rounded font-bold">P1: ${r1Count}/10 ${voter.status === 'ready_r1' ? '✅' : ''}</span>`;
-                const r2Status = voter.is_scribe && voter.status === 'ready_r2' ? `<span class="text-[10px] bg-emerald-100 text-emerald-800 border border-emerald-300 px-1.5 py-0.5 rounded font-bold">Group Finished ✅</span>` : '';
+                
+                // Group is finished if the voter's assigned group is inside the finishedGroups array.
+                const isGroupFinished = finishedGroups.includes(voter.group_id) && voter.group_id !== 'unassigned';
+                const r2Status = isGroupFinished ? `<span class="text-[10px] bg-emerald-100 text-emerald-800 border border-emerald-300 px-1.5 py-0.5 rounded font-bold">Group Finished ✅</span>` : '';
 
                 const div = document.createElement('div');
                 div.className = "flex flex-col p-3 bg-slate-50 rounded-lg border border-slate-200 gap-2";
