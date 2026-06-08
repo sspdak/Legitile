@@ -19,11 +19,27 @@
                 <h1 class="text-2xl font-bold tracking-tight text-indigo-900">Conference Selection</h1>
                 <p class="text-sm text-slate-500 mt-2">Enter your name to join the voting session.</p>
             </div>
-            <div class="space-y-4">
+<div class="space-y-4">
                 <input type="text" id="voter-name-input" placeholder="First and Last Name" class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-indigo-500 text-sm">
+                
+                <select id="voter-workgroup-input" class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-indigo-500 text-sm bg-white">
+                    <option value="" disabled selected>Select your work group...</option>
+                    <option value="CRO">CRO</option>
+                    <option value="HADM">HADM</option>
+                    <option value="HDC">HDC</option>
+                    <option value="HRC">HRC</option>
+                    <option value="LA">LA</option>
+                    <option value="Leg-Tech">Leg-Tech</option>
+                    <option value="LSS">LSS</option>
+                    <option value="OPR">OPR</option>
+                    <option value="SADM">SADM</option>
+                    <option value="SCS">SCS</option>
+                    <option value="SDC">SDC</option>
+                    <option value="SRC">SRC</option>
+                </select>
+
                 <button onclick="joinSession()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-lg transition-colors cursor-pointer">Join Session</button>
             </div>
-        </div>
 
         <div id="view-portal" class="hidden space-y-6">
             <header class="bg-indigo-900 text-white p-4 md:p-6 rounded-xl shadow-md flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -69,17 +85,34 @@
             else { document.getElementById('view-login').classList.remove('hidden'); }
         });
 
-        async function joinSession() {
+async function joinSession() {
             const nameInput = document.getElementById('voter-name-input').value.trim();
+            const workgroupInput = document.getElementById('voter-workgroup-input').value;
+            
             if (!nameInput) return alert("Please enter your name.");
+            if (!workgroupInput) return alert("Please select your work group.");
+            
             try {
-                const res = await fetch(`${API_URL}/api/voter/join`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: nameInput }) });
+                const res = await fetch(`${API_URL}/api/voter/join`, { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json' }, 
+                    body: JSON.stringify({ name: nameInput, workgroup: workgroupInput }) 
+                });
                 const data = await res.json();
-                myVoterId = data.voterId; myVoterName = data.name;
-                localStorage.setItem('votetile_voter_id', myVoterId); localStorage.setItem('votetile_voter_name', myVoterName);
+                
+                myVoterId = data.voterId; 
+                myVoterName = data.name;
+                localStorage.setItem('votetile_voter_id', myVoterId); 
+                localStorage.setItem('votetile_voter_name', myVoterName);
+                
+                // Clear any old session votes
                 myR1Votes = {}; myR2Votes = {};
-                showPortal(); startEngine();
-            } catch (err) { alert("Failed to connect to voting server."); }
+                
+                showPortal(); 
+                startEngine();
+            } catch (err) { 
+                alert("Failed to connect to voting server."); 
+            }
         }
 
         function showPortal() {
