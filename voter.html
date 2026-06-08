@@ -83,41 +83,44 @@
         });
 
 async function joinSession() {
-            const nameInput = document.getElementById('voter-name-input').value.trim();
-            const workgroupInput = document.getElementById('voter-workgroup-input').value;
-            
-            if (!nameInput) return alert("Please enter your name.");
-            if (!workgroupInput) return alert("Please select your work group.");
-            
-            try {
-                const res = await fetch(`${API_URL}/api/voter/join`, { 
-                    method: 'POST', 
-                    headers: { 'Content-Type': 'application/json' }, 
-                    body: JSON.stringify({ name: nameInput, workgroup: workgroupInput }) 
-                });
-                
-                if (!res.ok) throw new Error("Server rejected registration.");
-                
-                const data = await res.json();
-                
-                // Store fresh session
-                localStorage.setItem('votetile_voter_id', data.voterId); 
-                localStorage.setItem('votetile_voter_name', data.name);
-                
-                myVoterId = data.voterId; 
-                myVoterName = data.name;
-                myR1Votes = {}; myR2Votes = {}; scribeSelections = {};
-                
-                showPortal(); 
-                startEngine();
-            } catch (err) { 
-                console.error(err);
-                alert("Registration failed. Please try again or contact the administrator.");
-                // Ensure we don't accidentally leave ghost data
-                localStorage.removeItem('votetile_voter_id');
-                localStorage.removeItem('votetile_voter_name');
-            }
-        }
+    const nameInput = document.getElementById('voter-name-input').value.trim();
+    const workgroupInput = document.getElementById('voter-workgroup-input').value;
+    
+    if (!nameInput) return alert("Please enter your name.");
+    if (!workgroupInput) return alert("Please select your work group.");
+    
+    try {
+        const res = await fetch(`${API_URL}/api/voter/join`, { 
+            method: 'POST', 
+            headers: { 'Content-Type': 'application/json' }, 
+            body: JSON.stringify({ name: nameInput, workgroup: workgroupInput }) 
+        });
+        
+        // PARSE FIRST: Capture the JSON response regardless of success/fail
+        const data = await res.json();
+        
+        // CHECK STATUS: If it's a 500 error, throw the actual database error
+        if (!res.ok) throw new Error(data.error || "Server rejected registration.");
+        
+        // Store fresh session
+        localStorage.setItem('votetile_voter_id', data.voterId); 
+        localStorage.setItem('votetile_voter_name', data.name);
+        
+        myVoterId = data.voterId; 
+        myVoterName = data.name;
+        myR1Votes = {}; myR2Votes = {}; scribeSelections = {};
+        
+        showPortal(); 
+        startEngine();
+    } catch (err) { 
+        console.error(err);
+        // Display the ACTUAL error from the database
+        alert(`Registration failed: ${err.message}`);
+        
+        localStorage.removeItem('votetile_voter_id');
+        localStorage.removeItem('votetile_voter_name');
+    }
+}
 
         function showPortal() {
             document.getElementById('view-login').classList.add('hidden');
