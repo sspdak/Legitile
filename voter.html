@@ -9,7 +9,6 @@
 <body class="bg-slate-50 text-slate-800 font-sans p-4 md:p-6 min-h-screen">
 
     <main class="max-w-3xl mx-auto">
-        <!-- SINGLE LOGIN BOX -->
         <div id="view-login" class="bg-white p-8 rounded-xl shadow-sm border border-slate-200 mt-10 max-w-md mx-auto space-y-6">
             <div class="text-center">
                 <h1 class="text-2xl font-bold tracking-tight text-indigo-900">LSA Topic Selection</h1>
@@ -262,7 +261,30 @@
             </div>
             <div class="space-y-4">`;
 
-            groupFeed.forEach(topic => {
+            // SORTING LOGIC: Top 5 > Alt > Unranked > Vote Count
+            const sortedFeed = [...groupFeed].sort((a, b) => {
+                const catA = scribeChoices[a.topic_id] || 'unranked';
+                const catB = scribeChoices[b.topic_id] || 'unranked';
+                
+                const rank = { 'top5': 1, 'alt': 2, 'unranked': 3 };
+                
+                // 1. Sort by Scribe Category
+                if (rank[catA] !== rank[catB]) {
+                    return rank[catA] - rank[catB];
+                }
+                
+                // 2. Sort by Vote Count (Descending) if categories match
+                const getVoteCount = (topic) => {
+                    if (topic.vote_count !== undefined) return topic.vote_count; 
+                    if (Array.isArray(topic.selected_by)) return topic.selected_by.length;
+                    if (typeof topic.selected_by === 'string') return topic.selected_by.split(',').filter(x => x.trim()).length;
+                    return 0;
+                };
+
+                return getVoteCount(b) - getVoteCount(a);
+            });
+
+            sortedFeed.forEach(topic => {
                 const currentSelection = scribeChoices[topic.topic_id] || 'unranked';
                 
                 let categoryUI = '';
