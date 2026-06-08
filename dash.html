@@ -206,9 +206,24 @@
             });
         }
 
-        async function addTopic() {
-            const title = document.getElementById('new-topic-input').value.trim();
-            if (!title) return; await fetch(`${API_URL}/api/topics`, { method: 'POST', body: JSON.stringify({ title }) }); document.getElementById('new-topic-input').value = ''; refreshAllData();
+async function addTopic() {
+            const input = document.getElementById('new-topic-input');
+            const title = input.value.trim();
+            if (!title) return; 
+            
+            try {
+                await fetch(`${API_URL}/api/topics`, { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ title }) 
+                });
+                
+                input.value = ''; 
+                refreshAllData();
+            } catch (err) {
+                console.error("Failed to save topic:", err);
+                alert("Error saving topic. Please check your connection.");
+            }
         }
 
         async function deleteTopic(topicId) { if (!confirm("Delete this topic completely?")) return; await fetch(`${API_URL}/api/topics/delete`, { method: 'POST', body: JSON.stringify({ topicId }) }); refreshAllData(); }
