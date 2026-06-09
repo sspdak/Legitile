@@ -159,11 +159,32 @@
         </section>
     </main>
 
+    <div id="edit-topic-modal" class="hidden fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-xl shadow-xl w-full max-w-lg overflow-hidden border border-slate-200">
+            <div class="p-6 border-b border-slate-200 flex justify-between items-center bg-slate-50">
+                <h2 class="text-lg font-bold text-slate-800">Edit Topic Details</h2>
+                <button onclick="closeEditModal()" class="text-slate-400 hover:text-slate-600 font-bold text-2xl cursor-pointer">&times;</button>
+            </div>
+            <div class="p-6 space-y-4">
+                <input type="hidden" id="edit-topic-id">
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Subject Group</label>
+                    <input type="text" id="edit-topic-subject" class="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Topic Description</label>
+                    <textarea id="edit-topic-title" rows="3" class="w-full px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-indigo-500"></textarea>
+                </div>
+                <button onclick="saveTopicEdit()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-lg shadow-sm cursor-pointer transition-colors mt-2">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
     <script>
         const API_URL = "https://votetile-api.ewing-jacob.workers.dev";
         let currentTopics = [], currentVoters = [], r1Analytics = [], globalRosterData = null;
         let activeRound = "1";
-        let activeLimit = 10; // Default limit tracking
+        let activeLimit = 10;
         
         const predefinedGroups = ['Legislative Assistants', 'Administration', 'Caucus Staff', 'Nonpartisan Staff'];
 
@@ -194,7 +215,6 @@
                 const res = await fetch(`${API_URL}/api/status`);
                 const data = await res.json();
                 
-                // Track dynamic state
                 activeRound = data.round;
                 activeLimit = parseInt(data.limits) > 0 ? parseInt(data.limits) : 10;
 
@@ -207,8 +227,6 @@
                 publishBadge.className = data.published === 'true' ? "px-2.5 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-700" : "px-2.5 py-1 text-xs font-semibold rounded-full bg-slate-100 text-slate-700";
 
                 document.getElementById('current-round-display').innerText = `Phase ${activeRound}`;
-                
-                // Update Limit Display
                 document.getElementById('limit-badge').innerText = `${activeLimit} Votes/Person`;
                 document.getElementById('vote-limit-input').placeholder = activeLimit;
 
@@ -217,7 +235,6 @@
 
         async function updateMeta(key, value) { await fetch(`${API_URL}/api/admin/configure`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key, value }) }); refreshAllData(); }
 
-        // Triggered by the new Vote Limit button
         async function setVoteLimit() {
             const inputVal = document.getElementById('vote-limit-input').value;
             if (!inputVal || inputVal < 1) return alert("Please enter a valid number of votes.");
@@ -230,10 +247,60 @@
             const tbody = document.getElementById('topics-table-body'); tbody.innerHTML = '';
             currentTopics.forEach(topic => {
                 const tr = document.createElement('tr');
-                tr.innerHTML = `<td class="py-2 font-bold text-slate-500 text-xs uppercase tracking-wider">${escapeHtml(topic.subject || 'General')}</td><td class="py-2 font-medium text-slate-700">${escapeHtml(topic.title)}</td><td class="py-2 text-right"><button onclick="deleteTopic('${topic.topic_id}')" class="text-rose-500 hover:text-rose-700 font-medium text-xs cursor-pointer">Delete</button></td>`;
+                tr.innerHTML = `
+                    <td class="py-2 font-bold text-slate-500 text-xs uppercase tracking-wider">${escapeHtml(topic.subject || 'General')}</td>
+                    <td class="py-2 font-medium text-slate-700">${escapeHtml(topic.title)}</td>
+                    <td class="py-2 text-right whitespace-nowrap">
+                        <button onclick="openEditTopic('${topic.topic_id}')" class="text-indigo-600 hover:text-indigo-800 font-bold text-xs cursor-pointer mr-3">Edit</button>
+                        <button onclick="deleteTopic('${topic.topic_id}')" class="text-rose-500 hover:text-rose-700 font-bold text-xs cursor-pointer">Delete</button>
+                    </td>`;
                 tbody.appendChild(tr);
             });
         }
+
+        async function addTopic() {
+            const subject = document.getElementById('new-topic-subject').value.trim() || 'General';
+            const title = document.getElementById('new-topic-input').value.trim();
+            if (!title) return; 
+            try {
+                await fetch(`${API_URL}/api/topics`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title, subject }) });
+                document.getElementById('new-topic-input').value = ''; 
+                refreshAllData();
+            } catch (err) { alert("Error saving topic."); }
+        }
+
+        function openEditTopic(topicId) {
+            const topic = currentTopics.find(t => t.topic_id === topicId);
+            if (!topic) return;
+            document.getElementById('edit-topic-id').value = topic.topic_id;
+            document.getElementById('edit-topic-subject').value = topic.subject || 'General';
+            document.getElementById('edit-topic-title').value = topic.title;
+            document.getElementById('edit-topic-modal').classList.remove('hidden');
+        }
+
+        function closeEditModal() {
+            document.getElementById('edit-topic-modal').classList.add('hidden');
+        }
+
+        async function saveTopicEdit() {
+            const topicId = document.getElementById('edit-topic-id').value;
+            const subject = document.getElementById('edit-topic-subject').value.trim() || 'General';
+            const title = document.getElementById('edit-topic-title').value.trim();
+            
+            if (!title) return alert("Topic description cannot be empty.");
+            
+            try {
+                await fetch(`${API_URL}/api/topics/update`, { 
+                    method: 'POST', 
+                    headers: { 'Content-Type': 'application/json' }, 
+                    body: JSON.stringify({ topicId, title, subject }) 
+                });
+                closeEditModal();
+                refreshAllData();
+            } catch (err) { alert("Error updating topic."); }
+        }
+
+        async function deleteTopic(topicId) { if (!confirm("Delete this topic completely?")) return; await fetch(`${API_URL}/api/topics/delete`, { method: 'POST', body: JSON.stringify({ topicId }) }); refreshAllData(); }
 
         async function fetchResults() {
             const res = await fetch(`${API_URL}/api/admin/results`); const data = await res.json(); r1Analytics = data.round1;
@@ -327,19 +394,6 @@
             });
         }
 
-        async function addTopic() {
-            const subject = document.getElementById('new-topic-subject').value.trim() || 'General';
-            const title = document.getElementById('new-topic-input').value.trim();
-            if (!title) return; 
-            try {
-                await fetch(`${API_URL}/api/topics`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title, subject }) });
-                document.getElementById('new-topic-input').value = ''; 
-                refreshAllData();
-            } catch (err) { alert("Error saving topic."); }
-        }
-
-        async function deleteTopic(topicId) { if (!confirm("Delete this topic completely?")) return; await fetch(`${API_URL}/api/topics/delete`, { method: 'POST', body: JSON.stringify({ topicId }) }); refreshAllData(); }
-        
         async function fetchRoster() {
             if (document.activeElement && document.activeElement.tagName === 'SELECT') return;
 
@@ -368,7 +422,6 @@
                 
                 const scribeBtn = `<button onclick="setScribe('${voter.voter_id}', ${!voter.is_scribe})" class="text-[10px] font-bold px-2 py-1 rounded border ${voter.is_scribe ? 'bg-amber-100 text-amber-800 border-amber-300' : 'bg-slate-100 text-slate-500 border-slate-300 hover:bg-amber-50'} transition-colors cursor-pointer shadow-sm">${voter.is_scribe ? '✍️ Scribe Assigned' : 'Make Scribe'}</button>`;
                 
-                // Roster dynamically uses activeLimit for display
                 const r1Status = `<span class="text-[10px] ${voter.status === 'ready_r1' ? 'bg-green-100 text-green-800 border-green-200' : 'bg-blue-50 text-blue-700 border-blue-200'} border px-1.5 py-0.5 rounded font-bold">P1: ${r1Count}/${activeLimit} ${voter.status === 'ready_r1' ? '✅' : ''}</span>`;
                 
                 const isGroupFinished = finishedGroups.includes(voter.group_id) && voter.group_id !== 'unassigned';
