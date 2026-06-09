@@ -12,12 +12,12 @@
         <div id="view-login" class="bg-white p-8 rounded-xl shadow-sm border border-slate-200 mt-10 max-w-md mx-auto space-y-6">
             <div class="text-center">
                 <h1 class="text-2xl font-bold tracking-tight text-indigo-900">LSA Topic Selection</h1>
-                <p class="text-sm text-slate-500 mt-2">Enter your email and name to join or resume your session.</p>
+                <p class="text-sm text-slate-500 mt-2">Enter your name and email to join or resume your session.</p>
             </div>
             <div class="space-y-4">
-                <input type="email" id="voter-email-input" placeholder="Work Email Address" class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-indigo-500 text-sm">
-                
                 <input type="text" id="voter-name-input" placeholder="First and Last Name" class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-indigo-500 text-sm">
+                
+                <input type="email" id="voter-email-input" placeholder="Work Email Address" class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-indigo-500 text-sm">
                 
                 <select id="voter-workgroup-input" class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-indigo-500 text-sm bg-white">
                     <option value="" disabled selected>Select your work group...</option>
@@ -368,14 +368,14 @@
         };
 
         // ==========================================
-        // PUBLISHED RESULTS
+        // PUBLISHED RESULTS (Updated for Two-Column Phase 2)
         // ==========================================
         function renderPublishedResults() {
             const canvas = document.getElementById('voting-canvas');
             if (!finalResultsData) return;
             const isRound1 = currentState.round === '1';
 
-            let html = `<div class="mb-6 text-center"><h2 class="text-2xl font-bold text-indigo-900 mb-2">🎉 Phase ${isRound1 ? '1' : '2'} Results</h2></div>`;
+            let html = `<div class="mb-6 text-center border-b border-slate-100 pb-4"><h2 class="text-2xl font-bold text-indigo-900">🎉 Phase ${isRound1 ? '1' : '2'} Results</h2></div>`;
 
             if (isRound1) {
                 const sortedTopics = [...activeTopics].map(topic => {
@@ -383,7 +383,7 @@
                     return { ...topic, yes_count: r1.yes_count };
                 }).sort((a, b) => b.yes_count - a.yes_count);
 
-                html += `<div class="space-y-3">`;
+                html += `<div class="space-y-3 max-w-2xl mx-auto">`;
                 sortedTopics.forEach((topic, index) => {
                     html += `
                     <div class="flex items-center p-4 bg-white border border-slate-200 rounded-xl gap-4 shadow-sm">
@@ -394,32 +394,89 @@
                 });
                 html += `</div>`;
             } else {
-                html += `<div class="grid grid-cols-1 md:grid-cols-2 gap-4">`;
+                // PHASE 2 TWO-COLUMN VIEW
+                html += `<div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">`;
+
+                // --- COLUMN 1: GLOBAL MASTER RANKING ---
+                const topicAgg = {};
+                finalResultsData.round2.forEach(item => {
+                    if (item.group_id === 'unassigned') return;
+                    if (!topicAgg[item.topic_id]) {
+                        topicAgg[item.topic_id] = { title: item.title, subject: item.subject, top5: [], alt: [] };
+                    }
+                    if (item.category === 'top5') topicAgg[item.topic_id].top5.push(item.group_id);
+                    if (item.category === 'alt') topicAgg[item.topic_id].alt.push(item.group_id);
+                });
+
+                const rankedTopics = Object.values(topicAgg).sort((a, b) => {
+                    if (b.top5.length !== a.top5.length) return b.top5.length - a.top5.length;
+                    return b.alt.length - a.alt.length;
+                });
+
+                html += `<div class="space-y-4">
+                            <h3 class="text-sm font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200 pb-2">Global Master Ranking</h3>
+                            <div class="space-y-3">`;
+                
+                if (rankedTopics.length === 0) {
+                    html += `<p class="text-slate-400 text-xs italic">No group selections finalized yet.</p>`;
+                } else {
+                    rankedTopics.forEach(t => {
+                        html += `<div class="p-4 bg-white border border-slate-200 rounded-xl shadow-sm space-y-2">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <span class="px-2 py-0.5 bg-slate-100 text-slate-500 rounded border border-slate-200 text-[9px] font-bold tracking-wider uppercase">${escapeHtml(t.subject || 'General')}</span>
+                                    <span class="font-bold text-slate-800 block mt-1 leading-snug">${escapeHtml(t.title)}</span>
+                                </div>
+                            </div>
+                            <div class="flex flex-wrap gap-2 mt-2">
+                                ${t.top5.map(g => `<span class="px-2 py-1 bg-amber-100 text-amber-800 border border-amber-300 rounded text-[10px] font-bold">⭐ ${escapeHtml(g)}</span>`).join('')}
+                                ${t.alt.map(g => `<span class="px-2 py-1 bg-blue-100 text-blue-800 border border-blue-300 rounded text-[10px] font-bold">🔄 ${escapeHtml(g)}</span>`).join('')}
+                            </div>
+                        </div>`;
+                    });
+                }
+                html += `   </div>
+                          </div>`;
+
+                // --- COLUMN 2: INDIVIDUAL GROUP SELECTIONS ---
+                html += `<div class="space-y-4">
+                            <h3 class="text-sm font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200 pb-2">Group Breakdown</h3>
+                            <div class="grid grid-cols-1 gap-4">`;
+
                 const groups = [...new Set(finalResultsData.round2.map(item => item.group_id))];
                 
                 if (groups.length === 0) {
-                    html += `<p class="text-center text-slate-500 col-span-2 py-8">No group selections were finalized.</p>`;
+                    html += `<p class="text-slate-400 text-xs italic">Waiting for groups to submit...</p>`;
                 } else {
                     groups.forEach(g => {
-                        const top5 = finalResultsData.round2.filter(i => i.group_id === g && i.category === 'top5');
-                        const alts = finalResultsData.round2.filter(i => i.group_id === g && i.category === 'alt');
+                        if (g === 'unassigned') return;
+                        
+                        const groupData = finalResultsData.round2.filter(i => i.group_id === g);
+                        const top5 = groupData.filter(i => i.category === 'top5');
+                        const alts = groupData.filter(i => i.category === 'alt');
 
-                        html += `<div class="p-4 bg-slate-50 rounded-xl border border-slate-200"><h3 class="font-bold text-sm mb-3 text-indigo-800 uppercase tracking-wider">${escapeHtml(g)}</h3>`;
+                        html += `<div class="p-4 bg-slate-50 rounded-xl border border-slate-200"><h4 class="font-bold text-sm mb-3 text-indigo-800 uppercase tracking-wider">${escapeHtml(g)}</h4>`;
                         
                         if (top5.length > 0) {
-                            html += `<div class="mb-3"><span class="text-xs font-bold text-slate-400 uppercase">⭐ Top 5</span><ul class="mt-1 space-y-1">`;
-                            top5.forEach(t => html += `<li class="text-sm font-medium text-slate-800">${escapeHtml(t.title)}</li>`);
+                            html += `<div class="mb-3"><span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">⭐ Top 5</span><ul class="mt-1 space-y-1.5">`;
+                            top5.forEach(t => html += `<li class="text-sm font-medium text-slate-800 leading-snug">${escapeHtml(t.title)}</li>`);
                             html += `</ul></div>`;
                         }
                         if (alts.length > 0) {
-                            html += `<div><span class="text-xs font-bold text-slate-400 uppercase">🔄 Alternatives</span><ul class="mt-1 space-y-1">`;
-                            alts.forEach(t => html += `<li class="text-sm text-slate-600">${escapeHtml(t.title)}</li>`);
+                            html += `<div><span class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">🔄 Alternatives</span><ul class="mt-1 space-y-1.5">`;
+                            alts.forEach(t => html += `<li class="text-sm text-slate-600 leading-snug">${escapeHtml(t.title)}</li>`);
                             html += `</ul></div>`;
+                        }
+                        if (top5.length === 0 && alts.length === 0) {
+                            html += `<p class="text-xs text-slate-400 italic">No selections made.</p>`;
                         }
                         html += `</div>`;
                     });
                 }
-                html += `</div>`;
+                html += `   </div>
+                          </div>`;
+
+                html += `</div>`; // Close grid
             }
 
             if (canvas.innerHTML !== html) canvas.innerHTML = html;
