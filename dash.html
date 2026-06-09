@@ -63,12 +63,13 @@
                     </div>
                     <div id="content-topics" class="space-y-4">
                         <div class="flex gap-2 mb-4">
+                            <input type="text" id="new-topic-subject" placeholder="Subject Group..." class="w-1/3 px-4 py-2 border border-slate-300 rounded-lg text-sm">
                             <input type="text" id="new-topic-input" placeholder="Type a new topic description here..." class="flex-1 px-4 py-2 border border-slate-300 rounded-lg text-sm">
                             <button onclick="addTopic()" class="bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg text-sm cursor-pointer shadow-sm">Add Topic</button>
                         </div>
                         <div class="overflow-x-auto">
                             <table class="w-full text-left border-collapse text-sm">
-                                <thead><tr class="border-b border-slate-200 text-slate-400 font-medium"><th class="py-2">Topic Details</th><th class="py-2 text-right">Actions</th></tr></thead>
+                                <thead><tr class="border-b border-slate-200 text-slate-400 font-medium"><th class="py-2 w-1/4">Subject</th><th class="py-2">Topic Details</th><th class="py-2 text-right">Actions</th></tr></thead>
                                 <tbody id="topics-table-body" class="divide-y divide-slate-100"></tbody>
                             </table>
                         </div>
@@ -94,7 +95,7 @@
                             <h2 class="text-lg font-bold group-hover:text-blue-600 transition-colors">Phase 1: Voter Audit Log</h2>
                             <p class="text-xs text-slate-400 font-normal mt-1">Review specific topics drafted by each participant.</p>
                         </div>
-                        <span id="icon-audit" class="chevron text-slate-400 font-bold">▼</span>
+                        <span id="icon-audit" class="chevron collapsed text-slate-400 font-bold">▼</span>
                     </div>
                     <div id="content-audit" class="overflow-x-auto hidden">
                         <table class="w-full text-left border-collapse text-sm">
@@ -117,7 +118,6 @@
                         <span id="icon-p2-selections" class="chevron text-slate-400 font-bold">▼</span>
                     </div>
                     <div id="content-p2-selections" class="space-y-6">
-                        
                         <div>
                             <h3 class="text-sm font-bold text-slate-500 uppercase tracking-wider mb-3">Global Topic Ranking</h3>
                             <div id="p2-global-ranking" class="space-y-2"></div>
@@ -127,7 +127,6 @@
                             <h3 class="text-sm font-bold text-slate-500 uppercase tracking-wider mb-3 border-t border-slate-100 pt-4">Individual Group Submissions</h3>
                             <div id="p2-group-grid" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
                         </div>
-
                     </div>
                 </div>
             </div>
@@ -204,7 +203,7 @@
             const tbody = document.getElementById('topics-table-body'); tbody.innerHTML = '';
             currentTopics.forEach(topic => {
                 const tr = document.createElement('tr');
-                tr.innerHTML = `<td class="py-2 font-medium text-slate-700">${escapeHtml(topic.title)}</td><td class="py-2 text-right"><button onclick="deleteTopic('${topic.topic_id}')" class="text-rose-500 hover:text-rose-700 font-medium text-xs cursor-pointer">Delete</button></td>`;
+                tr.innerHTML = `<td class="py-2 font-bold text-slate-500 text-xs uppercase tracking-wider">${escapeHtml(topic.subject || 'General')}</td><td class="py-2 font-medium text-slate-700">${escapeHtml(topic.title)}</td><td class="py-2 text-right"><button onclick="deleteTopic('${topic.topic_id}')" class="text-rose-500 hover:text-rose-700 font-medium text-xs cursor-pointer">Delete</button></td>`;
                 tbody.appendChild(tr);
             });
         }
@@ -253,7 +252,6 @@
             });
 
             const rankedTopics = Object.values(topicAgg).sort((a, b) => {
-                // Sort by most top5 votes, then by alt votes
                 if (b.top5.length !== a.top5.length) return b.top5.length - a.top5.length;
                 return b.alt.length - a.alt.length;
             });
@@ -305,10 +303,11 @@
         }
 
         async function addTopic() {
+            const subject = document.getElementById('new-topic-subject').value.trim() || 'General';
             const title = document.getElementById('new-topic-input').value.trim();
             if (!title) return; 
             try {
-                await fetch(`${API_URL}/api/topics`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title }) });
+                await fetch(`${API_URL}/api/topics`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title, subject }) });
                 document.getElementById('new-topic-input').value = ''; 
                 refreshAllData();
             } catch (err) { alert("Error saving topic."); }
