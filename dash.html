@@ -5,6 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>VoteTile - Admin Console</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .chevron { transition: transform 0.2s ease-in-out; }
+        .chevron.collapsed { transform: rotate(-90deg); }
+    </style>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans p-6">
 
@@ -51,27 +55,32 @@
 
         <section class="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div class="lg:col-span-2 space-y-6">
+                
                 <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-                    <div class="flex justify-between items-center border-b border-slate-100 pb-4 mb-4">
-                        <h2 class="text-lg font-bold">Topics Registry</h2>
+                    <div class="flex justify-between items-center border-b border-slate-100 pb-4 mb-4 cursor-pointer group" onclick="toggleSection('topics')">
+                        <h2 class="text-lg font-bold group-hover:text-blue-600 transition-colors">Topics Registry</h2>
+                        <span id="icon-topics" class="chevron text-slate-400 font-bold">▼</span>
                     </div>
-                    <div class="flex gap-2 mb-4">
-                        <input type="text" id="new-topic-input" placeholder="Type a new topic description here..." class="flex-1 px-4 py-2 border border-slate-300 rounded-lg text-sm">
-                        <button onclick="addTopic()" class="bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg text-sm cursor-pointer shadow-sm">Add Topic</button>
-                    </div>
-                    <div class="overflow-x-auto">
-                        <table class="w-full text-left border-collapse text-sm">
-                            <thead><tr class="border-b border-slate-200 text-slate-400 font-medium"><th class="py-2">Topic Details</th><th class="py-2 text-right">Actions</th></tr></thead>
-                            <tbody id="topics-table-body" class="divide-y divide-slate-100"></tbody>
-                        </table>
+                    <div id="content-topics" class="space-y-4">
+                        <div class="flex gap-2 mb-4">
+                            <input type="text" id="new-topic-input" placeholder="Type a new topic description here..." class="flex-1 px-4 py-2 border border-slate-300 rounded-lg text-sm">
+                            <button onclick="addTopic()" class="bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg text-sm cursor-pointer shadow-sm">Add Topic</button>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse text-sm">
+                                <thead><tr class="border-b border-slate-200 text-slate-400 font-medium"><th class="py-2">Topic Details</th><th class="py-2 text-right">Actions</th></tr></thead>
+                                <tbody id="topics-table-body" class="divide-y divide-slate-100"></tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
                 
                 <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-                    <div class="flex justify-between items-center border-b border-slate-100 pb-4 mb-4">
-                        <h2 class="text-lg font-bold">Phase 1: Priority Draft Tally</h2>
+                    <div class="flex justify-between items-center border-b border-slate-100 pb-4 mb-4 cursor-pointer group" onclick="toggleSection('p1-tally')">
+                        <h2 class="text-lg font-bold group-hover:text-blue-600 transition-colors">Phase 1: Priority Draft Tally</h2>
+                        <span id="icon-p1-tally" class="chevron text-slate-400 font-bold">▼</span>
                     </div>
-                    <div class="overflow-x-auto">
+                    <div id="content-p1-tally" class="overflow-x-auto">
                         <table class="w-full text-left border-collapse text-sm">
                             <thead><tr class="border-b border-slate-200 text-slate-400 font-medium text-xs uppercase tracking-wider"><th class="py-3">Topic Title</th><th class="py-3 text-center">Total Selections</th></tr></thead>
                             <tbody id="results-table-body" class="divide-y divide-slate-100"></tbody>
@@ -80,18 +89,45 @@
                 </div>
 
                 <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-                    <h2 class="text-lg font-bold border-b border-slate-100 pb-4 mb-4">Phase 2: Group Selections</h2>
-                    <div id="group-results-container" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+                    <div class="flex justify-between items-center border-b border-slate-100 pb-4 mb-4 cursor-pointer group" onclick="toggleSection('audit')">
+                        <div>
+                            <h2 class="text-lg font-bold group-hover:text-blue-600 transition-colors">Phase 1: Voter Audit Log</h2>
+                            <p class="text-xs text-slate-400 font-normal mt-1">Review specific topics drafted by each participant.</p>
+                        </div>
+                        <span id="icon-audit" class="chevron text-slate-400 font-bold">▼</span>
+                    </div>
+                    <div id="content-audit" class="overflow-x-auto hidden"> <table class="w-full text-left border-collapse text-sm">
+                            <thead>
+                                <tr class="border-b border-slate-200 text-slate-500 text-xs uppercase tracking-wider">
+                                    <th class="py-3 pr-4 font-bold">Voter Name</th>
+                                    <th class="py-3 pr-4 font-bold">Email</th>
+                                    <th class="py-3 pr-4 font-bold">Registered Workgroup</th>
+                                    <th class="py-3 font-bold">Topics Selected</th>
+                                </tr>
+                            </thead>
+                            <tbody id="audit-table-body" class="divide-y divide-slate-100"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                    <div class="flex justify-between items-center border-b border-slate-100 pb-4 mb-4 cursor-pointer group" onclick="toggleSection('p2-selections')">
+                        <h2 class="text-lg font-bold group-hover:text-blue-600 transition-colors">Phase 2: Group Selections</h2>
+                        <span id="icon-p2-selections" class="chevron text-slate-400 font-bold">▼</span>
+                    </div>
+                    <div id="content-p2-selections" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
                 </div>
             </div>
 
             <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 h-fit">
-                <div class="border-b border-slate-100 pb-4 mb-4 flex justify-between items-center">
-                    <h2 class="text-lg font-bold">Live Voter Registry</h2>
-                    <button onclick="openAuditModal()" class="text-xs bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold px-2 py-1 rounded cursor-pointer border border-indigo-200">📋 View Audit Log</button>
+                <div class="flex justify-between items-center border-b border-slate-100 pb-4 mb-4 cursor-pointer group" onclick="toggleSection('roster')">
+                    <h2 class="text-lg font-bold group-hover:text-blue-600 transition-colors">Live Voter Registry</h2>
+                    <span id="icon-roster" class="chevron text-slate-400 font-bold">▼</span>
                 </div>
-                <div id="roster-container" class="space-y-3 max-h-[600px] overflow-y-auto pr-1 mb-4"></div>
-                <button onclick="saveGroupAssignments()" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-medium py-2 rounded-lg text-xs cursor-pointer shadow-sm">💾 Save Manual Overrides</button>
+                <div id="content-roster">
+                    <div id="roster-container" class="space-y-3 max-h-[600px] overflow-y-auto pr-1 mb-4"></div>
+                    <button onclick="saveGroupAssignments()" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-medium py-2 rounded-lg text-xs cursor-pointer shadow-sm">💾 Save Manual Overrides</button>
+                </div>
             </div>
         </section>
 
@@ -102,31 +138,6 @@
         </section>
     </main>
 
-    <div id="audit-modal" class="hidden fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-        <div class="bg-white rounded-xl shadow-xl w-full max-w-5xl max-h-[85vh] flex flex-col overflow-hidden border border-slate-200">
-            <div class="p-6 border-b border-slate-200 flex justify-between items-center bg-slate-50">
-                <div>
-                    <h2 class="text-xl font-bold text-slate-800">Phase 1: Voter Audit Log</h2>
-                    <p class="text-xs text-slate-500 mt-1">Review specific topics selected by each participant.</p>
-                </div>
-                <button onclick="closeAuditModal()" class="text-slate-400 hover:text-slate-600 font-bold text-2xl cursor-pointer">&times;</button>
-            </div>
-            <div class="p-6 overflow-y-auto bg-white">
-                <table class="w-full text-left border-collapse text-sm">
-                    <thead>
-                        <tr class="border-b border-slate-200 text-slate-500 text-xs uppercase tracking-wider">
-                            <th class="py-3 pr-4 font-bold">Voter Name</th>
-                            <th class="py-3 pr-4 font-bold">Email</th>
-                            <th class="py-3 pr-4 font-bold">Workgroup</th>
-                            <th class="py-3 font-bold">Topics Selected</th>
-                        </tr>
-                    </thead>
-                    <tbody id="audit-table-body" class="divide-y divide-slate-100"></tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-
     <script>
         const API_URL = "https://votetile-api.ewing-jacob.workers.dev";
         let currentTopics = [], currentVoters = [], r1Analytics = [], globalRosterData = null;
@@ -135,6 +146,19 @@
         const predefinedGroups = ['Legislative Assistants', 'Administration', 'Caucus Staff', 'Nonpartisan Staff'];
 
         window.addEventListener('DOMContentLoaded', () => { refreshAllData(); setInterval(refreshAllData, 5000); });
+
+        // Toggles visibility of dashboard tiles
+        function toggleSection(sectionId) {
+            const content = document.getElementById(`content-${sectionId}`);
+            const icon = document.getElementById(`icon-${sectionId}`);
+            if (content.classList.contains('hidden')) {
+                content.classList.remove('hidden');
+                icon.classList.remove('collapsed');
+            } else {
+                content.classList.add('hidden');
+                icon.classList.add('collapsed');
+            }
+        }
 
         async function refreshAllData() {
             await fetchStatus(); 
@@ -194,11 +218,11 @@
         async function fetchGroupResults() {
             const res = await fetch(`${API_URL}/api/admin/group-results`); 
             const data = await res.json();
-            const container = document.getElementById('group-results-container'); 
+            const container = document.getElementById('content-p2-selections'); 
             container.innerHTML = '';
             
             const groups = [...new Set(data.map(item => item.group_id))];
-            if (groups.length === 0) return container.innerHTML = `<p class="text-slate-400 text-xs italic">No group selections submitted yet.</p>`;
+            if (groups.length === 0) return container.innerHTML = `<p class="text-slate-400 text-xs italic col-span-2">No group selections submitted yet.</p>`;
             
             groups.forEach(g => {
                 if (g === 'unassigned') return;
@@ -273,7 +297,6 @@
                 const isGroupFinished = finishedGroups.includes(voter.group_id) && voter.group_id !== 'unassigned';
                 const r2Status = isGroupFinished ? `<span class="text-[10px] bg-emerald-100 text-emerald-800 border border-emerald-300 px-1.5 py-0.5 rounded font-bold">Group Finished ✅</span>` : '';
 
-                // Display Email if available
                 const emailDisplay = voter.email ? `<span class="text-[10px] text-slate-400 block -mt-1 mb-1 truncate">${escapeHtml(voter.email)}</span>` : '';
 
                 const div = document.createElement('div');
@@ -294,22 +317,11 @@
                 container.appendChild(div);
             });
             
-            // If the audit modal is open, auto-refresh its contents
-            if (!document.getElementById('audit-modal').classList.contains('hidden')) {
-                populateAuditModal();
-            }
+            // Re-render the Audit Log Tile seamlessly
+            renderAuditLog();
         }
 
-        function openAuditModal() {
-            document.getElementById('audit-modal').classList.remove('hidden');
-            populateAuditModal();
-        }
-
-        function closeAuditModal() {
-            document.getElementById('audit-modal').classList.add('hidden');
-        }
-
-        function populateAuditModal() {
+        function renderAuditLog() {
             if (!globalRosterData) return;
             const tbody = document.getElementById('audit-table-body');
             tbody.innerHTML = '';
@@ -330,7 +342,7 @@
                 tr.innerHTML = `
                     <td class="py-4 pr-4 align-top font-semibold text-slate-800">${statusIcon}${escapeHtml(voter.voter_name)}</td>
                     <td class="py-4 pr-4 align-top text-slate-600 break-all">${emailDisplay}</td>
-                    <td class="py-4 pr-4 align-top text-slate-600">${escapeHtml(voter.group_id)}</td>
+                    <td class="py-4 pr-4 align-top text-slate-600 font-medium">${escapeHtml(voter.group_id)}</td>
                     <td class="py-4 align-top">${topicsHtml}</td>
                 `;
                 tbody.appendChild(tr);
