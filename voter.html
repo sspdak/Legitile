@@ -290,7 +290,7 @@
         }
 
         // ==========================================
-        // ROUND 2: GROUP DELIBERATION
+        // ROUND 2: GROUP DELIBERATION (With Live Tracker)
         // ==========================================
         function renderRound2() {
             const canvas = document.getElementById('voting-canvas');
@@ -298,13 +298,22 @@
 
             const isScribe = voterProfile && voterProfile.is_scribe === 1;
 
+            // NEW: Calculate live totals from the current scribe choices
+            const top5Count = Object.values(scribeChoices).filter(v => v === 'top5').length;
+            const altCount = Object.values(scribeChoices).filter(v => v === 'alt').length;
+
             let html = `
-            <div class="mb-6 border-b border-slate-100 pb-4 flex justify-between items-end sticky top-0 bg-white z-10">
+            <div class="mb-6 border-b border-slate-100 pb-4 flex flex-col md:flex-row md:justify-between items-start md:items-end gap-4 sticky top-0 bg-white/95 backdrop-blur z-10 pt-2">
                 <div>
                     <h2 class="text-lg font-bold text-slate-800">Group Deliberation</h2>
                     <p class="text-sm text-slate-500 mt-1">${isScribe ? 'You are the Scribe. Assign the final Top 5 and Alternatives.' : 'Watch as your Scribe builds the final list.'}</p>
                 </div>
-                ${groupComplete && !isScribe ? `<span class="bg-green-100 text-green-800 text-xs font-bold px-2.5 py-1 rounded-full border border-green-200 shadow-sm">✅ Group Finished</span>` : ''}
+                
+                <div class="flex items-center gap-2 shrink-0">
+                    <span class="px-3 py-1 rounded-md text-xs font-bold border ${top5Count === 5 ? 'bg-emerald-100 text-emerald-800 border-emerald-300' : 'bg-amber-100 text-amber-800 border-amber-300'} shadow-sm transition-colors">⭐ Top 5: ${top5Count} / 5</span>
+                    <span class="px-3 py-1 rounded-md text-xs font-bold border bg-blue-100 text-blue-800 border-blue-300 shadow-sm">🔄 Alts: ${altCount}</span>
+                    ${groupComplete && !isScribe ? `<span class="px-3 py-1 bg-green-100 text-green-800 text-xs font-bold rounded-md border border-green-300 shadow-sm">✅ Done</span>` : ''}
+                </div>
             </div>
             <div class="space-y-4">`;
 
