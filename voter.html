@@ -50,7 +50,7 @@
                 </div>
                 <div class="flex gap-2">
                     <span id="badge-gate" class="px-3 py-1 bg-indigo-800 rounded-full text-xs font-bold border border-indigo-700">Checking...</span>
-                    <span id="badge-round" class="px-3 py-1 bg-indigo-100 text-indigo-800 rounded-full text-xs font-bold">Round --</span>
+                    <span id="badge-round" class="px-3 py-1 bg-indigo-100 text-indigo-800 rounded-full text-xs font-bold">Phase --</span>
                 </div>
             </header>
 
@@ -70,7 +70,6 @@
         let myVoterId = localStorage.getItem('votetile_voter_id');
         let myVoterName = localStorage.getItem('votetile_voter_name');
         
-        // We initialize as empty, and let the sync pull from the DB if they log in from a new device
         let myR1Votes = JSON.parse(localStorage.getItem(`votetile_r1_${myVoterId}`)) || {};
         
         let currentState = { round: '1', gate: 'open', limits: 0, published: 'false', hash: '' };
@@ -94,7 +93,6 @@
             if (!workgroupInput) return alert("Please select your work group.");
             
             try {
-                // Pass the email to the backend so it can link to an existing account if they return
                 const res = await fetch(`${API_URL}/api/voter/join`, { 
                     method: 'POST', 
                     headers: { 'Content-Type': 'application/json' }, 
@@ -110,7 +108,7 @@
                 localStorage.setItem('votetile_voter_name', myVoterName);
                 
                 showPortal(); 
-                startEngine(); // This first sync will pull down their saved R1 votes if they are returning
+                startEngine(); 
             } catch (err) { 
                 alert(`Registration failed: ${err.message}`);
                 localStorage.removeItem('votetile_voter_id');
@@ -152,7 +150,6 @@
                 voterProfile = data.voter;
                 finalResultsData = data.finalResults;
 
-                // Load saved votes from DB if joining from a new device
                 if (data.myR1Votes) {
                     myR1Votes = data.myR1Votes;
                     localStorage.setItem(`votetile_r1_${myVoterId}`, JSON.stringify(myR1Votes));
@@ -187,7 +184,12 @@
 
         function updateUI() {
             document.getElementById('badge-gate').innerText = currentState.gate === 'open' ? '🟢 Polls Open' : '🔒 Polls Closed';
-            document.getElementById('badge-round').innerText = `Phase ${currentState.round}`;
+            
+            // Logic to determine if a straggler needs to complete Phase 1 before seeing Phase 2
+            const isStraggler = currentState.round === '2' && voterProfile && voterProfile.status === 'active';
+            
+            document.getElementById('badge-round').innerText = isStraggler ? `Phase 1 (Catch Up)` : `Phase ${currentState.round}`;
+            
             const lockAlert = document.getElementById('alert-locked'), canvas = document.getElementById('voting-canvas');
 
             if (currentState.gate === 'closed' && currentState.published !== 'true') {
@@ -198,26 +200,33 @@
 
             if (currentState.published === 'true') {
                 renderPublishedResults();
-            } else if (currentState.round === '1') {
-                renderRound1();
+            } else if (currentState.round === '1' || isStraggler) {
+                renderRound1(isStraggler);
             } else if (currentState.round === '2') {
                 renderRound2();
             }
         }
 
-        window.toggleReady = async function() {
+        window.toggleReady = async function(forcedRound = null) {
             isReadyState = !isReadyState;
             updateUI();
+            
+            // Determine if the user is submitting Phase 1 or Phase 2
+            const roundToSubmit = forcedRound || currentState.round;
+
             await fetch(`${API_URL}/api/voter/ready`, { 
                 method: 'POST', headers: { 'Content-Type': 'application/json' }, 
-                body: JSON.stringify({ voterId: myVoterId, isReady: isReadyState, round: currentState.round }) 
+                body: JSON.stringify({ voterId: myVoterId, isReady: isReadyState, round: roundToSubmit }) 
             });
+
+            // Force a rapid sync so stragglers immediately drop into Phase 2 upon submitting
+            syncData();
         }
 
         // ==========================================
         // ROUND 1: INDIVIDUAL 10 VOTES
         // ==========================================
-        function renderRound1() {
+        function renderRound1(isStraggler = false) {
             const canvas = document.getElementById('voting-canvas');
             if (activeTopics.length === 0) return canvas.innerHTML = `<p class="text-center text-slate-500 py-8">Waiting for topics...</p>`;
             
@@ -226,6 +235,7 @@
 
             let html = `
             <div class="mb-6 border-b border-slate-100 pb-4">
+                ${isStraggler ? `<div class="bg-amber-100 text-amber-800 text-xs font-bold px-3 py-2 rounded mb-3 border border-amber-200">The meeting is currently in Phase 2. Please quickly select your Top 10 so you can join your group's deliberation.</div>` : ''}
                 <h2 class="text-lg font-bold text-slate-800">Select Up To 10 Topics</h2>
                 <p class="text-sm font-semibold ${maxReached ? 'text-green-600' : 'text-indigo-600'}">${selectedCount} / 10 Selected</p>
             </div><div class="space-y-2">`;
@@ -241,7 +251,9 @@
                 </label>`;
             });
             html += `</div>`;
-            html += `<button onclick="toggleReady()" class="mt-8 w-full ${isReadyState ? 'bg-green-600 hover:bg-green-700' : 'bg-slate-800 hover:bg-slate-900'} text-white font-bold py-3 rounded-lg shadow-sm cursor-pointer transition-colors">${isReadyState ? '✅ I am Done Voting' : 'Mark as Ready'}</button>`;
+            
+            // Hardcode '1' to ensure stragglers push a Phase 1 completion signal
+            html += `<button onclick="toggleReady('1')" class="mt-8 w-full ${isReadyState ? 'bg-green-600 hover:bg-green-700' : 'bg-slate-800 hover:bg-slate-900'} text-white font-bold py-3 rounded-lg shadow-sm cursor-pointer transition-colors">${isReadyState ? '✅ I am Done Voting' : 'Mark as Ready'}</button>`;
             if (canvas.innerHTML !== html) canvas.innerHTML = html;
         }
 
@@ -249,7 +261,7 @@
             if (currentState.gate === 'closed') return;
             myR1Votes[topicId] = isChecked ? 'yes' : 'no';
             localStorage.setItem(`votetile_r1_${myVoterId}`, JSON.stringify(myR1Votes));
-            renderRound1();
+            renderRound1(currentState.round === '2' && voterProfile.status === 'active');
             await fetch(`${API_URL}/api/vote/round1`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ voterId: myVoterId, topicId, value: myR1Votes[topicId] }) });
         }
 
@@ -272,37 +284,27 @@
             </div>
             <div class="space-y-4">`;
 
-            // SORTING LOGIC: Top 5 > Alt > Unranked > Vote Count
             const sortedFeed = [...groupFeed].sort((a, b) => {
                 const catA = scribeChoices[a.topic_id] || 'unranked';
                 const catB = scribeChoices[b.topic_id] || 'unranked';
-                
                 const rank = { 'top5': 1, 'alt': 2, 'unranked': 3 };
+                if (rank[catA] !== rank[catB]) return rank[catA] - rank[catB];
                 
-                // 1. Sort by Scribe Category
-                if (rank[catA] !== rank[catB]) {
-                    return rank[catA] - rank[catB];
-                }
-                
-                // 2. Sort by Vote Count (Descending) if categories match
                 const getVoteCount = (topic) => {
                     if (topic.vote_count !== undefined) return topic.vote_count; 
                     if (Array.isArray(topic.selected_by)) return topic.selected_by.length;
                     if (typeof topic.selected_by === 'string') return topic.selected_by.split(',').filter(x => x.trim()).length;
                     return 0;
                 };
-
                 return getVoteCount(b) - getVoteCount(a);
             });
 
             sortedFeed.forEach(topic => {
                 const currentSelection = scribeChoices[topic.topic_id] || 'unranked';
-                
                 let categoryUI = '';
                 if (isScribe) {
                     const isTop5 = currentSelection === 'top5';
                     const isAlt = currentSelection === 'alt';
-                    
                     categoryUI = `
                     <div class="flex gap-2 flex-wrap justify-end">
                         <button onclick="setScribeCategory('${topic.topic_id}', 'top5')" class="px-3 py-1.5 text-xs font-bold rounded-md shadow-sm transition-colors border ${isTop5 ? 'bg-amber-400 text-amber-900 border-amber-500' : 'bg-white text-slate-600 border-slate-300 hover:bg-amber-50'}">⭐ Top 5</button>
@@ -331,7 +333,8 @@
             html += `</div>`;
 
             if (isScribe) {
-                html += `<button onclick="toggleReady()" class="mt-8 w-full ${isReadyState ? 'bg-green-600 hover:bg-green-700' : 'bg-slate-800 hover:bg-slate-900'} text-white font-bold py-3 rounded-lg shadow-sm cursor-pointer transition-colors">${isReadyState ? '✅ Sent to Administrator' : 'Submit Final Group List'}</button>`;
+                // Hardcode '2' to ensure Phase 2 submission
+                html += `<button onclick="toggleReady('2')" class="mt-8 w-full ${isReadyState ? 'bg-green-600 hover:bg-green-700' : 'bg-slate-800 hover:bg-slate-900'} text-white font-bold py-3 rounded-lg shadow-sm cursor-pointer transition-colors">${isReadyState ? '✅ Sent to Administrator' : 'Submit Final Group List'}</button>`;
             }
 
             if (canvas.innerHTML !== html) canvas.innerHTML = html;
@@ -346,7 +349,7 @@
                 }
             }
             scribeChoices[topicId] = val;
-            renderRound2(); // Update UI immediately so buttons snap instantly
+            renderRound2(); 
             fetch(`${API_URL}/api/vote/round2`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ voterId: myVoterId, topicId, category: val }) });
         };
 
@@ -377,7 +380,6 @@
                 });
                 html += `</div>`;
             } else {
-                // Phase 2 Group Results Display
                 html += `<div class="grid grid-cols-1 md:grid-cols-2 gap-4">`;
                 const groups = [...new Set(finalResultsData.round2.map(item => item.group_id))];
                 
