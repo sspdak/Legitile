@@ -185,7 +185,6 @@
         function updateUI() {
             document.getElementById('badge-gate').innerText = currentState.gate === 'open' ? '🟢 Polls Open' : '🔒 Polls Closed';
             
-            // Logic to determine if a straggler needs to complete Phase 1 before seeing Phase 2
             const isStraggler = currentState.round === '2' && voterProfile && voterProfile.status === 'active';
             
             document.getElementById('badge-round').innerText = isStraggler ? `Phase 1 (Catch Up)` : `Phase ${currentState.round}`;
@@ -211,7 +210,6 @@
             isReadyState = !isReadyState;
             updateUI();
             
-            // Determine if the user is submitting Phase 1 or Phase 2
             const roundToSubmit = forcedRound || currentState.round;
 
             await fetch(`${API_URL}/api/voter/ready`, { 
@@ -219,7 +217,6 @@
                 body: JSON.stringify({ voterId: myVoterId, isReady: isReadyState, round: roundToSubmit }) 
             });
 
-            // Force a rapid sync so stragglers immediately drop into Phase 2 upon submitting
             syncData();
         }
 
@@ -234,26 +231,41 @@
             const maxReached = selectedCount >= 10;
 
             let html = `
-            <div class="mb-6 border-b border-slate-100 pb-4">
+            <div class="mb-6 border-b border-slate-100 pb-4 sticky top-0 bg-white z-10">
                 ${isStraggler ? `<div class="bg-amber-100 text-amber-800 text-xs font-bold px-3 py-2 rounded mb-3 border border-amber-200">The meeting is currently in Phase 2. Please quickly select your Top 10 so you can join your group's deliberation.</div>` : ''}
-                <h2 class="text-lg font-bold text-slate-800">Select Up To 10 Topics</h2>
-                <p class="text-sm font-semibold ${maxReached ? 'text-green-600' : 'text-indigo-600'}">${selectedCount} / 10 Selected</p>
-            </div><div class="space-y-2">`;
+                <div class="flex justify-between items-end">
+                    <h2 class="text-lg font-bold text-slate-800">Select Up To 10 Topics</h2>
+                    <p class="text-sm font-bold ${maxReached ? 'text-green-600 bg-green-50 px-2 rounded border border-green-200' : 'text-indigo-600'}">${selectedCount} / 10 Selected</p>
+                </div>
+            </div><div class="space-y-8">`;
 
-            activeTopics.forEach(topic => {
-                const isSelected = myR1Votes[topic.topic_id] === 'yes';
-                const isDisabled = !isSelected && maxReached;
+            const groupedTopics = activeTopics.reduce((acc, topic) => {
+                const subj = topic.subject || 'General';
+                if (!acc[subj]) acc[subj] = [];
+                acc[subj].push(topic);
+                return acc;
+            }, {});
+
+            Object.keys(groupedTopics).sort().forEach(subject => {
+                html += `<div class="space-y-2">
+                    <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 ml-1">${escapeHtml(subject)}</h3>`;
                 
-                html += `
-                <label class="flex items-center p-3 bg-slate-50 border ${isSelected ? 'border-indigo-400 bg-indigo-50' : 'border-slate-200'} rounded-lg gap-3 ${isDisabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:bg-slate-100'}">
-                    <input type="checkbox" ${isSelected ? 'checked' : ''} ${isDisabled ? 'disabled' : ''} onchange="toggleR1Selection('${topic.topic_id}', this.checked)" class="w-5 h-5 text-indigo-600 rounded focus:ring-indigo-500">
-                    <span class="text-sm font-medium text-slate-700">${escapeHtml(topic.title)}</span>
-                </label>`;
+                groupedTopics[subject].forEach(topic => {
+                    const isSelected = myR1Votes[topic.topic_id] === 'yes';
+                    const isDisabled = !isSelected && maxReached;
+                    
+                    html += `
+                    <label class="flex items-start p-3 bg-slate-50 border ${isSelected ? 'border-indigo-400 bg-indigo-50 shadow-sm' : 'border-slate-200'} rounded-lg gap-3 ${isDisabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:bg-slate-100 transition-colors'}">
+                        <div class="pt-0.5"><input type="checkbox" ${isSelected ? 'checked' : ''} ${isDisabled ? 'disabled' : ''} onchange="toggleR1Selection('${topic.topic_id}', this.checked)" class="w-5 h-5 text-indigo-600 rounded focus:ring-indigo-500 cursor-pointer"></div>
+                        <span class="text-sm font-medium text-slate-700 leading-snug">${escapeHtml(topic.title)}</span>
+                    </label>`;
+                });
+                html += `</div>`;
             });
-            html += `</div>`;
             
-            // Hardcode '1' to ensure stragglers push a Phase 1 completion signal
-            html += `<button onclick="toggleReady('1')" class="mt-8 w-full ${isReadyState ? 'bg-green-600 hover:bg-green-700' : 'bg-slate-800 hover:bg-slate-900'} text-white font-bold py-3 rounded-lg shadow-sm cursor-pointer transition-colors">${isReadyState ? '✅ I am Done Voting' : 'Mark as Ready'}</button>`;
+            html += `</div>`;
+            html += `<button onclick="toggleReady('1')" class="mt-8 w-full ${isReadyState ? 'bg-green-600 hover:bg-green-700' : 'bg-slate-800 hover:bg-slate-900'} text-white font-bold py-3 rounded-lg shadow-sm cursor-pointer transition-colors sticky bottom-4">${isReadyState ? '✅ I am Done Voting' : 'Mark as Ready'}</button>`;
+            
             if (canvas.innerHTML !== html) canvas.innerHTML = html;
         }
 
@@ -275,12 +287,12 @@
             const isScribe = voterProfile && voterProfile.is_scribe === 1;
 
             let html = `
-            <div class="mb-6 border-b border-slate-100 pb-4 flex justify-between items-end">
+            <div class="mb-6 border-b border-slate-100 pb-4 flex justify-between items-end sticky top-0 bg-white z-10">
                 <div>
                     <h2 class="text-lg font-bold text-slate-800">Group Deliberation</h2>
                     <p class="text-sm text-slate-500 mt-1">${isScribe ? 'You are the Scribe. Assign the final Top 5 and Alternatives.' : 'Watch as your Scribe builds the final list.'}</p>
                 </div>
-                ${groupComplete && !isScribe ? `<span class="bg-green-100 text-green-800 text-xs font-bold px-2.5 py-1 rounded-full border border-green-200">✅ Group Finished</span>` : ''}
+                ${groupComplete && !isScribe ? `<span class="bg-green-100 text-green-800 text-xs font-bold px-2.5 py-1 rounded-full border border-green-200 shadow-sm">✅ Group Finished</span>` : ''}
             </div>
             <div class="space-y-4">`;
 
@@ -306,26 +318,27 @@
                     const isTop5 = currentSelection === 'top5';
                     const isAlt = currentSelection === 'alt';
                     categoryUI = `
-                    <div class="flex gap-2 flex-wrap justify-end">
+                    <div class="flex gap-2 flex-wrap justify-end mt-3 md:mt-0">
                         <button onclick="setScribeCategory('${topic.topic_id}', 'top5')" class="px-3 py-1.5 text-xs font-bold rounded-md shadow-sm transition-colors border ${isTop5 ? 'bg-amber-400 text-amber-900 border-amber-500' : 'bg-white text-slate-600 border-slate-300 hover:bg-amber-50'}">⭐ Top 5</button>
                         <button onclick="setScribeCategory('${topic.topic_id}', 'alt')" class="px-3 py-1.5 text-xs font-bold rounded-md shadow-sm transition-colors border ${isAlt ? 'bg-blue-500 text-white border-blue-600' : 'bg-white text-slate-600 border-slate-300 hover:bg-blue-50'}">🔄 Alternative</button>
                         ${(isTop5 || isAlt) ? `<button onclick="setScribeCategory('${topic.topic_id}', 'unranked')" class="px-2 py-1.5 text-xs font-bold rounded-md transition-colors text-slate-400 hover:text-slate-600 hover:bg-slate-100">Clear</button>` : ''}
                     </div>`;
                 } else {
-                    if (currentSelection === 'top5') categoryUI = `<span class="px-3 py-1 bg-amber-100 text-amber-800 border border-amber-300 font-bold text-xs rounded-full whitespace-nowrap">⭐ Top 5</span>`;
-                    else if (currentSelection === 'alt') categoryUI = `<span class="px-3 py-1 bg-blue-100 text-blue-800 border border-blue-300 font-bold text-xs rounded-full whitespace-nowrap">🔄 Alternative</span>`;
-                    else categoryUI = `<span class="px-3 py-1 bg-slate-50 text-slate-400 border border-slate-200 font-medium text-xs rounded-full whitespace-nowrap">Unranked</span>`;
+                    if (currentSelection === 'top5') categoryUI = `<span class="px-3 py-1 bg-amber-100 text-amber-800 border border-amber-300 font-bold text-xs rounded-full whitespace-nowrap shadow-sm mt-2 md:mt-0 block w-fit">⭐ Top 5</span>`;
+                    else if (currentSelection === 'alt') categoryUI = `<span class="px-3 py-1 bg-blue-100 text-blue-800 border border-blue-300 font-bold text-xs rounded-full whitespace-nowrap shadow-sm mt-2 md:mt-0 block w-fit">🔄 Alternative</span>`;
+                    else categoryUI = `<span class="px-3 py-1 bg-slate-50 text-slate-400 border border-slate-200 font-medium text-xs rounded-full whitespace-nowrap mt-2 md:mt-0 block w-fit">Unranked</span>`;
                 }
 
                 html += `
-                <div class="p-4 bg-white border ${currentSelection === 'top5' ? 'border-amber-300 bg-amber-50/30' : currentSelection === 'alt' ? 'border-blue-300 bg-blue-50/30' : 'border-slate-200'} rounded-xl shadow-sm flex flex-col md:flex-row justify-between gap-4 transition-colors">
+                <div class="p-4 bg-white border ${currentSelection === 'top5' ? 'border-amber-300 bg-amber-50/30' : currentSelection === 'alt' ? 'border-blue-300 bg-blue-50/30' : 'border-slate-200'} rounded-xl shadow-sm flex flex-col md:flex-row justify-between md:items-center gap-2 transition-colors">
                     <div class="flex-1">
-                        <span class="text-sm font-bold text-slate-800 block">${escapeHtml(topic.title)}</span>
-                        <div class="mt-2 inline-flex items-center gap-1.5 text-xs text-slate-500 font-medium bg-slate-50 px-2.5 py-1 rounded-md border border-slate-200">
+                        <div class="mb-1.5"><span class="px-2 py-0.5 bg-slate-100 text-slate-500 rounded border border-slate-200 text-[9px] font-bold tracking-wider uppercase">${escapeHtml(topic.subject || 'General')}</span></div>
+                        <span class="text-sm font-bold text-slate-800 leading-tight block">${escapeHtml(topic.title)}</span>
+                        <div class="mt-2 inline-flex items-center gap-1.5 text-[10px] text-slate-500 font-medium bg-slate-50 px-2 py-1 rounded border border-slate-200">
                             👤 Selected by: <span class="text-slate-700">${escapeHtml(topic.selected_by)}</span>
                         </div>
                     </div>
-                    <div class="flex items-center shrink-0">
+                    <div class="shrink-0">
                         ${categoryUI}
                     </div>
                 </div>`;
@@ -333,8 +346,7 @@
             html += `</div>`;
 
             if (isScribe) {
-                // Hardcode '2' to ensure Phase 2 submission
-                html += `<button onclick="toggleReady('2')" class="mt-8 w-full ${isReadyState ? 'bg-green-600 hover:bg-green-700' : 'bg-slate-800 hover:bg-slate-900'} text-white font-bold py-3 rounded-lg shadow-sm cursor-pointer transition-colors">${isReadyState ? '✅ Sent to Administrator' : 'Submit Final Group List'}</button>`;
+                html += `<button onclick="toggleReady('2')" class="mt-8 w-full ${isReadyState ? 'bg-green-600 hover:bg-green-700' : 'bg-slate-800 hover:bg-slate-900'} text-white font-bold py-3 rounded-lg shadow-sm cursor-pointer transition-colors sticky bottom-4">${isReadyState ? '✅ Sent to Administrator' : 'Submit Final Group List'}</button>`;
             }
 
             if (canvas.innerHTML !== html) canvas.innerHTML = html;
