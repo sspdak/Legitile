@@ -12,9 +12,11 @@
         <div id="view-login" class="bg-white p-8 rounded-xl shadow-sm border border-slate-200 mt-10 max-w-md mx-auto space-y-6">
             <div class="text-center">
                 <h1 class="text-2xl font-bold tracking-tight text-indigo-900">LSA Topic Selection</h1>
-                <p class="text-sm text-slate-500 mt-2">Enter your name to join the session.</p>
+                <p class="text-sm text-slate-500 mt-2">Enter your email and name to join or resume your session.</p>
             </div>
             <div class="space-y-4">
+                <input type="email" id="voter-email-input" placeholder="Work Email Address" class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-indigo-500 text-sm">
+                
                 <input type="text" id="voter-name-input" placeholder="First and Last Name" class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-indigo-500 text-sm">
                 
                 <select id="voter-workgroup-input" class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-indigo-500 text-sm bg-white">
@@ -33,7 +35,7 @@
                     <option value="SRC">SRC</option>
                 </select>
 
-                <button onclick="joinSession()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-lg transition-colors cursor-pointer">Join Session</button>
+                <button onclick="joinSession()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-lg transition-colors cursor-pointer">Join / Resume Session</button>
             </div>
         </div>
 
@@ -68,6 +70,7 @@
         let myVoterId = localStorage.getItem('votetile_voter_id');
         let myVoterName = localStorage.getItem('votetile_voter_name');
         
+        // We initialize as empty, and let the sync pull from the DB if they log in from a new device
         let myR1Votes = JSON.parse(localStorage.getItem(`votetile_r1_${myVoterId}`)) || {};
         
         let currentState = { round: '1', gate: 'open', limits: 0, published: 'false', hash: '' };
@@ -82,17 +85,20 @@
         });
 
         async function joinSession() {
+            const emailInput = document.getElementById('voter-email-input').value.trim();
             const nameInput = document.getElementById('voter-name-input').value.trim();
             const workgroupInput = document.getElementById('voter-workgroup-input').value;
             
+            if (!emailInput) return alert("Please enter your email address to ensure your votes are saved.");
             if (!nameInput) return alert("Please enter your name.");
             if (!workgroupInput) return alert("Please select your work group.");
             
             try {
+                // Pass the email to the backend so it can link to an existing account if they return
                 const res = await fetch(`${API_URL}/api/voter/join`, { 
                     method: 'POST', 
                     headers: { 'Content-Type': 'application/json' }, 
-                    body: JSON.stringify({ name: nameInput, workgroup: workgroupInput }) 
+                    body: JSON.stringify({ email: emailInput, name: nameInput, workgroup: workgroupInput }) 
                 });
                 
                 const data = await res.json();
@@ -102,10 +108,9 @@
                 myVoterName = data.name;
                 localStorage.setItem('votetile_voter_id', myVoterId); 
                 localStorage.setItem('votetile_voter_name', myVoterName);
-                myR1Votes = {};
                 
                 showPortal(); 
-                startEngine();
+                startEngine(); // This first sync will pull down their saved R1 votes if they are returning
             } catch (err) { 
                 alert(`Registration failed: ${err.message}`);
                 localStorage.removeItem('votetile_voter_id');
@@ -146,6 +151,12 @@
                 groupComplete = data.groupComplete || false;
                 voterProfile = data.voter;
                 finalResultsData = data.finalResults;
+
+                // Load saved votes from DB if joining from a new device
+                if (data.myR1Votes) {
+                    myR1Votes = data.myR1Votes;
+                    localStorage.setItem(`votetile_r1_${myVoterId}`, JSON.stringify(myR1Votes));
+                }
 
                 if (voterProfile) {
                     isReadyState = voterProfile.status === `ready_r${currentState.round}`;
