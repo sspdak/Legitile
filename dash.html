@@ -86,7 +86,10 @@
             </div>
 
             <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 h-fit">
-                <div class="border-b border-slate-100 pb-4 mb-4"><h2 class="text-lg font-bold">Live Voter Registry</h2></div>
+                <div class="border-b border-slate-100 pb-4 mb-4 flex justify-between items-center">
+                    <h2 class="text-lg font-bold">Live Voter Registry</h2>
+                    <button onclick="openAuditModal()" class="text-xs bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold px-2 py-1 rounded cursor-pointer border border-indigo-200">📋 View Audit Log</button>
+                </div>
                 <div id="roster-container" class="space-y-3 max-h-[600px] overflow-y-auto pr-1 mb-4"></div>
                 <button onclick="saveGroupAssignments()" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-medium py-2 rounded-lg text-xs cursor-pointer shadow-sm">💾 Save Manual Overrides</button>
             </div>
@@ -99,9 +102,34 @@
         </section>
     </main>
 
+    <div id="audit-modal" class="hidden fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-xl shadow-xl w-full max-w-5xl max-h-[85vh] flex flex-col overflow-hidden border border-slate-200">
+            <div class="p-6 border-b border-slate-200 flex justify-between items-center bg-slate-50">
+                <div>
+                    <h2 class="text-xl font-bold text-slate-800">Phase 1: Voter Audit Log</h2>
+                    <p class="text-xs text-slate-500 mt-1">Review specific topics selected by each participant.</p>
+                </div>
+                <button onclick="closeAuditModal()" class="text-slate-400 hover:text-slate-600 font-bold text-2xl cursor-pointer">&times;</button>
+            </div>
+            <div class="p-6 overflow-y-auto bg-white">
+                <table class="w-full text-left border-collapse text-sm">
+                    <thead>
+                        <tr class="border-b border-slate-200 text-slate-500 text-xs uppercase tracking-wider">
+                            <th class="py-3 pr-4 font-bold">Voter Name</th>
+                            <th class="py-3 pr-4 font-bold">Email</th>
+                            <th class="py-3 pr-4 font-bold">Workgroup</th>
+                            <th class="py-3 font-bold">Topics Selected</th>
+                        </tr>
+                    </thead>
+                    <tbody id="audit-table-body" class="divide-y divide-slate-100"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
     <script>
         const API_URL = "https://votetile-api.ewing-jacob.workers.dev";
-        let currentTopics = [], currentVoters = [], r1Analytics = [];
+        let currentTopics = [], currentVoters = [], r1Analytics = [], globalRosterData = null;
         let activeRound = "1";
         
         const predefinedGroups = ['Legislative Assistants', 'Administration', 'Caucus Staff', 'Nonpartisan Staff'];
@@ -215,7 +243,9 @@
         async function fetchRoster() {
             if (document.activeElement && document.activeElement.tagName === 'SELECT') return;
 
-            const res = await fetch(`${API_URL}/api/admin/roster`); const data = await res.json(); currentVoters = data.voters;
+            const res = await fetch(`${API_URL}/api/admin/roster`); 
+            globalRosterData = await res.json(); 
+            currentVoters = globalRosterData.voters;
             
             const pendingSelections = {};
             currentVoters.forEach(v => {
@@ -223,7 +253,6 @@
                 if (selectEl) pendingSelections[v.voter_id] = selectEl.value;
             });
 
-            // Find all groups where the scribe has marked ready_r2
             const finishedGroups = currentVoters
                 .filter(v => v.is_scribe === 1 && v.status === 'ready_r2')
                 .map(v => v.group_id);
@@ -231,7 +260,8 @@
             const container = document.getElementById('roster-container'); container.innerHTML = '';
             
             currentVoters.forEach(voter => {
-                const r1Count = data.activityR1.find(a => a.voter_id === voter.voter_id)?.count || 0;
+                const r1Data = globalRosterData.activityR1.find(a => a.voter_id === voter.voter_id);
+                const r1Count = r1Data?.count || 0;
                 
                 const displayedGroup = pendingSelections[voter.voter_id] || voter.group_id;
                 const optionsWithSelection = predefinedGroups.map(g => `<option value="${escapeHtml(g)}" ${displayedGroup === g ? 'selected' : ''}>${escapeHtml(g)}</option>`).join('');
@@ -240,15 +270,20 @@
                 
                 const r1Status = `<span class="text-[10px] ${voter.status === 'ready_r1' ? 'bg-green-100 text-green-800 border-green-200' : 'bg-blue-50 text-blue-700 border-blue-200'} border px-1.5 py-0.5 rounded font-bold">P1: ${r1Count}/10 ${voter.status === 'ready_r1' ? '✅' : ''}</span>`;
                 
-                // Group is finished if the voter's assigned group is inside the finishedGroups array.
                 const isGroupFinished = finishedGroups.includes(voter.group_id) && voter.group_id !== 'unassigned';
                 const r2Status = isGroupFinished ? `<span class="text-[10px] bg-emerald-100 text-emerald-800 border border-emerald-300 px-1.5 py-0.5 rounded font-bold">Group Finished ✅</span>` : '';
+
+                // Display Email if available
+                const emailDisplay = voter.email ? `<span class="text-[10px] text-slate-400 block -mt-1 mb-1 truncate">${escapeHtml(voter.email)}</span>` : '';
 
                 const div = document.createElement('div');
                 div.className = "flex flex-col p-3 bg-slate-50 rounded-lg border border-slate-200 gap-2";
                 div.innerHTML = `
-                <div class="flex justify-between items-center">
-                    <span class="font-semibold text-xs text-slate-700">${escapeHtml(voter.voter_name)}</span>
+                <div class="flex justify-between items-start">
+                    <div class="flex flex-col overflow-hidden">
+                        <span class="font-semibold text-xs text-slate-700 truncate">${escapeHtml(voter.voter_name)}</span>
+                        ${emailDisplay}
+                    </div>
                     <button onclick="removeVoter('${voter.voter_id}')" class="text-rose-400 hover:text-rose-600 font-bold px-1" title="Remove Voter">×</button>
                 </div>
                 <div class="flex justify-between items-center">
@@ -257,6 +292,48 @@
                 </div>
                 <div class="flex items-center gap-2 mt-1"><select id="group-select-${voter.voter_id}" class="flex-1 bg-white border border-slate-300 text-xs rounded px-2 py-1 focus:outline-blue-500 shadow-sm"><option value="unassigned" ${displayedGroup === 'unassigned' || !predefinedGroups.includes(displayedGroup) ? 'selected' : ''}>Unassigned</option>${optionsWithSelection}</select></div>`;
                 container.appendChild(div);
+            });
+            
+            // If the audit modal is open, auto-refresh its contents
+            if (!document.getElementById('audit-modal').classList.contains('hidden')) {
+                populateAuditModal();
+            }
+        }
+
+        function openAuditModal() {
+            document.getElementById('audit-modal').classList.remove('hidden');
+            populateAuditModal();
+        }
+
+        function closeAuditModal() {
+            document.getElementById('audit-modal').classList.add('hidden');
+        }
+
+        function populateAuditModal() {
+            if (!globalRosterData) return;
+            const tbody = document.getElementById('audit-table-body');
+            tbody.innerHTML = '';
+
+            currentVoters.forEach(voter => {
+                const r1Data = globalRosterData.activityR1.find(a => a.voter_id === voter.voter_id);
+                let topicsHtml = '<span class="text-slate-400 italic">No topics selected</span>';
+                
+                if (r1Data && r1Data.topics) {
+                    const topicsList = r1Data.topics.split('||').map(t => `<li class="ml-4 list-disc">${escapeHtml(t)}</li>`).join('');
+                    topicsHtml = `<ul class="text-slate-700">${topicsList}</ul>`;
+                }
+
+                const emailDisplay = voter.email ? escapeHtml(voter.email) : '<span class="text-slate-400 italic">None</span>';
+                const statusIcon = voter.status === 'ready_r1' ? '✅ ' : '';
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="py-4 pr-4 align-top font-semibold text-slate-800">${statusIcon}${escapeHtml(voter.voter_name)}</td>
+                    <td class="py-4 pr-4 align-top text-slate-600 break-all">${emailDisplay}</td>
+                    <td class="py-4 pr-4 align-top text-slate-600">${escapeHtml(voter.group_id)}</td>
+                    <td class="py-4 align-top">${topicsHtml}</td>
+                `;
+                tbody.appendChild(tr);
             });
         }
 
