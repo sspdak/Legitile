@@ -15,7 +15,7 @@
                 <p class="text-sm text-slate-500 mt-2">Enter your name and email to join or resume your session.</p>
             </div>
             <div class="space-y-4">
-                <input type="text" id="voter-name-input" placeholder="First and Last Name" class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-indigo-500 text-sm">
+                <input type="text" id="voter-name-input" placeholder="First and Last Name" class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-indigo-500 text-sm">    
                 
                 <input type="email" id="voter-email-input" placeholder="Work Email Address" class="w-full px-4 py-3 border border-slate-300 rounded-lg focus:outline-indigo-500 text-sm">
                 
@@ -35,7 +35,7 @@
                     <option value="SRC">SRC</option>
                 </select>
 
-                <button onclick="joinSession()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-lg transition-colors cursor-pointer">Join / Resume Session</button>
+                <button id="join-btn" onclick="joinSession()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-lg transition-colors cursor-pointer">Join / Resume Session</button>
             </div>
         </div>
 
@@ -87,10 +87,16 @@
             const emailInput = document.getElementById('voter-email-input').value.trim();
             const nameInput = document.getElementById('voter-name-input').value.trim();
             const workgroupInput = document.getElementById('voter-workgroup-input').value;
+            const joinBtn = document.getElementById('join-btn');
             
             if (!emailInput) return alert("Please enter your email address to ensure your votes are saved.");
             if (!nameInput) return alert("Please enter your name.");
             if (!workgroupInput) return alert("Please select your work group.");
+            
+            // UI Update: Disable the button and show a loading state
+            joinBtn.disabled = true;
+            joinBtn.innerText = "Joining...";
+            joinBtn.classList.add('opacity-75', 'cursor-not-allowed');
             
             try {
                 const res = await fetch(`${API_URL}/api/voter/join`, { 
@@ -113,6 +119,11 @@
                 alert(`Registration failed: ${err.message}`);
                 localStorage.removeItem('votetile_voter_id');
                 localStorage.removeItem('votetile_voter_name');
+                
+                // UI Revert: Re-enable the button if registration fails so they can try again
+                joinBtn.disabled = false;
+                joinBtn.innerText = "Join / Resume Session";
+                joinBtn.classList.remove('opacity-75', 'cursor-not-allowed');
             }
         }
 
@@ -227,7 +238,6 @@
             const canvas = document.getElementById('voting-canvas');
             if (activeTopics.length === 0) return canvas.innerHTML = `<p class="text-center text-slate-500 py-8">Waiting for topics...</p>`;
             
-            // NEW: Fetch dynamically set limit, default to 10 if missing
             const voteLimit = parseInt(currentState.limits) > 0 ? parseInt(currentState.limits) : 10;
             const selectedCount = Object.values(myR1Votes).filter(v => v === 'yes').length;
             const maxReached = selectedCount >= voteLimit;
@@ -367,7 +377,7 @@
             fetch(`${API_URL}/api/vote/round2`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ voterId: myVoterId, topicId, category: val }) });
         };
 
-// ==========================================
+        // ==========================================
         // PUBLISHED RESULTS (Stacked Accordion UI Upgrade)
         // ==========================================
         function renderPublishedResults() {
@@ -510,7 +520,7 @@
                             </div>
                 </div>`;
 
-                html += `</div>`; // Close accordion grid stack
+                html += `</div>`; 
             }
 
             if (canvas.innerHTML !== html) canvas.innerHTML = html;
