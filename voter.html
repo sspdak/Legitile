@@ -368,7 +368,7 @@
         };
 
         // ==========================================
-        // PUBLISHED RESULTS (Updated for Master Consensus)
+        // PUBLISHED RESULTS
         // ==========================================
         function renderPublishedResults() {
             const canvas = document.getElementById('voting-canvas');
@@ -394,35 +394,31 @@
                 });
                 html += `</div>`;
             } else {
-                // PHASE 2 MASTER CONSENSUS VIEW
-                const topicAgg = {};
-                finalResultsData.round2.forEach(item => {
-                    if (!topicAgg[item.topic_id]) {
-                        topicAgg[item.topic_id] = { title: item.title, subject: item.subject, top5: [], alt: [] };
-                    }
-                    if (item.category === 'top5') topicAgg[item.topic_id].top5.push(item.group_id);
-                    if (item.category === 'alt') topicAgg[item.topic_id].alt.push(item.group_id);
-                });
-
-                const rankedTopics = Object.values(topicAgg).sort((a, b) => b.top5.length - a.top5.length);
-
-                html += `<div class="space-y-4">
-                            <h3 class="text-xs font-bold text-slate-500 uppercase tracking-wider">Global Master Ranking</h3>`;
+                html += `<div class="grid grid-cols-1 md:grid-cols-2 gap-4">`;
+                const groups = [...new Set(finalResultsData.round2.map(item => item.group_id))];
                 
-                rankedTopics.forEach(t => {
-                    html += `<div class="p-4 bg-white border border-slate-200 rounded-xl shadow-sm space-y-2">
-                        <div class="flex justify-between items-start">
-                            <div>
-                                <span class="px-2 py-0.5 bg-slate-100 text-slate-500 rounded border border-slate-200 text-[9px] font-bold tracking-wider uppercase">${escapeHtml(t.subject)}</span>
-                                <span class="font-bold text-slate-800 block mt-1">${escapeHtml(t.title)}</span>
-                            </div>
-                        </div>
-                        <div class="flex flex-wrap gap-2">
-                            ${t.top5.map(g => `<span class="px-2 py-1 bg-amber-100 text-amber-800 border border-amber-300 rounded text-[10px] font-bold">⭐ ${escapeHtml(g)}</span>`).join('')}
-                            ${t.alt.map(g => `<span class="px-2 py-1 bg-blue-100 text-blue-800 border border-blue-300 rounded text-[10px] font-bold">🔄 ${escapeHtml(g)}</span>`).join('')}
-                        </div>
-                    </div>`;
-                });
+                if (groups.length === 0) {
+                    html += `<p class="text-center text-slate-500 col-span-2 py-8">No group selections were finalized.</p>`;
+                } else {
+                    groups.forEach(g => {
+                        const top5 = finalResultsData.round2.filter(i => i.group_id === g && i.category === 'top5');
+                        const alts = finalResultsData.round2.filter(i => i.group_id === g && i.category === 'alt');
+
+                        html += `<div class="p-4 bg-slate-50 rounded-xl border border-slate-200"><h3 class="font-bold text-sm mb-3 text-indigo-800 uppercase tracking-wider">${escapeHtml(g)}</h3>`;
+                        
+                        if (top5.length > 0) {
+                            html += `<div class="mb-3"><span class="text-xs font-bold text-slate-400 uppercase">⭐ Top 5</span><ul class="mt-1 space-y-1">`;
+                            top5.forEach(t => html += `<li class="text-sm font-medium text-slate-800">${escapeHtml(t.title)}</li>`);
+                            html += `</ul></div>`;
+                        }
+                        if (alts.length > 0) {
+                            html += `<div><span class="text-xs font-bold text-slate-400 uppercase">🔄 Alternatives</span><ul class="mt-1 space-y-1">`;
+                            alts.forEach(t => html += `<li class="text-sm text-slate-600">${escapeHtml(t.title)}</li>`);
+                            html += `</ul></div>`;
+                        }
+                        html += `</div>`;
+                    });
+                }
                 html += `</div>`;
             }
 
