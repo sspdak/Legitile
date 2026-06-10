@@ -135,11 +135,22 @@
 
         function startEngine() { runSyncLoop(); }
 
-        async function runSyncLoop() {
+async function runSyncLoop() {
             if (myVoterId) await syncData();
-            let timerSpeed = 1000; 
-            if (currentState.gate === 'closed') timerSpeed = 15000;
-            if (currentState.published === 'true') timerSpeed = 60000;
+            
+            // SMART POLLING LOGIC
+            let timerSpeed = 5000; // Default: 5 seconds (Phase 2 deliberation)
+            
+            if (currentState.round === '1') {
+                timerSpeed = 15000; // Phase 1 (Individual): 15 seconds
+            }
+            if (currentState.gate === 'closed') {
+                timerSpeed = 30000; // Paused: 30 seconds
+            }
+            if (currentState.published === 'true') {
+                timerSpeed = 60000; // Published/Finished: 60 seconds
+            }
+            
             syncTimer = setTimeout(runSyncLoop, timerSpeed);
         }
 
