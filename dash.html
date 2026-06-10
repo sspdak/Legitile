@@ -16,11 +16,11 @@
         
         <header class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div>
-                <h1 class="text-2xl font-bold tracking-tight">VoteTile Admin Dashboard</h1>
+                <h1 class="text-2xl font-bold tracking-tight text-indigo-900">VoteTile Admin Dashboard</h1>
                 <p class="text-sm text-slate-500">Configure phases, manage the roster, and monitor live voting data.</p>
             </div>
             <div class="flex gap-3">
-                <button onclick="refreshAllData()" class="bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg transition-colors cursor-pointer text-sm shadow-sm">🔄 Refresh Dashboard</button>
+                <button onclick="refreshAllData()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-4 py-2 rounded-lg transition-colors cursor-pointer text-sm shadow-sm">🔄 Refresh Dashboard</button>
             </div>
         </header>
 
@@ -29,17 +29,17 @@
                 <h2 class="text-xs font-bold tracking-wide uppercase text-slate-400">Poll Gatekeeper</h2>
                 <div class="flex items-center gap-3"><span id="gate-badge" class="px-2.5 py-1 text-xs font-semibold rounded-full bg-slate-100 text-slate-700">Loading...</span></div>
                 <div class="flex gap-2">
-                    <button onclick="updateMeta('_meta_gate', 'open')" class="flex-1 bg-green-50 hover:bg-green-100 text-green-700 font-bold py-1.5 rounded text-xs border border-green-200 cursor-pointer">Open</button>
-                    <button onclick="updateMeta('_meta_gate', 'closed')" class="flex-1 bg-red-50 hover:bg-red-100 text-red-700 font-bold py-1.5 rounded text-xs border border-red-200 cursor-pointer">Close</button>
+                    <button onclick="updateMeta('_meta_gate', 'open')" class="flex-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-bold py-1.5 rounded text-xs border border-emerald-200 cursor-pointer">Open</button>
+                    <button onclick="updateMeta('_meta_gate', 'closed')" class="flex-1 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold py-1.5 rounded text-xs border border-rose-200 cursor-pointer">Close</button>
                 </div>
             </div>
 
             <div class="bg-white p-5 rounded-xl shadow-sm border border-slate-200 space-y-3">
                 <h2 class="text-xs font-bold tracking-wide uppercase text-slate-400">Active Phase</h2>
-                <div class="text-xl font-bold" id="current-round-display">Phase --</div>
+                <div class="text-xl font-bold text-slate-800" id="current-round-display">Phase --</div>
                 <div class="flex gap-2">
-                    <button onclick="updateMeta('_meta_round', '1')" class="flex-1 bg-slate-100 hover:bg-slate-200 font-bold py-1.5 rounded text-xs cursor-pointer">Phase 1</button>
-                    <button onclick="updateMeta('_meta_round', '2')" class="flex-1 bg-slate-100 hover:bg-slate-200 font-bold py-1.5 rounded text-xs cursor-pointer">Phase 2</button>
+                    <button onclick="updateMeta('_meta_round', '1')" class="flex-1 bg-slate-100 hover:bg-slate-200 font-bold py-1.5 rounded text-xs cursor-pointer text-slate-700">Phase 1</button>
+                    <button onclick="updateMeta('_meta_round', '2')" class="flex-1 bg-slate-100 hover:bg-slate-200 font-bold py-1.5 rounded text-xs cursor-pointer text-slate-700">Phase 2</button>
                 </div>
             </div>
 
@@ -56,7 +56,7 @@
                 <h2 class="text-xs font-bold tracking-wide uppercase text-slate-400">Results Visibility</h2>
                 <div class="flex items-center gap-3"><span id="publish-badge" class="px-2.5 py-1 text-xs font-semibold rounded-full bg-slate-100 text-slate-700">Loading...</span></div>
                 <div class="flex gap-2">
-                    <button onclick="updateMeta('_meta_published', 'true')" class="flex-1 bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold py-1.5 rounded text-xs border border-blue-200 cursor-pointer">Publish</button>
+                    <button onclick="updateMeta('_meta_published', 'true')" class="flex-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold py-1.5 rounded text-xs border border-indigo-200 cursor-pointer">Publish</button>
                     <button onclick="updateMeta('_meta_published', 'false')" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-1.5 rounded text-xs border border-slate-200 cursor-pointer">Hide</button>
                 </div>
             </div>
@@ -67,14 +67,14 @@
                 
                 <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
                     <div class="flex justify-between items-center border-b border-slate-100 pb-4 mb-4 cursor-pointer group" onclick="toggleSection('topics')">
-                        <h2 class="text-lg font-bold group-hover:text-blue-600 transition-colors">Topics Registry</h2>
+                        <h2 class="text-lg font-bold group-hover:text-indigo-600 transition-colors">Topics Registry</h2>
                         <span id="icon-topics" class="chevron text-slate-400 font-bold">▼</span>
                     </div>
                     <div id="content-topics" class="space-y-4">
                         <div class="flex gap-2 mb-4">
-                            <input type="text" id="new-topic-subject" placeholder="Subject Group..." class="w-1/3 px-4 py-2 border border-slate-300 rounded-lg text-sm">
-                            <input type="text" id="new-topic-input" placeholder="Type a new topic description here..." class="flex-1 px-4 py-2 border border-slate-300 rounded-lg text-sm">
-                            <button onclick="addTopic()" class="bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 py-2 rounded-lg text-sm cursor-pointer shadow-sm">Add Topic</button>
+                            <input type="text" id="new-topic-subject" placeholder="Subject Group..." class="w-1/3 px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-indigo-500">
+                            <input type="text" id="new-topic-input" placeholder="Type a new topic description here..." class="flex-1 px-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-indigo-500">
+                            <button onclick="addTopic()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-medium px-4 py-2 rounded-lg text-sm cursor-pointer shadow-sm transition-colors">Add Topic</button>
                         </div>
                         <div class="overflow-x-auto">
                             <table class="w-full text-left border-collapse text-sm">
@@ -87,7 +87,7 @@
                 
                 <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
                     <div class="flex justify-between items-center border-b border-slate-100 pb-4 mb-4 cursor-pointer group" onclick="toggleSection('p1-tally')">
-                        <h2 class="text-lg font-bold group-hover:text-blue-600 transition-colors">Phase 1: Priority Draft Tally</h2>
+                        <h2 class="text-lg font-bold group-hover:text-indigo-600 transition-colors">Phase 1: Priority Draft Tally</h2>
                         <span id="icon-p1-tally" class="chevron text-slate-400 font-bold">▼</span>
                     </div>
                     <div id="content-p1-tally" class="overflow-x-auto">
@@ -101,7 +101,7 @@
                 <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
                     <div class="flex justify-between items-center border-b border-slate-100 pb-4 mb-4 cursor-pointer group" onclick="toggleSection('audit')">
                         <div>
-                            <h2 class="text-lg font-bold group-hover:text-blue-600 transition-colors">Phase 1: Voter Audit Log</h2>
+                            <h2 class="text-lg font-bold group-hover:text-indigo-600 transition-colors">Phase 1: Voter Audit Log</h2>
                             <p class="text-xs text-slate-400 font-normal mt-1">Review specific topics drafted by each participant.</p>
                         </div>
                         <span id="icon-audit" class="chevron collapsed text-slate-400 font-bold">▼</span>
@@ -123,7 +123,7 @@
 
                 <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
                     <div class="flex justify-between items-center border-b border-slate-100 pb-4 mb-4 cursor-pointer group" onclick="toggleSection('p2-selections')">
-                        <h2 class="text-lg font-bold group-hover:text-blue-600 transition-colors">Phase 2: Master Consensus & Group Breakdown</h2>
+                        <h2 class="text-lg font-bold group-hover:text-indigo-600 transition-colors">Phase 2: Master Consensus & Group Breakdown</h2>
                         <span id="icon-p2-selections" class="chevron text-slate-400 font-bold">▼</span>
                     </div>
                     <div id="content-p2-selections" class="space-y-6">
@@ -142,12 +142,12 @@
 
             <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 h-fit">
                 <div class="flex justify-between items-center border-b border-slate-100 pb-4 mb-4 cursor-pointer group" onclick="toggleSection('roster')">
-                    <h2 class="text-lg font-bold group-hover:text-blue-600 transition-colors">Live Voter Registry</h2>
+                    <h2 class="text-lg font-bold group-hover:text-indigo-600 transition-colors">Live Voter Registry</h2>
                     <span id="icon-roster" class="chevron text-slate-400 font-bold">▼</span>
                 </div>
                 <div id="content-roster">
                     <div id="roster-container" class="space-y-3 max-h-[600px] overflow-y-auto pr-1 mb-4"></div>
-                    <button onclick="saveGroupAssignments()" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-medium py-2 rounded-lg text-xs cursor-pointer shadow-sm">💾 Save Manual Overrides</button>
+                    <button onclick="saveGroupAssignments()" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-medium py-2 rounded-lg text-xs cursor-pointer shadow-sm transition-colors">💾 Save Manual Overrides</button>
                 </div>
             </div>
         </section>
@@ -188,7 +188,11 @@
         
         const predefinedGroups = ['Legislative Assistants', 'Administration', 'Caucus Staff', 'Nonpartisan Staff'];
 
-        window.addEventListener('DOMContentLoaded', () => { refreshAllData(); setInterval(refreshAllData, 5000); });
+        // SMART POLLING FOR ADMIN: Updates every 15 seconds to save worker usage
+        window.addEventListener('DOMContentLoaded', () => { 
+            refreshAllData(); 
+            setInterval(refreshAllData, 15000); 
+        });
 
         function toggleSection(sectionId) {
             const content = document.getElementById(`content-${sectionId}`);
@@ -220,11 +224,11 @@
 
                 const gateBadge = document.getElementById('gate-badge');
                 gateBadge.innerText = data.gate.toUpperCase();
-                gateBadge.className = data.gate === 'open' ? "px-2.5 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-700" : "px-2.5 py-1 text-xs font-semibold rounded-full bg-red-100 text-red-700";
+                gateBadge.className = data.gate === 'open' ? "px-2.5 py-1 text-xs font-semibold rounded-full bg-emerald-100 text-emerald-700" : "px-2.5 py-1 text-xs font-semibold rounded-full bg-rose-100 text-rose-700";
                 
                 const publishBadge = document.getElementById('publish-badge');
                 publishBadge.innerText = data.published === 'true' ? 'PUBLISHED' : 'HIDDEN';
-                publishBadge.className = data.published === 'true' ? "px-2.5 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-700" : "px-2.5 py-1 text-xs font-semibold rounded-full bg-slate-100 text-slate-700";
+                publishBadge.className = data.published === 'true' ? "px-2.5 py-1 text-xs font-semibold rounded-full bg-indigo-100 text-indigo-700" : "px-2.5 py-1 text-xs font-semibold rounded-full bg-slate-100 text-slate-700";
 
                 document.getElementById('current-round-display').innerText = `Phase ${activeRound}`;
                 document.getElementById('limit-badge').innerText = `${activeLimit} Votes/Person`;
@@ -251,8 +255,8 @@
                     <td class="py-2 font-bold text-slate-500 text-xs uppercase tracking-wider">${escapeHtml(topic.subject || 'General')}</td>
                     <td class="py-2 font-medium text-slate-700">${escapeHtml(topic.title)}</td>
                     <td class="py-2 text-right whitespace-nowrap">
-                        <button onclick="openEditTopic('${topic.topic_id}')" class="text-indigo-600 hover:text-indigo-800 font-bold text-xs cursor-pointer mr-3">Edit</button>
-                        <button onclick="deleteTopic('${topic.topic_id}')" class="text-rose-500 hover:text-rose-700 font-bold text-xs cursor-pointer">Delete</button>
+                        <button onclick="openEditTopic('${topic.topic_id}')" class="text-indigo-600 hover:text-indigo-800 font-bold text-xs cursor-pointer mr-3 transition-colors">Edit</button>
+                        <button onclick="deleteTopic('${topic.topic_id}')" class="text-rose-500 hover:text-rose-700 font-bold text-xs cursor-pointer transition-colors">Delete</button>
                     </td>`;
                 tbody.appendChild(tr);
             });
@@ -422,7 +426,7 @@
                 
                 const scribeBtn = `<button onclick="setScribe('${voter.voter_id}', ${!voter.is_scribe})" class="text-[10px] font-bold px-2 py-1 rounded border ${voter.is_scribe ? 'bg-amber-100 text-amber-800 border-amber-300' : 'bg-slate-100 text-slate-500 border-slate-300 hover:bg-amber-50'} transition-colors cursor-pointer shadow-sm">${voter.is_scribe ? '✍️ Scribe Assigned' : 'Make Scribe'}</button>`;
                 
-                const r1Status = `<span class="text-[10px] ${voter.status === 'ready_r1' ? 'bg-green-100 text-green-800 border-green-200' : 'bg-blue-50 text-blue-700 border-blue-200'} border px-1.5 py-0.5 rounded font-bold">P1: ${r1Count}/${activeLimit} ${voter.status === 'ready_r1' ? '✅' : ''}</span>`;
+                const r1Status = `<span class="text-[10px] ${voter.status === 'ready_r1' ? 'bg-emerald-100 text-emerald-800 border-emerald-200' : 'bg-indigo-50 text-indigo-700 border-indigo-200'} border px-1.5 py-0.5 rounded font-bold">P1: ${r1Count}/${activeLimit} ${voter.status === 'ready_r1' ? '✅' : ''}</span>`;
                 
                 const isGroupFinished = finishedGroups.includes(voter.group_id) && voter.group_id !== 'unassigned';
                 const r2Status = isGroupFinished ? `<span class="text-[10px] bg-emerald-100 text-emerald-800 border border-emerald-300 px-1.5 py-0.5 rounded font-bold">Group Finished ✅</span>` : '';
@@ -437,13 +441,13 @@
                         <span class="font-semibold text-xs text-slate-700 truncate">${escapeHtml(voter.voter_name)}</span>
                         ${emailDisplay}
                     </div>
-                    <button onclick="removeVoter('${voter.voter_id}')" class="text-rose-400 hover:text-rose-600 font-bold px-1" title="Remove Voter">×</button>
+                    <button onclick="removeVoter('${voter.voter_id}')" class="text-rose-400 hover:text-rose-600 font-bold px-1 transition-colors" title="Remove Voter">×</button>
                 </div>
                 <div class="flex justify-between items-center">
                     <div class="flex gap-1">${r1Status} ${r2Status}</div>
                     ${scribeBtn}
                 </div>
-                <div class="flex items-center gap-2 mt-1"><select id="group-select-${voter.voter_id}" class="flex-1 bg-white border border-slate-300 text-xs rounded px-2 py-1 focus:outline-blue-500 shadow-sm"><option value="unassigned" ${displayedGroup === 'unassigned' || !predefinedGroups.includes(displayedGroup) ? 'selected' : ''}>Unassigned</option>${optionsWithSelection}</select></div>`;
+                <div class="flex items-center gap-2 mt-1"><select id="group-select-${voter.voter_id}" class="flex-1 bg-white border border-slate-300 text-xs rounded px-2 py-1 focus:outline-indigo-500 shadow-sm"><option value="unassigned" ${displayedGroup === 'unassigned' || !predefinedGroups.includes(displayedGroup) ? 'selected' : ''}>Unassigned</option>${optionsWithSelection}</select></div>`;
                 container.appendChild(div);
             });
             
