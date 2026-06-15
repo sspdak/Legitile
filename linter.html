@@ -3,59 +3,137 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LegiTile | Document Linter Sandbox</title>
+    <title>LegiTile | Document Linter</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
     <style>
         .leg-navy { background-color: #002e5d; }
         .text-leg-navy { color: #002e5d; }
-        
-        /* This styles the raw HTML that Mammoth extracts so it is readable */
         #document-output p { margin-bottom: 1rem; line-height: 1.6; }
         #document-output strong { font-weight: 900; }
+        
+        /* The custom highlight class for collisions */
+        .rcw-collision {
+            background-color: #fee2e2; /* light red */
+            border-bottom: 2px solid #dc2626; /* dark red underline */
+            cursor: pointer;
+            padding: 0 2px;
+            border-radius: 2px;
+            font-weight: bold;
+            color: #991b1b;
+        }
+        .rcw-collision:hover {
+            background-color: #fecaca;
+        }
     </style>
 </head>
 <body class="bg-slate-50 h-screen font-sans text-slate-800 flex flex-col">
 
     <header class="shrink-0 pt-8 pb-4 px-10 z-40 bg-white border-b border-slate-200 flex justify-between items-end">
         <div>
-            <h1 class="text-2xl font-black text-slate-800 uppercase tracking-tight">Linter Parsing Sandbox</h1>
-            <p class="text-xs font-bold text-slate-500 uppercase tracking-wider mt-1">Upload a .docx to extract clean HTML</p>
+            <h1 class="text-2xl font-black text-slate-800 uppercase tracking-tight">Legislative Linter</h1>
+            <p class="text-xs font-bold text-slate-500 uppercase tracking-wider mt-1">Secure Local Analysis Engine</p>
+        </div>
+        <div class="flex items-center gap-2">
+            <span class="text-[10px] font-black uppercase text-slate-400">Target Session:</span>
+            <select id="biennium-select" class="bg-slate-50 border border-slate-200 text-slate-700 text-xs font-bold rounded px-3 py-2 outline-none">
+                <option value="2025-26">2025-26</option>
+            </select>
         </div>
     </header>
 
     <main class="flex-1 overflow-y-auto p-10 flex gap-8">
-        <div class="w-1/3">
+        <div class="w-1/3 flex flex-col gap-4">
             <div class="bg-white p-8 rounded-xl shadow-sm border border-slate-200 text-center">
                 <div class="mb-4">
                     <svg class="mx-auto h-12 w-12 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                     </svg>
                 </div>
-                <h2 class="text-lg font-black text-leg-navy mb-2">Select a Bill Document</h2>
-                <p class="text-sm text-slate-500 mb-6">Only Microsoft Word (.docx) files are supported for extraction.</p>
+                <h2 class="text-lg font-black text-[#002e5d] mb-2">Select a Draft Bill</h2>
+                <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wide mb-6">Processing is 100% Local & Secure</p>
                 
                 <input type="file" id="upload" accept=".docx" class="hidden" />
                 <label for="upload" class="cursor-pointer bg-[#002e5d] hover:bg-[#001f3f] text-white text-[12px] font-black uppercase px-6 py-3 rounded-lg shadow-sm transition block">
-                    Browse Files
+                    Upload & Lint (.docx)
                 </label>
             </div>
             
-            <div id="status-panel" class="mt-4 p-4 rounded-lg bg-slate-100 border border-slate-200 hidden">
-                <span class="text-xs font-bold text-slate-600 uppercase tracking-wider block mb-1">Status:</span>
-                <span id="status-text" class="text-sm font-black text-leg-navy">Ready</span>
+            <div id="status-panel" class="p-4 rounded-lg bg-slate-100 border border-slate-200 hidden">
+                <span class="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1">Engine Status:</span>
+                <span id="status-text" class="text-sm font-black text-[#002e5d]">Ready</span>
+                
+                <div id="alert-panel" class="mt-4 hidden">
+                    <div class="bg-red-50 border-l-4 border-red-600 p-3 rounded shadow-sm">
+                        <h4 class="text-red-800 font-black text-xs uppercase tracking-wider mb-1">Collisions Detected</h4>
+                        <p id="alert-text" class="text-sm text-red-700 font-medium"></p>
+                    </div>
+                </div>
             </div>
         </div>
 
-        <div class="w-2/3 bg-white p-10 rounded-xl shadow-sm border border-slate-200 overflow-y-auto h-full">
-            <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2 mb-6">Extracted Document View</h3>
+        <div class="w-2/3 bg-white p-10 rounded-xl shadow-sm border border-slate-200 overflow-y-auto h-full relative">
+            <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2 mb-6 sticky top-0 bg-white z-10">Document Viewer</h3>
             <div id="document-output" class="text-sm text-slate-700">
-                <p class="text-slate-400 italic text-center mt-20">The extracted text will appear here.</p>
+                <p class="text-slate-400 italic text-center mt-20">The analyzed document will appear here.</p>
             </div>
         </div>
     </main>
 
     <script>
+        // Use your live worker URL here
+        const SEARCH_API_URL = "https://legitile-scraper.ewing-jacob.workers.dev";
+        
+        // This will hold our 'Danger List' of colliding RCWs
+        let collisionDictionary = {}; 
+
+        // 1. Fetch the collision list immediately so it's ready before the user uploads
+        async function preloadCollisionData() {
+            const biennium = document.getElementById('biennium-select').value;
+            try {
+                const res = await fetch(`${SEARCH_API_URL}/collision-report?biennium=${biennium}`);
+                const data = await res.json();
+                
+                if (!data.error) {
+                    // Turn the array into an easy-to-search dictionary
+                    data.forEach(item => {
+                        collisionDictionary[item.rcw_number] = item.bill_list;
+                    });
+                    console.log(`Loaded ${Object.keys(collisionDictionary).length} colliding RCWs into local memory.`);
+                }
+            } catch (e) {
+                console.error("Could not load collision data", e);
+            }
+        }
+
+        // Run the preload immediately
+        preloadCollisionData();
+
+        // 2. The Linting Engine (Runs after Mammoth extracts the text)
+        function lintDocumentHTML(rawHtml) {
+            let collisionCount = 0;
+            
+            // Regex to find "RCW 12.34.567"
+            const rcwRegex = /\bRCW\s+(\d+[A-Z]?\.\d+\.\d+)\b/g;
+
+            // Replace instances in the HTML with our custom spans
+            const lintedHtml = rawHtml.replace(rcwRegex, (match, rcwNumber) => {
+                // Check if this specific RCW is in our local Danger List
+                if (collisionDictionary[rcwNumber]) {
+                    collisionCount++;
+                    const conflictingBills = collisionDictionary[rcwNumber];
+                    
+                    // Wrap it in the red highlight class, and inject the conflicting bills into a data attribute
+                    return `<span class="rcw-collision" title="Warning: Active bills are amending this RCW (${conflictingBills})" data-conflicts="${conflictingBills}">${match}</span>`;
+                }
+                // If it's safe, just return the text normally
+                return match;
+            });
+
+            return { html: lintedHtml, count: collisionCount };
+        }
+
+        // 3. Handle the Upload
         document.getElementById('upload').addEventListener('change', function(event) {
             const file = event.target.files[0];
             if (!file) return;
@@ -63,36 +141,42 @@
             const statusPanel = document.getElementById('status-panel');
             const statusText = document.getElementById('status-text');
             const outputDiv = document.getElementById('document-output');
+            const alertPanel = document.getElementById('alert-panel');
+            const alertText = document.getElementById('alert-text');
 
             statusPanel.classList.remove('hidden');
-            statusText.innerText = "Parsing document...";
+            alertPanel.classList.add('hidden');
+            statusText.innerText = "Extracting & Linting...";
             statusText.className = "text-sm font-black text-orange-600";
             
-            outputDiv.innerHTML = '<p class="text-slate-400 italic text-center mt-20 animate-pulse">Running extraction engine...</p>';
+            outputDiv.innerHTML = '<p class="text-slate-400 italic text-center mt-20 animate-pulse">Running local security analysis...</p>';
 
             const reader = new FileReader();
             
             reader.onload = function(loadEvent) {
                 const arrayBuffer = loadEvent.target.result;
 
-                // Pass the raw file data to mammoth
                 mammoth.convertToHtml({arrayBuffer: arrayBuffer})
                     .then(function(result) {
-                        // Render the clean HTML
-                        outputDiv.innerHTML = result.value;
                         
-                        // Handle any warnings Mammoth encountered (like unrecognized Word styles)
-                        if(result.messages.length > 0) {
-                            console.warn("Mammoth warnings:", result.messages);
-                            statusText.innerText = "Parsed with minor formatting warnings.";
-                            statusText.className = "text-sm font-black text-orange-600";
+                        // Pass the raw HTML to our Linter Engine!
+                        const lintResult = lintDocumentHTML(result.value);
+                        
+                        // Render the highlighted HTML
+                        outputDiv.innerHTML = lintResult.html;
+                        
+                        // Update the UI based on what we found
+                        if (lintResult.count > 0) {
+                            statusText.innerText = "Analysis Complete (Issues Found)";
+                            statusText.className = "text-sm font-black text-red-600";
+                            alertPanel.classList.remove('hidden');
+                            alertText.innerText = `Found ${lintResult.count} RCW citation(s) currently being amended by other active bills. Hover over the highlighted red text in the viewer to see the conflicting bills.`;
                         } else {
-                            statusText.innerText = "Extraction complete.";
+                            statusText.innerText = "Analysis Complete (Clean)";
                             statusText.className = "text-sm font-black text-green-600";
                         }
                     })
                     .catch(function(err) {
-                        console.error(err);
                         outputDiv.innerHTML = `<p class="text-red-500 font-bold">Error extracting text: ${err.message}</p>`;
                         statusText.innerText = "Extraction failed.";
                         statusText.className = "text-sm font-black text-red-600";
