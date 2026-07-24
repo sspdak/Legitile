@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>NPR to YouTube</title>
+  <style>
+    body { font-family: sans-serif; text-align: center; margin-top: 50px; }
+    button { padding: 15px 30px; font-size: 18px; background: #ff0000; color: white; border: none; border-radius: 5px; cursor: pointer; }
+    #status { margin-top: 20px; color: gray; }
+  </style>
+</head>
+<body>
+
+  <h1>New Music Friday Converter</h1>
+  <p>Click the button to find this week's albums and create a YouTube queue.</p>
+  
+  <button id="convert-btn">Find Songs & Open YouTube</button>
+  <div id="status"></div>
+
+  <script>
+    const button = document.getElementById('convert-btn');
+    const status = document.getElementById('status');
+
+    button.onclick = async () => {
+      button.innerText = "Working... (this takes a few seconds)";
+      status.innerText = "Reading NPR and searching YouTube...";
+      
+      try {
+        // This talks to your Cloudflare Worker (the kitchen)
+        const response = await fetch('/api/nmf'); 
+        const data = await response.json();
+        
+        status.innerText = `Success! Found ${data.trackCount} albums from: ${data.episode}`;
+        button.innerText = "Done!";
+        
+        // Open the YouTube Queue in a new tab
+        window.open(data.youtubeQueueUrl, '_blank');
+      } catch (error) {
+        status.innerText = "Oops, something went wrong!";
+        button.innerText = "Try Again";
+      }
+    };
+  </script>
+</body>
+</html>
