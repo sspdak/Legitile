@@ -1,32 +1,28 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>NPR to YouTube</title>
+  <title>NPR Archive</title>
   <style>
     body { font-family: sans-serif; text-align: center; margin-top: 50px; }
-    select, button { padding: 10px; font-size: 16px; margin: 10px; }
-    button { background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; }
-    button:disabled { background: #cccccc; cursor: not-allowed; }
-    #status { margin-top: 20px; color: gray; }
+    select { padding: 10px; font-size: 16px; margin: 10px; min-width: 250px; }
+    button { background: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; padding: 10px 15px; font-size: 16px; margin: 5px; }
     #result-area { margin-top: 20px; display: none; background: #f4f4f4; padding: 20px; border-radius: 8px; max-width: 600px; margin-left: auto; margin-right: auto; }
     input[type="text"] { width: 90%; padding: 10px; font-size: 14px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 4px; }
     .btn-copy { background: #28a745; }
+    .meta-text { color: #555; font-size: 14px; margin-bottom: 15px; }
   </style>
 </head>
 <body>
 
-  <h1>New Music Friday Converter</h1>
-  <p>Select an episode below to generate a YouTube playlist link.</p>
+  <h1>NPR Playlist Archive</h1>
+  <p>Select a past week to access its YouTube playlist.</p>
   
   <select id="episode-select">
-    <option>Loading available episodes...</option>
+    <option value="">Loading archives...</option>
   </select>
-  <br>
-  <button id="convert-btn" disabled>Find Songs</button>
-  <div id="status"></div>
 
-  <!-- This area stays hidden until a link is successfully generated -->
   <div id="result-area">
+    <div id="track-count" class="meta-text"></div>
     <p><strong>Your Playlist Link:</strong></p>
     <input type="text" id="queue-url" readonly>
     <br>
@@ -35,70 +31,61 @@
   </div>
 
   <script>
-    // Your live Worker URL is permanently wired in here
     const WORKER_URL = 'https://npr-converter.ewing-jacob.workers.dev/';
     
     const select = document.getElementById('episode-select');
-    const button = document.getElementById('convert-btn');
-    const status = document.getElementById('status');
     const resultArea = document.getElementById('result-area');
     const queueUrlInput = document.getElementById('queue-url');
+    const trackCountDiv = document.getElementById('track-count');
     const copyBtn = document.getElementById('copy-btn');
     const openBtn = document.getElementById('open-btn');
 
-    // 1. Fetch the list of episodes as soon as the page loads
+    let archiveData = [];
+
+    // Load the full history from the database on page load
     window.onload = async () => {
       try {
         const response = await fetch(`${WORKER_URL}?action=list`);
         const data = await response.json();
         
-        select.innerHTML = ''; // Clear the "Loading..." text
-        data.episodes.forEach(ep => {
-          const option = document.createElement('option');
-          option.value = ep.title;
-          option.text = `${ep.title} (${ep.date})`;
-          select.appendChild(option);
-        });
-        button.disabled = false;
+        if (data.episodes && data.episodes.length > 0) {
+          archiveData = data.episodes;
+          select.innerHTML = '<option value="">-- Choose a week --</option>';
+          
+          archiveData.forEach((ep, index) => {
+            const option = document.createElement('option');
+            option.value = index; // Store the array index to easily look it up later
+            option.text = ep.title;
+            select.appendChild(option);
+          });
+        } else {
+          select.innerHTML = '<option>No archives found yet.</option>';
+        }
       } catch (error) {
-        select.innerHTML = '<option>Error loading episodes. Check Cloudflare Worker.</option>';
+        select.innerHTML = '<option>Error loading database.</option>';
       }
     };
 
-    // 2. Handle the "Find Songs" button click
-    button.onclick = async () => {
-      const selectedTitle = select.value;
-      button.disabled = true;
-      button.innerText = "Working... (this takes a few seconds)";
-      status.innerText = "Reading episode notes and searching YouTube...";
-      resultArea.style.display = 'none';
-      
-      try {
-        const response = await fetch(`${WORKER_URL}?action=convert&title=${encodeURIComponent(selectedTitle)}`); 
-        const data = await response.json();
-        
-        if (data.error) throw new Error(data.error);
-
-        status.innerText = `Success! Found ${data.trackCount} albums.`;
-        queueUrlInput.value = data.youtubeQueueUrl;
-        resultArea.style.display = 'block'; // Reveal the link and buttons
-      } catch (error) {
-        status.innerText = `Error: ${error.message}`;
+    // Show the link instantly when an episode is selected
+    select.onchange = () => {
+      if (select.value === "") {
+        resultArea.style.display = 'none';
+        return;
       }
       
-      button.innerText = "Find Songs";
-      button.disabled = false;
+      const selectedEp = archiveData[select.value];
+      trackCountDiv.innerText = `Tracks found: ${selectedEp.trackCount}`;
+      queueUrlInput.value = selectedEp.youtubeQueueUrl;
+      resultArea.style.display = 'block';
     };
 
-    // 3. Handle the Copy Button
     copyBtn.onclick = () => {
       queueUrlInput.select();
       navigator.clipboard.writeText(queueUrlInput.value);
       copyBtn.innerText = "Copied!";
-      setTimeout(() => copyBtn.innerText = "Copy Link", 2000); // Reset text after 2 seconds
+      setTimeout(() => copyBtn.innerText = "Copy Link", 2000);
     };
 
-    // 4. Handle the Open Button
     openBtn.onclick = () => {
       window.open(queueUrlInput.value, '_blank');
     };
