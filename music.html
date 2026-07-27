@@ -84,8 +84,11 @@
       setTimeout(() => copyBtn.innerText = "Copy Link", 2000);
     };
 
+// 4. Handle the Open Button
     openBtn.onclick = () => {
-      window.open(queueUrlInput.value, '_blank');
+      // Intercept the standard link and swap the domain to YouTube Music
+      const ytmUrl = queueUrlInput.value.replace('www.youtube.com', 'music.youtube.com');
+      window.open(ytmUrl, '_blank');
     };
   </script>
 </body>
