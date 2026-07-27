@@ -86,9 +86,8 @@
 
 // 4. Handle the Open Button
     openBtn.onclick = () => {
-      // Intercept the standard link and swap the domain to YouTube Music
-      const ytmUrl = queueUrlInput.value.replace('www.youtube.com', 'music.youtube.com');
-      window.open(ytmUrl, '_blank');
+      // Reverted: Open in standard YouTube so it generates the queue properly
+      window.open(queueUrlInput.value, '_blank');
     };
   </script>
 </body>
